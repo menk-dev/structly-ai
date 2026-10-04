@@ -1,82 +1,80 @@
 # Phase 7 handoff
 
-Status: partial, 2026-10-04. Local publishing preparation is complete; external activation
-and first publication remain pending.
+Status: complete, 2026-10-04.
 
-The owner selected GitHub Packages for use in their own projects instead of NuGet.org.
-This supersedes the NuGet.org setup inputs in the phase 6 handoff. Package identity,
-.NET 10 support, MIT license and first version 0.1.0 remain unchanged.
+## Delivered behavior
 
-The release workflow now publishes the runtime package to the repository owner's GitHub
-NuGet registry with GITHUB_TOKEN and job-scoped packages:write permission. The activation
-variable is PACKAGES_PUBLISH_ENABLED and the environment is github-packages.
-NuGet/login, NUGET_USER and OIDC permissions are removed. Both nupkg and snupkg remain
-GitHub Release attachments; symbols are distributed as a download rather than through
-an automatic symbol-server indexing flow. Existing offline checks and tag/package version
-validation remain required before publication.
+Structly.AI 0.1.0 is published to GitHub Packages. The release workflow restored and ran
+an isolated consumer directly from the authenticated registry after upload. Both the
+runtime package and symbol package are downloadable from the GitHub Release:
+https://github.com/menk-dev/structly-ai/releases/tag/v0.1.0
 
-RELEASES documents account setup, authenticated consumer restore, package source mapping,
-cross-repository workflow access and original-run recovery. README links consumer feed
-setup, and PLAN reflects the selected registry and symbol distribution.
+The owner selected GitHub Packages for personal projects and manual version updates/tagging.
+These decisions supersede the phase 6 NuGet.org and Release Please setup. No release bot
+secret, NuGet account or trusted publishing policy is needed. Scoped Conventional Commits,
+.NET 10, MIT license and package identity remain unchanged.
 
-Initial remote activation: pushed main to menk-dev/structly-ai and confirmed owner admin
-access and enabled Actions. Enabled squash auto-merge with PR title/body as commit defaults,
-created the github-packages environment without required reviewers, and protected main
-with both required CI matrix checks, current-base enforcement, linear history and admin
-enforcement. Publishing and release auto-merge variables remain unset until the release
-PR prerequisites are verified. No credentials or packages were published. Still required:
-verify the release bot, required Linux/Windows checks and auto-merge; configure the
-github-packages environment and package access; explicitly activate publication; verify
-the first release PR proposes 0.1.0 and passes checks before merge; confirm tag, changelog,
-package and release artifacts agree; restore/run a real consumer from the published feed
-and download the symbol artifact. Keep phase 7 partial until these checks succeed.
+## Release process and safeguards
 
-## Local verification
+Update version.txt, Directory.Build.props and CHANGELOG.md through an ordinary PR, merge
+after required CI passes, and push a v-prefixed tag on main. The release job verifies main
+ancestry, version/changelog agreement, offline behavior, package metadata and fresh consumer
+consumption before creating the release and uploading packages. Post-upload verification
+uses the authenticated GitHub feed only, an isolated cache and bounded availability retries.
+Explicit dispatch with an existing tag supports recovery without inventing new versions.
 
-Both workflow YAML files parsed; their shell steps passed bash syntax checks. Publication
-configuration checks confirmed the gate, environment, job permissions and single runtime
-package push, with no NuGet login action. The documented consumer feed XML parsed and
-Git diff whitespace checks passed. Official GitHub/NuGet sources were reviewed for token
-authentication, repository access, credential environment variables and source mapping.
-Runtime code and dependencies are unchanged, so the offline .NET suite was not rerun.
-Actual Actions execution and authenticated registry consumption remain external checks.
+GitHub Actions is enabled. Main requires validate (ubuntu-latest) and validate (windows-latest),
+current-base enforcement, linear history and admin enforcement. Force pushes and branch
+deletion are disabled. Squash auto-merge is available with PR title/body as commit defaults;
+version bumps and release tags remain manual. The github-packages environment has no required
+reviewers. PACKAGES_PUBLISH_ENABLED=true activates tag publication. The publishing job uses
+GITHUB_TOKEN with contents:write and packages:write. Cross-repository package access and
+local read:packages credentials are documented in RELEASES.
 
-The first release workflow run failed because RELEASE_PLEASE_TOKEN is absent. It also
-exposed empty release PR JSON evaluation in the auto-merge step; the expression now
-uses an empty-object fallback so missing PR output does not produce a template error.
-The owner must configure a dedicated release token in GitHub Secrets.
+## Identity cleanup
 
-## Manual release update
+The owner authorized retroactive commit identity correction before publication. All local
+refs and eight remote branch histories were rewritten, replacing the previous email with
+the owner-selected address in identities, commit messages and file content. Main's file
+tree was unchanged. Atomic force-with-lease updates preserved the inspected remote state.
+Temporary admin force-push access was restored immediately; the protected policy was
+verified afterward. Reflogs were expired, unreachable objects pruned, and all 256 remaining
+local Git objects passed cleanup verification. Subsequent fetched remote histories also
+passed. Future repository commits use the owner-selected email.
 
-The owner selected manual versioning/tagging, superseding the earlier release bot setup.
-Release Please configuration is removed. The release workflow runs on v-prefixed tag pushes
-or dispatch with an existing tag, verifies main ancestry/version/changelog, validates and
-publishes using GITHUB_TOKEN. Missing release bot credentials are no longer a blocker.
-Both Linux and Windows CI passed for the activation PR; it merged after required checks.
-A .gitattributes LF checkout rule fixed Windows formatter failures. History identity cleanup
-was explicitly authorized before first publication; its verification is recorded below.
+GitHub-controlled cached commit views and pull-request refs cannot be erased by force-push.
+Other clones must use the rewritten history to avoid reintroducing the old commits. No claim
+is made that those external caches or other clones were purged.
 
-Manual release validation: locked restore, formatter verification, Release build (zero
-warnings/errors), all 437 offline tests, package creation, metadata/symbol checks, a fresh
-local-feed consumer and packed analyzer rejection passed. Workflow YAML/shell syntax
-and Git whitespace checks passed. First publication remains pending.
+## Verification and publication
 
-## History cleanup and final publication gates
+Local manual-release checks passed: locked restore, formatting, Release build with zero
+warnings/errors, 437 offline tests, package creation, metadata/content/XML/PDB/Source Link,
+a fresh local-feed consumer and packed analyzer rejection. Workflow YAML/shell syntax and
+Git whitespace checks passed. Linux and Windows CI passed before each workflow change merged.
 
-The owner authorized rewriting published Git history to correct commit identity. All local
-refs and eight remote branch histories were rewritten with atomic force-with-lease updates;
-main files were unchanged. Temporary admin force-push access was restored to the original
-protected policy immediately after the push. Local reflogs were expired and unreachable
-objects pruned; all 256 remaining Git objects passed identity cleanup verification. Future
-commits use the owner-selected email. GitHub-controlled cached commits and PR refs cannot
-be erased by force-push; other clones must use the rewritten history to avoid reintroducing
-old commits. This is distinct from the verified branch histories.
+The published tag v0.1.0 resolves to a1bc60f5bbbe7352648318c386e5f46f0632de18. Version.txt,
+Directory.Build.props, changelog, packed versions and the tag agree on 0.1.0.
+Release run 37218608918 succeeded:
+https://github.com/menk-dev/structly-ai/actions/runs/37218608918
 
-The release workflow also restores/runs the offline consumer from the authenticated
-GitHub feed in a fresh package cache after upload, with bounded retries for registry
-availability. The runtime has no dependencies, so the verification feed is GitHub only.
+Both registry upload and authenticated fresh-consumer verification steps succeeded. Main
+CI run 37218578511 also passed. Runtime and symbol assets were independently downloaded:
+Structly.AI.0.1.0.nupkg (105669 bytes) and Structly.AI.0.1.0.snupkg (25379 bytes). Downloaded
+package metadata confirms 0.1.0 and the tagged source revision; the symbol archive contains
+the runtime portable PDB. Symbols are release downloads, without automatic server indexing.
 
-GitHub rejects repository variable names beginning with GITHUB_. The publication gate
-is PACKAGES_PUBLISH_ENABLED. The initial tag-trigger run skipped because the rejected
-variable could not be set; no release or package was created. The unpublished tag was
-removed before retrying the corrected workflow.
+## Recovery adjustments and limitations
+
+The initial activation run exposed Windows CRLF checkout conflicting with editorconfig;
+.gitattributes now preserves LF. An absent Release Please token initially blocked the old
+bot flow; manual publication removed that dependency. GitHub rejects GITHUB_-prefixed
+repository variables, so the gate is PACKAGES_PUBLISH_ENABLED. The first tag attempt
+skipped before creating any release/package; the unpublished tag was removed before retrying
+with the corrected workflow. No published package was replaced and no extra version was
+created to conceal a failure.
+
+Future consumers need the documented authenticated feed and package access. The publisher's
+consumer check verifies same-repository access; access for each additional consuming repository
+must be granted independently. No provider calls were made. Extra providers/frameworks and
+runtime capabilities beyond the approved scope remain deferred as in earlier handoffs.
