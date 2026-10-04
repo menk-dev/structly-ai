@@ -70,7 +70,7 @@ Before declaring a phase complete:
 | Phase | Outcome | Prerequisite | Status |
 | --- | --- | --- | --- |
 | 1 | Scope, API proposal, and behavior contract | Initialization | Complete |
-| 2 | Public contracts and schema engine | Phase 1 | Pending |
+| 2 | Public contracts and schema engine | Phase 1 | Complete |
 | 3 | Working typed calls through the initial provider | Phase 2 | Pending |
 | 4 | Reliable execution and observability | Phase 3 | Pending |
 | 5 | Approved advanced structured-output capabilities | Phase 4 | Pending |
