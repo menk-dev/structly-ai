@@ -9,7 +9,7 @@ This supersedes the NuGet.org setup inputs in the phase 6 handoff. Package ident
 
 The release workflow now publishes the runtime package to the repository owner's GitHub
 NuGet registry with GITHUB_TOKEN and job-scoped packages:write permission. The activation
-variable is GITHUB_PACKAGES_PUBLISH_ENABLED and the environment is github-packages.
+variable is PACKAGES_PUBLISH_ENABLED and the environment is github-packages.
 NuGet/login, NUGET_USER and OIDC permissions are removed. Both nupkg and snupkg remain
 GitHub Release attachments; symbols are distributed as a download rather than through
 an automatic symbol-server indexing flow. Existing offline checks and tag/package version
@@ -75,3 +75,8 @@ old commits. This is distinct from the verified branch histories.
 The release workflow also restores/runs the offline consumer from the authenticated
 GitHub feed in a fresh package cache after upload, with bounded retries for registry
 availability. The runtime has no dependencies, so the verification feed is GitHub only.
+
+GitHub rejects repository variable names beginning with GITHUB_. The publication gate
+is PACKAGES_PUBLISH_ENABLED. The initial tag-trigger run skipped because the rejected
+variable could not be set; no release or package was created. The unpublished tag was
+removed before retrying the corrected workflow.

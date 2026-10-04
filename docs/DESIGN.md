@@ -807,7 +807,7 @@ does not activate them. No required local phase 6 work remains.
 The owner selected GitHub Packages for personal project consumption. This supersedes the
 NuGet.org ownership/trusted publishing inputs above and in the historical phase 6 handoff.
 Release publication uses GITHUB_TOKEN with packages:write, the github-packages environment
-and GITHUB_PACKAGES_PUBLISH_ENABLED gate. Consumers configure an authenticated GitHub
+and PACKAGES_PUBLISH_ENABLED gate. Consumers configure an authenticated GitHub
 NuGet feed; other consuming repositories require package Actions access. Symbols remain
 GitHub Release downloads rather than an automatic symbol-server flow. See RELEASES for
 official sources, consumer setup and recovery, and PHASE-7 for pending external checks.
