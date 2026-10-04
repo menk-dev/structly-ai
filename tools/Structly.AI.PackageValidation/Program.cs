@@ -85,6 +85,25 @@ using var hostingSymbols = ZipFile.OpenRead(Path.Combine(packages, $"Structly.AI
 Require(hostingSymbols.GetEntry("lib/net10.0/Structly.AI.Hosting.pdb") is { Length: > 0 }, "Missing hosting symbols.");
 Console.WriteLine("Hosting package metadata, dependencies, XML and symbols passed.");
 
+using var testingPackage = ZipFile.OpenRead(Path.Combine(packages, $"Structly.AI.Testing.{version}.nupkg"));
+var testingMetadata = ReadXml(testingPackage, "Structly.AI.Testing.nuspec");
+var testingNs = testingMetadata.Root!.Name.Namespace;
+var testingDetails = testingMetadata.Root.Element(testingNs + "metadata")!;
+Require(testingDetails.Element(testingNs + "id")?.Value == "Structly.AI.Testing", "Unexpected testing package ID.");
+Require(testingDetails.Element(testingNs + "version")?.Value == version, "Unexpected testing package version.");
+Require(testingDetails.Element(testingNs + "license")?.Value == "MIT", "Unexpected testing license.");
+Require(testingDetails.Descendants(testingNs + "group").Single().Attribute("targetFramework")?.Value == "net10.0", "Unexpected testing framework.");
+var testingDependency = testingDetails.Descendants(testingNs + "dependency").Single();
+Require(testingDependency.Attribute("id")?.Value == "Structly.AI" && testingDependency.Attribute("version")?.Value.Trim('[', ']') == version, "Testing must depend only on matching core.");
+ValidateAssemblyVersion(testingPackage, "lib/net10.0/Structly.AI.Testing.dll", version);
+Require(ReadXml(testingPackage, "lib/net10.0/Structly.AI.Testing.xml").Descendants("member").Any(), "Missing testing XML.");
+Require(ReadText(testingPackage, "README.md") == File.ReadAllText(Path.Combine(root, "README.md")), "Stale testing README.");
+using var testingSymbols = ZipFile.OpenRead(Path.Combine(packages, $"Structly.AI.Testing.{version}.snupkg"));
+Require(testingSymbols.GetEntry("lib/net10.0/Structly.AI.Testing.pdb") is { Length: > 0 }, "Missing testing symbols.");
+ValidateCompanionPackage(hostingPackage, hostingSymbols, "Structly.AI.Hosting", version, root);
+ValidateCompanionPackage(testingPackage, testingSymbols, "Structly.AI.Testing", version, root);
+Console.WriteLine("Testing package metadata, dependency, XML, contents, symbols and Source Link passed.");
+
 // Outside the repository: no Directory.Build.props, central versions, project references,
 // prior package cache or external feeds can make consumer validation pass accidentally.
 var consumer = Path.Combine(Path.GetTempPath(), "structly-package-" + Guid.NewGuid().ToString("N"));
@@ -96,14 +115,16 @@ try
     new XDocument(new XElement("Project", new XAttribute("Sdk", "Microsoft.NET.Sdk"),
         new XElement("PropertyGroup", new XElement("OutputType", "Exe"), new XElement("TargetFramework", "net10.0"),
             new XElement("ImplicitUsings", "enable"), new XElement("Nullable", "enable"), new XElement("TreatWarningsAsErrors", "true")),
-        new XElement("ItemGroup", new XElement("PackageReference", new XAttribute("Include", "Structly.AI"), new XAttribute("Version", version)))))
+        new XElement("ItemGroup", new XElement("PackageReference", new XAttribute("Include", "Structly.AI"), new XAttribute("Version", version)), new XElement("PackageReference", new XAttribute("Include", "Structly.AI.Testing"), new XAttribute("Version", version)))))
         .Save(Path.Combine(consumer, "Consumer.csproj"));
-    File.Copy(Path.Combine(root, "examples/Structly.AI.Consumer/Program.cs"), Path.Combine(consumer, "Program.cs"));
+    foreach (var source in Directory.GetFiles(Path.Combine(root, "examples/Structly.AI.Consumer"), "*.cs"))
+        File.Copy(source, Path.Combine(consumer, Path.GetFileName(source)));
     var restore = await Dotnet(consumer, "restore", "Consumer.csproj", "--configfile", "NuGet.Config", "--packages", Path.Combine(consumer, "packages"), "--no-http-cache");
     Require(restore.ExitCode == 0, "Packed consumer restore failed:\n" + restore.Output);
     var run = await Dotnet(consumer, "run", "--project", "Consumer.csproj", "-c", "Release", "--no-restore");
     Require(run.ExitCode == 0 && run.Output.Contains("Offline consumer passed.", StringComparison.Ordinal), "Packed consumer failed:\n" + run.Output);
     Console.WriteLine("Fresh consumer restored solely from the local feed and ran successfully.");
+    File.Delete(Path.Combine(consumer, "BatchExamples.cs"));
     File.WriteAllText(Path.Combine(consumer, "Program.cs"), """
         using Structly.AI;
         _ = StructuredTask.Create<InvalidOutput>(new() { Instructions = "test" });
@@ -116,6 +137,34 @@ try
     Console.WriteLine("Packed analyzer rejected an invalid DTO with STAI001.");
 }
 finally { Directory.Delete(consumer, recursive: true); }
+
+static void ValidateCompanionPackage(ZipArchive package, ZipArchive symbols, string id, string version, string root)
+{
+    var metadata = ReadXml(package, id + ".nuspec");
+    var ns = metadata.Root!.Name.Namespace;
+    var details = metadata.Root.Element(ns + "metadata")!;
+    Require(details.Element(ns + "authors")?.Value == "menk-dev", "Unexpected companion package authors.");
+    Require(details.Element(ns + "license")?.Attribute("type")?.Value == "expression", "Missing companion SPDX license.");
+    Require(details.Element(ns + "readme")?.Value == "README.md", "Missing companion README metadata.");
+    Require(details.Element(ns + "repository")?.Attribute("url")?.Value == "https://github.com/menk-dev/structly-ai", "Missing companion repository.");
+    Require(ReadText(package, "LICENSE") == File.ReadAllText(Path.Combine(root, "LICENSE")), "Stale companion license.");
+    var expected = new HashSet<string>(StringComparer.Ordinal) { "_rels/.rels", id + ".nuspec", "[Content_Types].xml", "README.md", "LICENSE", $"lib/net10.0/{id}.dll", $"lib/net10.0/{id}.xml" };
+    foreach (var entry in package.Entries)
+        Require(expected.Contains(entry.FullName) || entry.FullName.StartsWith("package/services/metadata/core-properties/", StringComparison.Ordinal) && entry.FullName.EndsWith(".psmdcp", StringComparison.Ordinal), "Unexpected companion content: " + entry.FullName);
+    foreach (var name in expected) Require(package.GetEntry(name) is { Length: > 0 }, "Missing companion content: " + name);
+    ValidateAssemblyVersion(package, $"lib/net10.0/{id}.dll", version);
+    using var stream = symbols.GetEntry($"lib/net10.0/{id}.pdb")!.Open();
+    using var buffer = new MemoryStream(); stream.CopyTo(buffer); buffer.Position = 0;
+    using var pdb = MetadataReaderProvider.FromPortablePdbStream(buffer);
+    var reader = pdb.GetMetadataReader();
+    var sourceLinkId = new Guid("CC110556-A091-4D38-9FEC-25AB9A351A6A");
+    var sourceLink = reader.CustomDebugInformation.Select(reader.GetCustomDebugInformation)
+        .Where(x => reader.GetGuid(x.Kind) == sourceLinkId).Select(x => reader.GetBlobBytes(x.Value)).Single();
+    using var json = JsonDocument.Parse(sourceLink);
+    var revision = details.Element(ns + "repository")!.Attribute("commit")!.Value;
+    Require(revision.Length == 40 && json.RootElement.GetProperty("documents").EnumerateObject()
+        .Any(x => x.Value.GetString()?.Contains($"menk-dev/structly-ai/{revision}/", StringComparison.Ordinal) == true), "Companion Source Link revision disagrees.");
+}
 
 static void Require(bool condition, string message)
 {
@@ -161,13 +210,15 @@ static void ValidateAssemblyVersion(ZipArchive archive, string name, string vers
 
 static async Task<(int ExitCode, string Output)> Dotnet(string directory, params string[] arguments)
 {
-    var start = new ProcessStartInfo("dotnet")
+    var start = new ProcessStartInfo("rtk")
     {
         WorkingDirectory = directory,
         RedirectStandardOutput = true,
         RedirectStandardError = true,
         UseShellExecute = false
     };
+    start.ArgumentList.Add("proxy");
+    start.ArgumentList.Add("dotnet");
     foreach (var argument in arguments) start.ArgumentList.Add(argument);
     using var process = Process.Start(start)!;
     var stdout = process.StandardOutput.ReadToEndAsync();

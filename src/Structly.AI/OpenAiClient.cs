@@ -38,7 +38,8 @@ public sealed partial class OpenAiClient
         SelectModel(options.DefaultModel);
         var embeddingProfiles = SnapshotProfiles(options.EmbeddingProfiles);
         var imageProfiles = SnapshotProfiles(options.ImageProfiles);
-        var compatibility = new Dictionary<string, OpenAiCacheCompatibility>(options.CacheCompatibility, StringComparer.Ordinal);
+        var compatibility = new Dictionary<string, OpenAiCacheCompatibility>(OpenAiCacheDefaults.Models, StringComparer.Ordinal);
+        foreach (var entry in options.CacheCompatibility) compatibility[entry.Key] = entry.Value;
         if (compatibility.Any(x => String.IsNullOrWhiteSpace(x.Key) || !Enum.IsDefined(x.Value)))
             throw new ArgumentException("Invalid cache compatibility configuration.", nameof(options));
         _http = httpClient;
@@ -77,6 +78,9 @@ public sealed partial class OpenAiClient
             var usage = new StructuredUsageEvent
             {
                 Metadata = execution.Metadata,
+                Provider = execution.Metadata.Provider!,
+                RequestedModel = execution.Metadata.RequestedModel!,
+                Usage = execution.Metadata.Usage!,
                 Succeeded = result.IsSuccess && !cancellationToken.IsCancellationRequested,
                 FailureKind = result.Error?.Kind,
                 CallerCancelled = cancellationToken.IsCancellationRequested
@@ -92,7 +96,19 @@ public sealed partial class OpenAiClient
 
     static StructuredResult<T> LocalFailure<T>(OpenAiExecution execution, StructuredErrorKind kind, bool transient = false,
         IReadOnlyList<StructuredIssue>? issues = null) => StructuredResult<T>.Failure(new StructuredError
-        { Kind = kind, Message = $"Structured operation failed: {kind}.", IsTransient = transient, Issues = issues ?? [] },
+        {
+            Kind = kind,
+            Message = kind switch
+            {
+                StructuredErrorKind.DeadlineExceeded => $"Total timeout expired ({execution.TotalTimeout}).",
+                StructuredErrorKind.InactivityExceeded => $"Inactivity timeout expired ({execution.InactivityTimeout}).",
+                _ => $"Structured operation failed: {kind}."
+            },
+            TotalTimeout = kind is StructuredErrorKind.DeadlineExceeded or StructuredErrorKind.InactivityExceeded ? execution.TotalTimeout : null,
+            InactivityTimeout = kind is StructuredErrorKind.DeadlineExceeded or StructuredErrorKind.InactivityExceeded ? execution.InactivityTimeout : null,
+            IsTransient = transient,
+            Issues = issues ?? []
+        },
         execution.Metadata, execution.Warnings);
 
     async Task<StructuredResult<T>> ExecuteCore<T>(StructuredTask<T> task, StructuredRequest request, OpenAiExecution execution)
@@ -103,6 +119,7 @@ public sealed partial class OpenAiClient
         try
         {
             ValidateResponseRequest(request);
+            if (String.IsNullOrWhiteSpace(request.Instructions ?? task.Instructions)) throw new ArgumentException("Typed execution requires instructions.");
             vocabularies = request.Vocabularies?.ToDictionary(x => x.Key,
                 x => (IReadOnlyList<string>)(x.Value ?? throw new ArgumentException("Vocabulary values cannot be null.")).ToArray(), StringComparer.Ordinal);
             var schema = task.CreateSchema(vocabularies);
@@ -170,7 +187,8 @@ public sealed partial class OpenAiClient
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception) when (exception is not OutOfMemoryException and not StackOverflowException)
         { return Fail(StructuredErrorKind.Authentication); }
-        if (String.IsNullOrWhiteSpace(credential) || credential.Any(c => c < 33 || c > 126)) return Fail(StructuredErrorKind.Authentication);
+        if (String.IsNullOrWhiteSpace(credential)) return Fail(StructuredErrorKind.CredentialsMissing);
+        if (credential.Any(c => c < 33 || c > 126)) return Fail(StructuredErrorKind.Authentication);
         using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(_options.BaseAddress, endpoint));
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
         if (request.OpenAi.IdempotencyKey is { } idempotency) message.Headers.Add("Idempotency-Key", idempotency);
@@ -228,14 +246,7 @@ public sealed partial class OpenAiClient
             StructuredResult<T> HttpFailure(string? code)
             {
                 var status = (int)response.StatusCode;
-                var kind = status switch
-                {
-                    401 => StructuredErrorKind.Authentication,
-                    403 => StructuredErrorKind.PermissionDenied,
-                    429 => StructuredErrorKind.RateLimited,
-                    408 or >= 500 and <= 599 => StructuredErrorKind.ProviderUnavailable,
-                    _ => StructuredErrorKind.ProviderRejected
-                };
+                var kind = ClassifyStatus(status);
                 var retry = response.Headers.RetryAfter;
                 var delay = retry?.Delta ?? (retry?.Date is { } date ? date - _options.TimeProvider.GetUtcNow() : (TimeSpan?)null);
                 return Fail(kind, kind == StructuredErrorKind.ProviderUnavailable || kind == StructuredErrorKind.RateLimited && code != "insufficient_quota",

@@ -20,16 +20,23 @@ public sealed partial class StructuredTask<T>
                 "\n\nResolved output schema (all constraints apply):\n" + schema.GetRawText());
         if (options.IncludeExample)
         {
-            var values = SchemaWriter.ResolveVocabularies(_contract, vocabularies);
-            var json = options.ExampleJson ?? Sample(_contract, values, new SampleBudget())?.ToJsonString() ?? "null";
-            var result = ReadOutput(json, values.ToDictionary(x => x.Key, x => (IReadOnlyList<string>)x.Value));
-            if (!result.IsSuccess)
-                throw new ArgumentException("ExampleJson must satisfy the output contract. Supply a valid ExampleJson or set IncludeExample=false.", nameof(options));
-            using var document = JsonDocument.Parse(json);
-            sections.Add("Example of valid output JSON:\n" + JsonSerializer.Serialize(document.RootElement));
+            var example = options.ExampleJson is null ? CreateExample(vocabularies) : JsonSerializer.Deserialize<JsonElement>(options.ExampleJson);
+            if (!ReadOutput(example.GetRawText(), vocabularies).IsSuccess)
+                throw new ArgumentException("ExampleJson must satisfy the output contract.", nameof(options));
+            sections.Add("Example of valid output JSON:\n" + JsonSerializer.Serialize(example));
         }
         if (options.AdditionalInstructions is { } additional) sections.Add(additional);
         return String.Join("\n\n", sections);
+    }
+
+    /// <summary>Generates and validates a detached example. Unsupported constraints throw ArgumentException.</summary>
+    public JsonElement CreateExample(IReadOnlyDictionary<string, IReadOnlyList<string>>? vocabularies = null)
+    {
+        CreateSchema(vocabularies);
+        var values = SchemaWriter.ResolveVocabularies(_contract, vocabularies, order: VocabularyOrder);
+        var json = Sample(_contract, values, new SampleBudget())?.ToJsonString() ?? "null";
+        if (!ReadOutput(json, vocabularies).IsSuccess) throw SampleRequired();
+        return JsonSerializer.Deserialize<JsonElement>(json);
     }
 
     static IEnumerable<string> DescribeFields(JsonElement schema, string path)
@@ -107,5 +114,5 @@ public sealed partial class StructuredTask<T>
         public int Characters { get; set; }
     }
 
-    static ArgumentException SampleRequired() => new("Cannot reliably generate this constrained example. Supply ExampleJson or set IncludeExample=false.");
+    static ArgumentException SampleRequired() => new("Cannot generate a valid example for these constraints within the generation limits. Supply an explicit ExampleJson or disable examples in output specifications.");
 }

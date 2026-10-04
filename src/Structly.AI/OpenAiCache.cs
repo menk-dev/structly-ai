@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 namespace Structly.AI.OpenAI;
 
 /// <summary>Explicitly configured provider cache contract for an exact model ID.</summary>
@@ -61,4 +63,14 @@ public sealed record OpenAiPrewarmRequest
     public required StructuredRequest Request { get; init; }
     /// <summary>Gets optional nonblank instructions.</summary>
     public string? Instructions { get; init; }
+}
+
+static class OpenAiCacheDefaults
+{
+    public static FrozenDictionary<string, OpenAiCacheCompatibility> Models { get; } = new Dictionary<string, OpenAiCacheCompatibility>(StringComparer.Ordinal)
+    {
+        ["gpt-6-luna"] = OpenAiCacheCompatibility.Modern,
+        ["gpt-6-sol"] = OpenAiCacheCompatibility.Modern,
+        ["gpt-6-astra"] = OpenAiCacheCompatibility.Modern
+    }.ToFrozenDictionary(StringComparer.Ordinal);
 }

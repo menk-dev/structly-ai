@@ -449,7 +449,7 @@ public sealed class AuxiliaryOperationTests
         Func<CancellationToken, ValueTask<string?>> missing = _ => ValueTask.FromResult<string?>(null);
         var error = image ? (await client.GenerateImagesAsync(Image() with { CredentialResolver = missing }, TestContext.Current.CancellationToken)).Error
             : (await client.EmbedAsync(Embedding() with { CredentialResolver = missing }, TestContext.Current.CancellationToken)).Error;
-        Assert.Equal(StructuredErrorKind.Authentication, error!.Kind);
+        Assert.Equal(StructuredErrorKind.CredentialsMissing, error!.Kind);
         Assert.Equal(0, handler.Calls);
     }
 

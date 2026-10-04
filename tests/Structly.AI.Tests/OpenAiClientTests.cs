@@ -298,7 +298,7 @@ public sealed class OpenAiClientTests
         await client.ExecuteAsync(task, new() { Input = "input", ModelSelection = new() { ModelId = "request-model" }, CredentialResolver = Credentials.FromStatic("request") }, TestContext.Current.CancellationToken);
         Assert.Equal(new[] { "client", "task", "request" }, keys);
         Assert.Equal(new[] { "client-model", "task-model", "request-model" }, models);
-        Assert.Equal(StructuredErrorKind.Authentication, (await client.ExecuteAsync(task, new() { Input = "input", CredentialResolver = _ => ValueTask.FromResult<string?>(null) }, TestContext.Current.CancellationToken)).Error!.Kind);
+        Assert.Equal(StructuredErrorKind.CredentialsMissing, (await client.ExecuteAsync(task, new() { Input = "input", CredentialResolver = _ => ValueTask.FromResult<string?>(null) }, TestContext.Current.CancellationToken)).Error!.Kind);
         Assert.Equal(StructuredErrorKind.Authentication, (await client.ExecuteAsync(task, new() { Input = "input", CredentialResolver = _ => throw new InvalidOperationException("secret") }, TestContext.Current.CancellationToken)).Error!.Kind);
         Assert.Equal(3, handler.Calls);
     }

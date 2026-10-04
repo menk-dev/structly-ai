@@ -7,9 +7,9 @@ namespace Structly.AI;
 static class SchemaWriter
 {
     public static JsonElement Create(SchemaNode root, string? description,
-        IReadOnlyDictionary<string, IReadOnlyList<string>>? vocabularies, bool allowMissingVocabularies = false)
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? vocabularies, bool allowMissingVocabularies = false, VocabularyOrder order = VocabularyOrder.Ordinal)
     {
-        var values = ResolveVocabularies(root, vocabularies, allowMissingVocabularies);
+        var values = ResolveVocabularies(root, vocabularies, allowMissingVocabularies, order);
         var budget = new Budget();
         var schema = Emit(root, "$", 0, values, budget);
         if (description is not null) schema["description"] = description;
@@ -20,15 +20,15 @@ static class SchemaWriter
     }
 
     public static Dictionary<string, string[]> ResolveVocabularies(SchemaNode root,
-        IReadOnlyDictionary<string, IReadOnlyList<string>>? supplied, bool allowMissing = false)
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? supplied, bool allowMissing = false, VocabularyOrder order = VocabularyOrder.Ordinal)
     {
         var values = new Dictionary<string, string[]>(StringComparer.Ordinal);
-        Visit(root, "$", values, supplied, allowMissing);
+        Visit(root, "$", values, supplied, allowMissing, order);
         return values;
     }
 
     static void Visit(SchemaNode node, string path, Dictionary<string, string[]> values,
-        IReadOnlyDictionary<string, IReadOnlyList<string>>? supplied, bool allowMissing)
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? supplied, bool allowMissing, VocabularyOrder order)
     {
         if (node.Vocabulary is { } name && !values.ContainsKey(name))
         {
@@ -53,12 +53,12 @@ static class SchemaWriter
                         SchemaResolver.Fail(path, "EnumStringLimit", "Vocabulary strings exceed the strict-schema character limit.");
                     snapshot[i] = value;
                 }
-                Array.Sort(snapshot, StringComparer.Ordinal);
+                if (order == VocabularyOrder.Ordinal) Array.Sort(snapshot, StringComparer.Ordinal);
                 values.Add(name, snapshot);
             }
         }
-        if (node.Item is not null) Visit(node.Item, path + "[]", values, supplied, allowMissing);
-        foreach (var member in node.Members) Visit(member.Node, path + "." + member.Name, values, supplied, allowMissing);
+        if (node.Item is not null) Visit(node.Item, path + "[]", values, supplied, allowMissing, order);
+        foreach (var member in node.Members) Visit(member.Node, path + "." + member.Name, values, supplied, allowMissing, order);
     }
 
     static JsonObject Emit(SchemaNode node, string path, int depth, Dictionary<string, string[]> values, Budget budget)

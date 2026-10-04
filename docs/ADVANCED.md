@@ -279,3 +279,9 @@ Local `ReadOutput` results also include the schema name.
 Omitting `StructuredRequest.OpenAi` or explicitly assigning null both use default provider
 settings. For example, `OpenAi = useCache ? new() { PromptCacheKey = "source" } : null`
 is supported.
+
+Exact cache defaults classify `gpt-6-luna`, `gpt-6-sol` and `gpt-6-astra` as `Modern`.
+Application `CacheCompatibility` entries override these defaults. Unknown IDs, including
+suffix variants, require explicit configuration; model prefixes do not determine compatibility.
+Modern controls apply to GPT-5.6 and later. See the
+[provider prompt-caching guide](https://developers.openai.com/api/docs/guides/prompt-caching).

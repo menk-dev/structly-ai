@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+- Add validated examples, optional task instructions, vocabulary ordering, timeout budgets, missing-credential classification and direct usage-event accounting fields.
+- Add callback hosting configuration and opt-in environment credentials; supply exact GPT-6 cache defaults.
+- Add batch files, lifecycle operations, prepared embedding/typed Responses batches and manifest-based streaming result imports.
+- Add Structly.AI.Testing envelope builders and explicit example completion.
+- Breaking: missing credentials now return CredentialsMissing; typed execution still requires effective instructions.
+
+
 ## Unreleased
 
 ## 0.3.0

@@ -21,11 +21,22 @@ public sealed record SerializationProfile
     public PropertyNaming Naming { get; init; } = PropertyNaming.CamelCase;
 }
 
+/// <summary>Determines runtime vocabulary ordering.</summary>
+public enum VocabularyOrder
+{
+    /// <summary>Sort vocabulary values ordinally.</summary>
+    Ordinal,
+    /// <summary>Keep the supplied order.</summary>
+    PreserveInput
+}
+
 /// <summary>Startup settings for a reusable typed output contract.</summary>
 public sealed record StructuredTaskOptions
 {
-    /// <summary>Gets required nonblank task instructions.</summary>
-    public required string Instructions { get; init; }
+    /// <summary>Gets optional task instructions; explicit blank values are invalid.</summary>
+    public string? Instructions { get; init; }
+    /// <summary>Gets vocabulary ordering.</summary>
+    public VocabularyOrder VocabularyOrder { get; init; }
     /// <summary>Gets an optional explicit schema name.</summary>
     public string? SchemaName { get; init; }
     /// <summary>Gets an optional schema description overriding type metadata.</summary>
@@ -57,12 +68,14 @@ public sealed partial class StructuredTask<T>
 
     internal StructuredTask(StructuredTaskOptions options)
     {
-        if (String.IsNullOrWhiteSpace(options.Instructions))
+        if (options.Instructions is not null && String.IsNullOrWhiteSpace(options.Instructions))
             throw new ArgumentException("Task instructions must be nonblank.", nameof(options));
         ArgumentNullException.ThrowIfNull(options.SerializationProfile);
         if (!Enum.IsDefined(options.SerializationProfile.Naming))
             throw new ArgumentException("Unsupported naming policy.", nameof(options));
         options.ModelSelection?.Validate();
+        if (!Enum.IsDefined(options.VocabularyOrder)) throw new ArgumentException("Invalid vocabulary order.", nameof(options));
+        VocabularyOrder = options.VocabularyOrder;
         ModelSelection = options.ModelSelection;
         CredentialResolver = options.CredentialResolver;
         Instructions = options.Instructions;
@@ -101,13 +114,15 @@ public sealed partial class StructuredTask<T>
         SchemaWriter.Create(_contract, Description, null, allowMissingVocabularies: true);
     }
 
+    /// <summary>Gets vocabulary ordering.</summary>
+    public VocabularyOrder VocabularyOrder { get; }
     /// <summary>Gets task-specific model selection.</summary>
     public ModelSelection? ModelSelection { get; }
     /// <summary>Gets task-specific credentials.</summary>
     public Func<CancellationToken, ValueTask<string?>>? CredentialResolver { get; }
 
     /// <summary>Gets immutable task instructions.</summary>
-    public string Instructions { get; }
+    public string? Instructions { get; }
     /// <summary>Gets the resolved valid provider schema name.</summary>
     public string SchemaName { get; }
     /// <summary>Gets the resolved schema description.</summary>
@@ -117,7 +132,7 @@ public sealed partial class StructuredTask<T>
 
     /// <summary>Creates a detached deterministic strict schema using snapshotted vocabularies.</summary>
     public JsonElement CreateSchema(IReadOnlyDictionary<string, IReadOnlyList<string>>? vocabularies = null)
-        => SchemaWriter.Create(_contract, Description, vocabularies);
+        => SchemaWriter.Create(_contract, Description, vocabularies, order: VocabularyOrder);
 
     /// <summary>Validates JSON before deserializing. Results retain supplied metadata values and include this task's schema name.</summary>
     public StructuredResult<T> ReadOutput(string json,
@@ -129,8 +144,8 @@ public sealed partial class StructuredTask<T>
         Dictionary<string, string[]> values;
         try
         {
-            values = SchemaWriter.ResolveVocabularies(_contract, vocabularies);
-            SchemaWriter.Create(_contract, Description, values.ToDictionary(x => x.Key, x => (IReadOnlyList<string>)x.Value));
+            values = SchemaWriter.ResolveVocabularies(_contract, vocabularies, order: VocabularyOrder);
+            SchemaWriter.Create(_contract, Description, values.ToDictionary(x => x.Key, x => (IReadOnlyList<string>)x.Value), order: VocabularyOrder);
         }
         catch (StructuredSchemaException exception)
         {
@@ -161,11 +176,26 @@ public sealed partial class StructuredTask<T>
         }
     }
 
+    static string IssueSummary(IReadOnlyList<StructuredIssue> issues)
+    {
+        var summary = "Output does not satisfy the typed contract.";
+        var included = 0;
+        foreach (var issue in issues.Take(5))
+        {
+            var pair = " " + JsonSerializer.Serialize(issue.Path) + "/" + JsonSerializer.Serialize(issue.Code) + ";";
+            if (summary.Length + pair.Length > 480) break;
+            summary += pair;
+            included++;
+        }
+        if (included < issues.Count) summary += " (additional issues omitted)";
+        return summary;
+    }
+
     static StructuredResult<T> Invalid(IReadOnlyList<StructuredIssue> issues, StructuredMetadata metadata)
         => StructuredResult<T>.Failure(new StructuredError
         {
             Kind = StructuredErrorKind.InvalidOutput,
-            Message = "Output does not satisfy the typed contract.",
+            Message = IssueSummary(issues),
             Issues = issues
         }, metadata);
 }

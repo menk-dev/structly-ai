@@ -28,6 +28,8 @@ sealed class OpenAiExecution : IDisposable
     public StructuredMetadata Metadata { get; set; }
     public List<StructuredWarning> Warnings { get; } = [];
     public CancellationToken Token => _operation.Token;
+    public TimeSpan TotalTimeout => _budget;
+    public TimeSpan? InactivityTimeout { get; private set; }
     public TimeSpan Remaining => _budget - _clock.GetElapsedTime(_started);
     public StructuredErrorKind? Deadline => _total.IsCancellationRequested || Remaining <= TimeSpan.Zero
         ? StructuredErrorKind.DeadlineExceeded : _idle.IsCancellationRequested ? StructuredErrorKind.InactivityExceeded : null;
@@ -51,6 +53,7 @@ sealed class OpenAiExecution : IDisposable
 
     public void StartInactivity(TimeSpan? timeout)
     {
+        InactivityTimeout = timeout;
         if (timeout is { } duration)
             _idleTimer = _clock.CreateTimer(_ => CancelIdle(), null, IdleTimerDelay(duration), Timeout.InfiniteTimeSpan);
     }
@@ -61,6 +64,12 @@ sealed class OpenAiExecution : IDisposable
     }
 
     public void StopInactivity() => _idleTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+
+    public async Task Await(Task pending)
+    {
+        try { await pending.WaitAsync(Token).ConfigureAwait(false); }
+        catch { _ = ObserveLate(pending); throw; }
+    }
 
     public async Task<T> Await<T>(Task<T> pending, Action<T>? disposeLate = null)
     {

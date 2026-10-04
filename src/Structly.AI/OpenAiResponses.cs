@@ -49,6 +49,7 @@ public sealed partial class OpenAiClient
         ArgumentNullException.ThrowIfNull(request.Request);
         return RunOperation(request.Request, "Prewarm", execution => PrewarmCore(request, execution, task.CredentialResolver, () =>
         {
+            if (String.IsNullOrWhiteSpace(request.Request.Instructions ?? task.Instructions)) throw new ArgumentException("Typed prewarm requires instructions.");
             if (request.Instructions is not null) throw new ArgumentException("Typed prewarm uses task instructions.");
             var model = SelectModel(request.Request.ModelSelection ?? task.ModelSelection ?? _options.DefaultModel);
             execution.Metadata = execution.Metadata with { RequestedModel = model.ModelId };

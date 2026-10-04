@@ -1,9 +1,8 @@
 using System.ComponentModel;
-using System.Net;
-using System.Text;
 using System.Text.Json;
 using Structly.AI;
 using Structly.AI.OpenAI;
+using Structly.AI.Testing;
 
 // Runnable offline: no provider connection or real credentials. For production configuration
 // use a normal HttpClient and Credentials.FromEnvironment as shown in the README.
@@ -19,6 +18,10 @@ IReadOnlyDictionary<string, IReadOnlyList<string>> vocabularies = new Dictionary
 if (task.CreateSchema(vocabularies).GetProperty("type").GetString() != "object")
     throw new InvalidOperationException("Expected an object schema.");
 Console.WriteLine(task.CreateOutputSpecification(new(), vocabularies));
+var example = task.CreateExample(vocabularies);
+var completed = ResponseEnvelopes.CompleteExample(task, "{\"summary\":\"Example\"}", vocabularies);
+if (!task.ReadOutput(example.GetRawText(), vocabularies).IsSuccess || !task.ReadOutput(completed.GetRawText(), vocabularies).IsSuccess)
+    throw new InvalidOperationException("Examples must validate.");
 
 using var http = new HttpClient(new OfflineResponsesHandler()) { Timeout = Timeout.InfiniteTimeSpan };
 var client = new OpenAiClient(http, new()
@@ -57,6 +60,7 @@ catch (StructuredOperationCanceledException exception) when (exception.Cancellat
 {
     Console.WriteLine("Caller cancellation preserved.");
 }
+await BatchExamples.Run();
 Console.WriteLine("Offline consumer passed.");
 
 public sealed record Ticket
@@ -77,14 +81,6 @@ sealed class OfflineResponsesHandler : HttpMessageHandler
         if (body.RootElement.GetProperty("text").GetProperty("format").GetProperty("strict").GetBoolean() != true)
             throw new InvalidOperationException("The consumer must send a strict schema.");
         var output = JsonSerializer.Serialize(new { summary = "Duplicate charge", queue = "billing", reference = "INV-42" });
-        var envelope = JsonSerializer.Serialize(new
-        {
-            id = "resp_offline",
-            model = "offline-fixture-model",
-            status = "completed",
-            usage = new { input_tokens = 12, output_tokens = 8, total_tokens = 20 },
-            output = new[] { new { type = "message", role = "assistant", status = "completed", content = new[] { new { type = "output_text", text = output } } } }
-        });
-        return new(HttpStatusCode.OK) { Content = new StringContent(envelope, Encoding.UTF8, "application/json") };
+        return ResponseEnvelopes.ToHttpResponse(ResponseEnvelopes.CompletedText(output, "offline-fixture-model", "resp_offline", new() { InputTokens = 12, OutputTokens = 8, TotalTokens = 20 }));
     }
 }

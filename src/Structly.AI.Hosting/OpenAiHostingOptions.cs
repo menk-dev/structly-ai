@@ -9,6 +9,8 @@ public sealed class OpenAiHostingOptions
     public const string SectionName = "Structly:OpenAI";
     /// <summary>Gets or sets the API key supplied by configuration. A custom resolver takes precedence.</summary>
     public string? ApiKey { get; set; }
+    /// <summary>Gets whether OPENAI_API_KEY is read per execution when no configured credentials exist.</summary>
+    public bool UseEnvironmentApiKey { get; set; }
     /// <summary>Gets the total execution budget (positive, at most 24 hours).</summary>
     public TimeSpan TotalTimeout { get; set; } = TimeSpan.FromSeconds(120);
     /// <summary>Gets the default SSE inactivity budget, applied only to streaming requests.</summary>
@@ -49,6 +51,6 @@ public sealed class OpenAiHostingOptions
         MaxImageResponseBytes = MaxImageResponseBytes,
         TimeProvider = TimeProvider,
         UsageObserver = UsageObserver,
-        CredentialResolver = CredentialResolver ?? (String.IsNullOrWhiteSpace(ApiKey) ? null : Credentials.FromStatic(ApiKey))
+        CredentialResolver = CredentialResolver ?? (String.IsNullOrWhiteSpace(ApiKey) ? UseEnvironmentApiKey ? Credentials.FromEnvironment("OPENAI_API_KEY") : null : Credentials.FromStatic(ApiKey))
     };
 }

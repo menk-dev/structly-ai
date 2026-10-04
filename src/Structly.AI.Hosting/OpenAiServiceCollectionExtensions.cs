@@ -9,6 +9,13 @@ namespace Structly.AI.Hosting;
 /// <summary>Registers Structly.AI with .NET dependency injection and configuration.</summary>
 public static class OpenAiServiceCollectionExtensions
 {
+    /// <summary>Registers a client using callback configuration and startup validation.</summary>
+    public static IHttpClientBuilder AddStructlyOpenAi(this IServiceCollection services, Action<OpenAiHostingOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        return services.AddStructlyOpenAi(new ConfigurationBuilder().Build().GetSection(OpenAiHostingOptions.SectionName), configure);
+    }
+
     /// <summary>Registers a transient client, binds the selected section and validates settings at host startup.</summary>
     /// <remarks>Returns the HTTP builder for handler and transport configuration. Existing clients retain their settings snapshot.</remarks>
     public static IHttpClientBuilder AddStructlyOpenAi(this IServiceCollection services,
