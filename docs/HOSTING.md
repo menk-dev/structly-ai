@@ -4,8 +4,8 @@
 worker services and Generic Host applications. It requires .NET 10. The core `Structly.AI`
 package has no NuGet dependencies and can be used without hosting integration.
 
-Install with `dotnet add package Structly.AI.Hosting --version 0.2.0` after configuring
-the [GitHub Packages feed](INSTALLATION.md). You can also reference the project locally.
+Install with `dotnet add package Structly.AI.Hosting --version 0.2.0` from
+[nuget.org](INSTALLATION.md). You can also reference the project locally.
 
 ## Settings
 
