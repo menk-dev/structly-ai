@@ -20,7 +20,7 @@ personal access token is required for publication. The workflow uses GITHUB_TOKE
 
 4. The release workflow verifies the tag belongs to main, runs the offline suite and
    package-consumer validation, creates a GitHub Release, attaches package/symbol artifacts,
-   publishes the runtime package to GitHub Packages, and restores/runs a fresh consumer
+   publishes the runtime and hosting packages to GitHub Packages, and restores/runs a fresh consumer
    solely from that authenticated feed.
 5. Verify the workflow succeeds, both release attachments download, and an authenticated
    consumer can install and use the registry package.
@@ -51,7 +51,7 @@ was published and consumed successfully on 2026-10-04.
 ## Local release gates
 
 CI and tag publication run the complete offline suite, pack the runtime package with its
-analyzer, and run `tools/Structly.AI.PackageValidation`. This validates version.txt against
+analyzer and the optional hosting package, and run `tools/Structly.AI.PackageValidation`. This validates version.txt against
 Directory.Build.props, the current changelog entry, package identity/framework/license,
 dependencies, file allowlist, README/XML, portable PDB/Source Link, and a fresh local-feed-only
 consumer. The consumer must also fail compilation for an unsupported DTO with STAI001.

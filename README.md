@@ -56,8 +56,28 @@ requests fail before credential resolution or HTTP. `EnsureSuccess()` is availab
 when exceptions fit your host; caller cancellation throws
 `StructuredOperationCanceledException`, retaining any captured usage.
 
+## ASP.NET Core and .NET Hosting
+
+Use the optional `Structly.AI.Hosting` package for dependency injection, settings from
+`appsettings.json`, startup validation and factory-managed HTTP handlers:
+
+```csharp
+using Structly.AI.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddStructlyOpenAi(builder.Configuration);
+```
+
+Inject `OpenAiClient` into endpoints or application services. Configure the
+`Structly:OpenAI` section with a `DefaultModel`, timeouts and model profiles; supply
+`Structly__OpenAI__ApiKey` through the host's environment configuration or use user secrets.
+See the [hosting guide](https://github.com/menk-dev/structly-ai/blob/main/docs/HOSTING.md) for complete JSON and ASP.NET Core/worker examples.
+This package is built alongside the core library; install it from the next release
+or use a project reference locally.
+
 ## Guides
 
+- [ASP.NET Core and Generic Host integration](https://github.com/menk-dev/structly-ai/blob/main/docs/HOSTING.md)
 - [Configuration and transport ownership](https://github.com/menk-dev/structly-ai/blob/main/docs/CONFIGURATION.md)
 - [Schema support, constraints and analyzer diagnostics](https://github.com/menk-dev/structly-ai/blob/main/docs/SCHEMAS.md)
 - [Failure handling](https://github.com/menk-dev/structly-ai/blob/main/docs/FAILURES.md)

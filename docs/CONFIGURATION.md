@@ -4,6 +4,9 @@ Structly.AI targets .NET 10. Use `Structly.AI` for task/request/result contracts
 `Structly.AI.OpenAI` for the provider. Embeddings and images use `Structly.AI.Embeddings`
 and `Structly.AI.Imaging`. The runtime uses framework APIs only.
 
+For ASP.NET Core and Generic Host, use the optional [hosting integration](HOSTING.md)
+to bind settings and register a factory-managed client.
+
 Create a long-lived `OpenAiClient` with a caller-owned `HttpClient`. Set HTTP timeout to
 `Timeout.InfiniteTimeSpan` so the library owns deadlines. The client never mutates the
 transport's headers, base address or timeout and does not dispose it. Supply handlers,
