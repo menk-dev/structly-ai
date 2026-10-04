@@ -49,9 +49,21 @@ public static class Credentials
     }
 }
 
-/// <summary>Per-call settings for the nonstreaming typed provider path.</summary>
+/// <summary>Per-call settings for typed provider execution.</summary>
 public sealed record StructuredRequest
 {
+    /// <summary>Gets the total execution budget, overriding the client default (positive, at most 24 hours).</summary>
+    public TimeSpan? TotalTimeout { get; init; }
+    /// <summary>Gets the SSE inactivity budget; valid only with streaming.</summary>
+    public TimeSpan? InactivityTimeout { get; init; }
+    /// <summary>Gets whether to use SSE, independently of progress observation.</summary>
+    public bool Stream { get; init; }
+    /// <summary>Gets whether to request and expose reasoning summaries; requires streaming.</summary>
+    public bool IncludeReasoningSummary { get; init; }
+    /// <summary>Gets an ordered, best-effort streaming progress callback.</summary>
+    public Func<StructuredProgress, CancellationToken, ValueTask>? Progress { get; init; }
+    /// <summary>Gets a best-effort accounting callback overriding the client observer.</summary>
+    public Func<StructuredUsageEvent, CancellationToken, ValueTask>? UsageObserver { get; init; }
     /// <summary>Gets required nonblank text input.</summary>
     public required string Input { get; init; }
     /// <summary>Gets runtime vocabularies, snapshotted at execution entry.</summary>

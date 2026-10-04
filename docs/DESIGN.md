@@ -1,8 +1,8 @@
 # Structly.AI design and behavior contract
 
-Phase 1 decision record, updated for phase 3 on 2026-10-04. The local task/schema/result
-API and nonstreaming OpenAI typed path are implemented; reliability and advanced examples
-describe later phases.
+Phase 1 decision record, updated for phase 4 on 2026-10-04. The local task/schema/result
+API, OpenAI typed path, streaming and reliability are implemented; advanced examples
+describe phase 5.
 Initialization was verified: empty .NET 10 library, offline xUnit
 project, locked dependencies and CI/release scaffolding; both references present,
 ignored and outside the solution. No previous phase handoff exists.
@@ -571,7 +571,7 @@ Publication decisions (phase 6): owner confirmation of package identity/license/
 version; runtime framework decision net10.0 is settled for implementation. No legal
 license selected, no remote settings/publishing/paid calls authorized by phase 1.
 
-## Phase 3 implementation boundary and evidence
+## Phase 3 implementation boundary and evidence (historical)
 
 The concrete OpenAiClient now executes nonstreaming structured text requests through
 caller-owned HttpClient, using CreateSchema and ReadOutput. StructuredRequest includes
@@ -591,12 +591,10 @@ includes Store (false), IdempotencyKey, Metadata (16 pairs, 64-character keys an
 Callers must configure redirects/retries themselves and choose models supporting strict
 schemas; no embedded model ranking, IDs or model capability list.
 
-Phase 4 adds the agreed total/inactivity settings, SSE, bounded callbacks, diagnostics,
-and metadata-bearing cancellation exception. Phase 3 propagates caller cancellation
-as OperationCanceledException and classifies independent transport cancellation as
-TransportFailure. It does not yet enforce library deadlines or invoke observers. Phase 5
-adds messages/continuation/cache/output guidance and the remaining runtime operations.
-These are staged contracts, not changes to the agreed final behavior above.
+At the phase 3 handoff, library deadlines, SSE, observers and metadata-bearing caller
+cancellation remained staged for phase 4. They are now implemented as recorded below.
+Independent transport cancellation remains TransportFailure. Phase 5 retains messages,
+continuation/cache/output guidance and the remaining runtime operations.
 
 Official documentation rechecked 2026-10-04:
 [Responses create reference](https://developers.openai.com/api/reference/cli/resources/responses/methods/create)
@@ -610,3 +608,54 @@ Usage counts are independent, nonnegative long values with malformed counts warn
 cache-write and reasoning details are preserved without inferring missing totals.
 Fixtures model the documented envelope with synthetic model IDs and counts; no live
 provider access or API-key provisioning is required or performed for this phase.
+
+## Phase 4 implementation boundary and evidence
+
+Phase 4 implements the cancellation, total/inactivity, SSE and bounded-observer contract
+above. See [Execution guidance](EXECUTION.md) for concrete limits, warnings, retries and
+accounting. OpenAiClientOptions now exposes TotalTimeout (120 seconds), optional default
+InactivityTimeout, UsageObserver and TimeProvider (System by default). Making the clock
+explicit keeps deterministic offline testing framework-only and allows hosts to control
+retry-date/budget time without a transport abstraction. StructuredRequest adds those
+per-call settings plus Stream, Progress, UsageObserver and IncludeReasoningSummary.
+Reasoning summary opt-in is explicit, independent of observing output progress, and sends
+reasoning.summary=auto. It requires streaming. No raw reasoning progress is exposed.
+
+Each execution owns its cancellation sources and metadata. Async waits are abandoned when
+the combined operation token fires, with eventual faults observed and late response/stream
+ownership cleaned up. Callback tokens link only their own cap and total deadline, allowing
+available usage to be observed after caller cancellation. Final precedence is caller > total
+> inactivity > provider/output. Expiration during synchronous host code is checked when
+control returns; synchronous callbacks and DTO construction cannot be forcibly interrupted.
+Progress failure disables subsequent progress but does not disable usage delivery.
+
+SSE is parsed from bounded bytes with strict UTF-8, split chunks, complete-line inactivity,
+multiline data and CR/LF/CRLF/BOM/comment support. Terminal event/status must agree;
+terminal response goes through the existing metadata/status/refusal/output validator.
+No success from deltas/EOF/standalone error events. Unknown ancillary events are ignored;
+malformed recognized events fail safely. Stream limits cover consumed SSE bytes, including
+keep-alives. Completed progress follows typed validation, including InvalidOutput, but is
+not emitted for refusal/incomplete/provider failures. Streaming raw capture is the terminal
+envelope rather than an event transcript. Streaming without callbacks is supported.
+
+No automatic retries, logging sink or retry framework was added. Safe categorized results,
+immutable warnings and metadata are diagnostics; consumers choose their own logging.
+The library makes one HTTP send; handler redirects/retries are host policy. Idempotency
+header passthrough never guarantees deduplication or eliminates duplicate billing.
+Retry-After dates now use the configured TimeProvider. The reference idle-timeout/provider
+code was consulted for cleanup and timer differences; ignored reference roots remain outside
+builds and commits. No runtime packages or test dependencies were added.
+
+Official documentation rechecked 2026-10-04:
+[Streaming responses](https://developers.openai.com/api/docs/guides/streaming-responses)
+for typed SSE lifecycle,
+[Streaming event reference](https://developers.openai.com/api/reference/resources/responses/streaming-events)
+for terminal and delta event fields, and
+[Reasoning summaries](https://developers.openai.com/api/docs/guides/reasoning#reasoning-summaries)
+for explicit reasoning.summary=auto and model-dependent support. Existing
+phase 3 fixtures remain valid; phase 4 fixtures add synthetic SSE terminal envelopes and
+controlled-clock failure/concurrency scenarios. No live calls or credential access occurred.
+
+Phase 5 remains responsible for advanced messages/continuation/cache/output guidance,
+free text, embeddings and images. It must reuse these budget/observer/cancellation policies
+rather than introducing separate retry loops or unbounded operations.

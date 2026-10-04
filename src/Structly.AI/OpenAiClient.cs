@@ -6,7 +6,7 @@ using System.Text.Json;
 namespace Structly.AI.OpenAI;
 
 /// <summary>One-attempt OpenAI Responses client. Does not own or mutate its HttpClient.</summary>
-public sealed class OpenAiClient
+public sealed partial class OpenAiClient
 {
     readonly HttpClient _http;
     readonly OpenAiClientOptions _options;
@@ -20,6 +20,9 @@ public sealed class OpenAiClient
         ArgumentNullException.ThrowIfNull(options.DefaultModel);
         ArgumentNullException.ThrowIfNull(options.Profiles);
         options.DefaultModel.Validate();
+        if (options.TimeProvider is null || !OpenAiExecution.ValidTimeout(options.TotalTimeout) ||
+            options.InactivityTimeout is { } idle && idle <= TimeSpan.Zero)
+            throw new ArgumentException("Invalid execution clock or deadlines.", nameof(options));
         if (options.BaseAddress is null || !options.BaseAddress.IsAbsoluteUri ||
             options.BaseAddress.Scheme is not ("https" or "http") || !options.BaseAddress.AbsolutePath.EndsWith('/') ||
             options.BaseAddress.Query.Length != 0 || options.BaseAddress.Fragment.Length != 0 || options.BaseAddress.UserInfo.Length != 0 ||
@@ -43,8 +46,40 @@ public sealed class OpenAiClient
     {
         ArgumentNullException.ThrowIfNull(task);
         ArgumentNullException.ThrowIfNull(request);
-        var metadata = new StructuredMetadata { Operation = "Structured", Provider = "openai", CorrelationId = request.CorrelationId };
-        var warnings = new List<StructuredWarning>();
+        using var execution = new OpenAiExecution(request, _options, cancellationToken);
+        StructuredResult<T> result;
+        try { result = await ExecuteCore(task, request, execution).ConfigureAwait(false); }
+        catch (OperationCanceledException)
+        {
+            result = ExecutionFailure<T>(execution, execution.Deadline ?? StructuredErrorKind.TransportFailure);
+        }
+        if (execution.Deadline is { } deadline) result = ExecutionFailure<T>(execution, deadline);
+        if (execution.Metadata.Usage is not null && (request.UsageObserver ?? _options.UsageObserver) is { } observer)
+        {
+            var usage = new StructuredUsageEvent
+            {
+                Metadata = execution.Metadata,
+                Succeeded = result.IsSuccess && !cancellationToken.IsCancellationRequested,
+                FailureKind = result.Error?.Kind,
+                CallerCancelled = cancellationToken.IsCancellationRequested
+            };
+            await execution.Callback(token => observer(usage, token), TimeSpan.FromSeconds(5), "UsageObserver").ConfigureAwait(false);
+        }
+        if (cancellationToken.IsCancellationRequested)
+            throw new StructuredOperationCanceledException(execution.Metadata, execution.Warnings, cancellationToken);
+        if (execution.Deadline is { } finalDeadline) return ExecutionFailure<T>(execution, finalDeadline);
+        return result.IsSuccess ? StructuredResult<T>.Success(result.Value!, execution.Metadata, execution.Warnings)
+            : StructuredResult<T>.Failure(result.Error!, execution.Metadata, execution.Warnings);
+    }
+
+    static StructuredResult<T> ExecutionFailure<T>(OpenAiExecution execution, StructuredErrorKind kind) =>
+        StructuredResult<T>.Failure(new StructuredError { Kind = kind, Message = $"Structured operation failed: {kind}.", IsTransient = true },
+            execution.Metadata, execution.Warnings);
+
+    async Task<StructuredResult<T>> ExecuteCore<T>(StructuredTask<T> task, StructuredRequest request, OpenAiExecution execution)
+    {
+        var cancellationToken = execution.Token;
+        var warnings = execution.Warnings;
         StructuredResult<T> Fail(StructuredErrorKind kind, bool transient = false, HttpStatusCode? status = null, TimeSpan? retry = null,
             IReadOnlyList<StructuredIssue>? issues = null) => StructuredResult<T>.Failure(new StructuredError
             {
@@ -54,15 +89,18 @@ public sealed class OpenAiClient
                 HttpStatusCode = status,
                 RetryAfter = retry,
                 Issues = issues ?? []
-            }, metadata, warnings);
-        cancellationToken.ThrowIfCancellationRequested();
+            }, execution.Metadata, warnings);
+        execution.CheckCancellation();
         Dictionary<string, IReadOnlyList<string>>? vocabularies;
         Dictionary<string, string>? providerMetadata;
         JsonElement schema;
         ModelSelection model;
         try
         {
-            if (String.IsNullOrWhiteSpace(request.Input) || request.MaxOutputTokens is <= 0 || request.OpenAi is null)
+            if (String.IsNullOrWhiteSpace(request.Input) || request.MaxOutputTokens is <= 0 || request.OpenAi is null ||
+                request.TotalTimeout is { } total && !OpenAiExecution.ValidTimeout(total) ||
+                request.InactivityTimeout is { } idle && idle <= TimeSpan.Zero ||
+                !request.Stream && (request.InactivityTimeout is not null || request.Progress is not null || request.IncludeReasoningSummary))
                 throw new ArgumentException("Invalid input or options.");
             var key = request.OpenAi.IdempotencyKey;
             if (key is not null && (String.IsNullOrWhiteSpace(key) || key.Any(c => c < 32 || c > 126)))
@@ -74,15 +112,16 @@ public sealed class OpenAiClient
             vocabularies = request.Vocabularies?.ToDictionary(x => x.Key, x => (IReadOnlyList<string>)(x.Value ?? throw new ArgumentException("Vocabulary values cannot be null.")).ToArray(), StringComparer.Ordinal);
             schema = task.CreateSchema(vocabularies);
             model = SelectModel(request.ModelSelection ?? task.ModelSelection ?? _options.DefaultModel);
-            metadata = metadata with { RequestedModel = model.ModelId };
+            execution.Metadata = execution.Metadata with { RequestedModel = model.ModelId };
         }
         catch (StructuredSchemaException exception) { return Fail(StructuredErrorKind.UnsupportedSchema, issues: exception.Issues); }
         catch (ArgumentException) { return Fail(StructuredErrorKind.InvalidRequest, issues: [new("$", "RequestOptions", "Check input, model selection, vocabularies and provider options.")]); }
+        execution.CheckCancellation();
         string? credential;
         try
         {
             var resolver = request.CredentialResolver ?? task.CredentialResolver ?? _options.CredentialResolver;
-            credential = resolver is null ? null : await resolver(cancellationToken).ConfigureAwait(false);
+            credential = resolver is null ? null : await execution.Await(resolver(cancellationToken).AsTask()).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception) when (exception is not OutOfMemoryException and not StackOverflowException)
@@ -96,45 +135,65 @@ public sealed class OpenAiClient
             ["instructions"] = task.Instructions,
             ["input"] = request.Input,
             ["store"] = request.OpenAi.Store,
-            ["stream"] = false,
+            ["stream"] = request.Stream,
             ["text"] = new { format }
         };
         if (request.MaxOutputTokens is { } cap) payload["max_output_tokens"] = cap;
         if (model.ReasoningEffort is { } effort) payload["reasoning"] = new { effort = effort.ToString().ToLowerInvariant() };
+        if (request.IncludeReasoningSummary)
+        {
+            var reasoning = new Dictionary<string, object?> { ["summary"] = "auto" };
+            if (model.ReasoningEffort is { } summaryEffort) reasoning["effort"] = summaryEffort.ToString().ToLowerInvariant();
+            payload["reasoning"] = reasoning;
+        }
         if (providerMetadata is not null) payload["metadata"] = providerMetadata;
         using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(_options.BaseAddress, "responses"));
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
         if (request.OpenAi.IdempotencyKey is { } idempotency) message.Headers.Add("Idempotency-Key", idempotency);
         message.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        execution.CheckCancellation();
+        await execution.Progress(new() { Kind = StructuredProgressKind.Started }).ConfigureAwait(false);
+        execution.CheckCancellation();
         try
         {
-            using var response = await _http.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            metadata = metadata with { ProviderRequestId = response.Headers.TryGetValues("x-request-id", out var ids) ? ids.FirstOrDefault() : null };
-            using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            using var buffer = new MemoryStream();
-            var chunk = new byte[8192];
-            int count;
-            while ((count = await stream.ReadAsync(chunk, cancellationToken).ConfigureAwait(false)) != 0)
-            {
-                if (buffer.Length + count > _options.MaxResponseBytes)
-                    return response.IsSuccessStatusCode ? Fail(StructuredErrorKind.InvalidResponse) : HttpFailure(null);
-                buffer.Write(chunk, 0, count);
-            }
+            using var response = await execution.Await(_http.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken), value => value.Dispose()).ConfigureAwait(false);
+            execution.Metadata = execution.Metadata with { ProviderRequestId = response.Headers.TryGetValues("x-request-id", out var ids) ? ids.FirstOrDefault() : null };
+            using var stream = await execution.Await(response.Content.ReadAsStreamAsync(cancellationToken), value => value.Dispose()).ConfigureAwait(false);
             JsonDocument document;
-            try { document = JsonDocument.Parse(buffer.ToArray()); }
+            try
+            {
+                if (request.Stream && response.IsSuccessStatusCode)
+                {
+                    if (response.Content.Headers.ContentType?.MediaType != "text/event-stream") return Fail(StructuredErrorKind.InvalidResponse);
+                    document = await ReadEvents(stream, request, execution).ConfigureAwait(false);
+                }
+                else
+                {
+                    using var buffer = new MemoryStream();
+                    var chunk = new byte[8192];
+                    int count;
+                    while ((count = await execution.Await(stream.ReadAsync(chunk, cancellationToken).AsTask()).ConfigureAwait(false)) != 0)
+                    {
+                        if (buffer.Length + count > _options.MaxResponseBytes)
+                            return response.IsSuccessStatusCode ? Fail(StructuredErrorKind.InvalidResponse) : HttpFailure(null);
+                        buffer.Write(chunk, 0, count);
+                    }
+                    document = JsonDocument.Parse(buffer.ToArray());
+                }
+            }
             catch (JsonException) { return response.IsSuccessStatusCode ? Fail(StructuredErrorKind.InvalidResponse) : HttpFailure(null); }
             using (document)
             {
                 var root = document.RootElement;
-                metadata = metadata with
+                execution.Metadata = execution.Metadata with
                 {
-                    ResponseId = Text(root, "id"),
-                    ResolvedModel = Text(root, "model"),
+                    ResponseId = Text(root, "id") ?? execution.Metadata.ResponseId,
+                    ResolvedModel = Text(root, "model") ?? execution.Metadata.ResolvedModel,
                     RawResponse = request.OpenAi.CaptureRawResponse ? root : null,
                     Usage = ParseUsage(root, warnings)
                 };
                 if (!response.IsSuccessStatusCode) return HttpFailure(Text(Property(root, "error"), "code"));
-                if (root.ValueKind != JsonValueKind.Object || String.IsNullOrWhiteSpace(metadata.ResponseId) || String.IsNullOrWhiteSpace(metadata.ResolvedModel))
+                if (root.ValueKind != JsonValueKind.Object || String.IsNullOrWhiteSpace(Text(root, "id")) || String.IsNullOrWhiteSpace(Text(root, "model")))
                     return Fail(StructuredErrorKind.InvalidResponse);
                 var status = Text(root, "status");
                 var output = Property(root, "output");
@@ -159,12 +218,15 @@ public sealed class OpenAiClient
                         else invalid = true;
                     }
                 }
-                metadata = metadata with { OutputText = request.OpenAi.CaptureOutputText ? text.ToString() : null };
+                execution.Metadata = execution.Metadata with { OutputText = request.OpenAi.CaptureOutputText ? text.ToString() : null };
                 if (ProviderStatusFailure() is { } statusFailure) return statusFailure;
                 if (refused) return Fail(StructuredErrorKind.Refused);
                 if (invalid || answers != 1 || text.Length == 0) return Fail(StructuredErrorKind.InvalidResponse);
-                var result = task.ReadOutput(text.ToString(), vocabularies, metadata);
-                return result.IsSuccess ? StructuredResult<T>.Success(result.Value!, metadata, warnings) : StructuredResult<T>.Failure(result.Error!, metadata, warnings);
+                execution.CheckCancellation();
+                var result = task.ReadOutput(text.ToString(), vocabularies, execution.Metadata);
+                execution.CheckCancellation();
+                await execution.Progress(new() { Kind = StructuredProgressKind.Completed, ResponseId = execution.Metadata.ResponseId, ModelId = execution.Metadata.ResolvedModel }).ConfigureAwait(false);
+                return result.IsSuccess ? StructuredResult<T>.Success(result.Value!, execution.Metadata, warnings) : StructuredResult<T>.Failure(result.Error!, execution.Metadata, warnings);
 
                 StructuredResult<T>? ProviderStatusFailure()
                 {
@@ -188,7 +250,7 @@ public sealed class OpenAiClient
                     _ => StructuredErrorKind.ProviderRejected
                 };
                 var retry = response.Headers.RetryAfter;
-                var delay = retry?.Delta ?? (retry?.Date is { } date ? date - DateTimeOffset.UtcNow : (TimeSpan?)null);
+                var delay = retry?.Delta ?? (retry?.Date is { } date ? date - _options.TimeProvider.GetUtcNow() : (TimeSpan?)null);
                 return Fail(kind, kind == StructuredErrorKind.ProviderUnavailable || kind == StructuredErrorKind.RateLimited && code != "insufficient_quota",
                     response.StatusCode, delay < TimeSpan.Zero ? TimeSpan.Zero : delay);
             }
