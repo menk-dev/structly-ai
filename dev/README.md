@@ -11,6 +11,17 @@ centrally managed and locked. Dependency changes require restore with `--force-e
 and committed lockfiles. Ignored `ref1/` and `ref2/` are historical assessment material,
 excluded from the solution and packages; development must not depend on their presence.
 
+## Dependency updates
+
+Dependabot checks NuGet packages and GitHub Actions weekly. Patch and minor updates
+automatically enable squash merging; both required Linux and Windows CI checks must pass
+against the current base before merging. Major updates and all `Microsoft.CodeAnalysis`
+updates require maintainer review because analyzer compatibility depends on consumers'
+compiler versions. Merged branches are deleted automatically.
+
+The auto-merge workflow reads Dependabot metadata without checking out or executing PR
+code. It does not bypass branch protection or approve major updates.
+
 ## Local verification
 
 CI runs these checks on Linux and Windows. Commands below use the repository's RTK proxy:
