@@ -19,7 +19,12 @@ RELEASES documents account setup, authenticated consumer restore, package source
 cross-repository workflow access and original-run recovery. README links consumer feed
 setup, and PLAN reflects the selected registry and symbol distribution.
 
-No remote configuration, credentials or publication were changed or exercised. Still required:
+Initial remote activation: pushed main to menk-dev/structly-ai and confirmed owner admin
+access and enabled Actions. Enabled squash auto-merge with PR title/body as commit defaults,
+created the github-packages environment without required reviewers, and protected main
+with both required CI matrix checks, current-base enforcement, linear history and admin
+enforcement. Publishing and release auto-merge variables remain unset until the release
+PR prerequisites are verified. No credentials or packages were published. Still required:
 verify the release bot, required Linux/Windows checks and auto-merge; configure the
 github-packages environment and package access; explicitly activate publication; verify
 the first release PR proposes 0.1.0 and passes checks before merge; confirm tag, changelog,
@@ -35,3 +40,8 @@ Git diff whitespace checks passed. Official GitHub/NuGet sources were reviewed f
 authentication, repository access, credential environment variables and source mapping.
 Runtime code and dependencies are unchanged, so the offline .NET suite was not rerun.
 Actual Actions execution and authenticated registry consumption remain external checks.
+
+The first release workflow run failed because RELEASE_PLEASE_TOKEN is absent. It also
+exposed empty release PR JSON evaluation in the auto-merge step; the expression now
+uses an empty-object fallback so missing PR output does not produce a template error.
+The owner must configure a dedicated release token in GitHub Secrets.
