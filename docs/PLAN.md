@@ -76,7 +76,7 @@ Before declaring a phase complete:
 | 4 | Reliable execution and observability | Phase 3 | Complete |
 | 5 | Approved advanced structured-output capabilities | Phase 4 | Complete |
 | 6 | Consumer usability and release readiness | Phase 5 | Complete |
-| 7 | Release automation activation and first publication | Phase 6 and external setup | Partial — GitHub Packages preparation complete; external activation pending |
+| 7 | Release automation activation and first publication | Phase 6 and external setup | Complete |
 
 ## Phase 1 — Establish scope and contracts
 
