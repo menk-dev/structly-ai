@@ -1,8 +1,16 @@
 <Solution>
+  <Folder Name="/examples/">
+    <Project Path="examples/Structly.AI.Consumer/Structly.AI.Consumer.csproj" />
+  </Folder>
   <Folder Name="/src/">
+    <Project Path="src/Structly.AI.Analyzers/Structly.AI.Analyzers.csproj" />
     <Project Path="src/Structly.AI/Structly.AI.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Structly.AI.Analyzers.Tests/Structly.AI.Analyzers.Tests.csproj" />
     <Project Path="tests/Structly.AI.Tests/Structly.AI.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Structly.AI.PackageValidation/Structly.AI.PackageValidation.csproj" />
   </Folder>
 </Solution>
