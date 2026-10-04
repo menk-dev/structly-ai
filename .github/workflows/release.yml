@@ -1,0 +1,66 @@
+name: Release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      created: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      - name: Queue release PR for auto-merge
+        if: vars.RELEASE_AUTO_MERGE == 'true' && steps.release.outputs.pr != ''
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ fromJSON(steps.release.outputs.pr).number }}
+        run: gh pr merge "$PR_NUMBER" --auto --squash
+  publish:
+    needs: version
+    if: needs.version.outputs.created == 'true' && vars.NUGET_PUBLISH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment: nuget
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag }}
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet restore Structly.AI.slnx --locked-mode
+      - run: dotnet format Structly.AI.slnx --verify-no-changes --no-restore
+      - run: dotnet build Structly.AI.slnx -c Release --no-restore
+      - run: dotnet test --solution Structly.AI.slnx -c Release --no-build
+      - run: dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages
+      - name: Attach packages to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.version.outputs.tag }}
+        run: gh release upload "$RELEASE_TAG" artifacts/packages/* --clobber
+      - uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+      - name: Publish package and symbols
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push artifacts/packages/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate

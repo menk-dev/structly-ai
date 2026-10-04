@@ -1,0 +1,15 @@
+/ref1/
+/ref2/
+**/bin/
+**/obj/
+/artifacts/
+TestResults/
+*.user
+*.suo
+.vs/
+.idea/
+.env
+.env.*
+!.env.example
+*.nupkg
+*.snupkg
