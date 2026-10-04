@@ -24,6 +24,8 @@ total expiration, total wins over inactivity, and inactivity wins over provider/
 outcomes. Pre-cancelled calls send nothing. Cancellation after completion is not retroactive.
 Library deadlines return transient DeadlineExceeded or InactivityExceeded errors. Independent
 transport cancellation, including HttpClient.Timeout, returns transient TransportFailure.
+Cancellation exceptions thrown by DTO constructors or setters return nontransient
+InvalidOutput; actual caller cancellation or expired execution deadlines still take precedence.
 
 For noncooperative async resolvers, HTTP sends, content acquisition, reads or callbacks,
 the client stops waiting at the deadline, observes eventual faults and disposes late
@@ -37,6 +39,9 @@ client InactivityTimeout starts when SSE body reading begins and resets on each 
 SSE line, including comments and keep-alives. Partial bytes do not extend it. A client
 default is applied only to streaming calls; specifying request inactivity or Progress on
 a nonstreaming call returns InvalidRequest before credentials or HTTP.
+The inactivity timer pauses during delta progress observers and restarts with the full
+inactivity window afterward. Observer latency still consumes the total execution budget
+and remains subject to the one-second callback limit.
 
 ```csharp
 var request = new StructuredRequest

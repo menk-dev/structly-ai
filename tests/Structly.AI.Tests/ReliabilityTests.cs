@@ -378,6 +378,131 @@ public sealed class ReliabilityTests
         Assert.Empty(result.Warnings);
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task SlowDeltaObserversDoNotConsumeInactivityBudget(bool timeout, bool totalExpires)
+    {
+        var clock = new ManualClock();
+        var entered = Gate<bool>();
+        var callback = Gate<bool>();
+        StructuredUsageEvent? observed = null;
+        const string delta = "data: {\"type\":\"response.output_text.delta\",\"delta\":\"x\",\"output_index\":0}\n\n";
+        using var stream = new FragmentStream(delta + Event("response.completed", Envelope()));
+        using var handler = new Handler(_ => Task.FromResult(Response(stream)));
+        using var http = new HttpClient(handler);
+        var pending = Client(http, clock, (item, _) => { observed = item; return ValueTask.CompletedTask; }).ExecuteAsync(Contract(), new()
+        {
+            Input = "input",
+            Stream = true,
+            TotalTimeout = TimeSpan.FromSeconds(totalExpires ? 1 : 20),
+            InactivityTimeout = TimeSpan.FromMilliseconds(100),
+            Progress = (item, _) =>
+            {
+                if (item.Kind != StructuredProgressKind.OutputTextDelta) return ValueTask.CompletedTask;
+                entered.SetResult(true);
+                return new(callback.Task);
+            }
+        }, TestToken);
+        await entered.Task.WaitAsync(TestToken);
+        clock.Advance(TimeSpan.FromMilliseconds(timeout ? 1000 : 500));
+        if (!timeout) callback.SetResult(true);
+        var result = await pending.WaitAsync(TestToken);
+        if (totalExpires) Assert.Equal(StructuredErrorKind.DeadlineExceeded, result.Error!.Kind);
+        else
+        {
+            Assert.True(result.IsSuccess);
+            Assert.Equal(10, result.Metadata.Usage!.InputTokens);
+            Assert.True(observed!.Succeeded);
+            Assert.Equal(10, observed.Metadata.Usage!.InputTokens);
+            if (timeout) Assert.Equal("ProgressObserverTimedOut", Assert.Single(result.Warnings).Code);
+            else Assert.Empty(result.Warnings);
+        }
+        Assert.True(stream.Disposed.Task.IsCompleted);
+        callback.TrySetResult(true);
+    }
+
+    [Fact]
+    public async Task InactivityResumesAfterSlowDeltaObserver()
+    {
+        var clock = new ManualClock();
+        var entered = Gate<bool>();
+        var callback = Gate<bool>();
+        using var stream = new ControlledStream();
+        using var handler = new Handler(_ => Task.FromResult(Response(stream)));
+        using var http = new HttpClient(handler);
+        var pending = Client(http, clock).ExecuteAsync(Contract(), new()
+        {
+            Input = "input",
+            Stream = true,
+            InactivityTimeout = TimeSpan.FromMilliseconds(100),
+            Progress = (item, _) =>
+            {
+                if (item.Kind != StructuredProgressKind.OutputTextDelta) return ValueTask.CompletedTask;
+                entered.SetResult(true);
+                return new(callback.Task);
+            }
+        }, TestToken);
+        await stream.NextRead();
+        stream.Push("data: {\"type\":\"response.output_text.delta\",\"delta\":\"x\",\"output_index\":0}\n\n");
+        await entered.Task.WaitAsync(TestToken);
+        clock.Advance(TimeSpan.FromMilliseconds(500));
+        callback.SetResult(true);
+        await stream.NextRead();
+        clock.Advance(TimeSpan.FromMilliseconds(100));
+        Assert.Equal(StructuredErrorKind.InactivityExceeded, (await pending.WaitAsync(TestToken)).Error!.Kind);
+        Assert.True(stream.IsDisposed);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task HostCancellationDuringMaterializationPreservesUsageAndExecutionPrecedence(int cancellation)
+    {
+        var clock = new ManualClock();
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(TestToken);
+        StructuredUsageEvent? observed = null;
+        using var handler = new Handler(_ => Task.FromResult(Response(new FragmentStream(Envelope()), false)));
+        using var http = new HttpClient(handler);
+        var client = Client(http, clock, (item, _) => { observed = item; return ValueTask.CompletedTask; });
+        _materializationCancellation.Value = () =>
+        {
+            if (cancellation == 1) caller.Cancel();
+            if (cancellation == 2) clock.Advance(TimeSpan.FromSeconds(20));
+            throw new OperationCanceledException("sensitive");
+        };
+        try
+        {
+            var pending = client.ExecuteAsync(StructuredTask.Create<CancellingConstructor>(new() { Instructions = "Extract" }), new() { Input = "input" }, caller.Token);
+            if (cancellation == 1)
+            {
+                var exception = await Assert.ThrowsAsync<StructuredOperationCanceledException>(async () => await pending);
+                Assert.Equal(caller.Token, exception.CancellationToken);
+                Assert.Equal(10, exception.Metadata.Usage!.InputTokens);
+                Assert.True(observed!.CallerCancelled);
+            }
+            else
+            {
+                var result = await pending;
+                Assert.Equal(cancellation == 2 ? StructuredErrorKind.DeadlineExceeded : StructuredErrorKind.InvalidOutput, result.Error!.Kind);
+                Assert.Equal(cancellation == 2, result.Error.IsTransient);
+                Assert.Equal(10, result.Metadata.Usage!.InputTokens);
+                Assert.DoesNotContain("sensitive", result.Error.Message);
+                if (cancellation == 0) Assert.Equal(StructuredErrorKind.InvalidOutput, observed!.FailureKind);
+            }
+        }
+        finally { _materializationCancellation.Value = null; }
+    }
+
+    static readonly AsyncLocal<Action?> _materializationCancellation = new();
+    public sealed class CancellingConstructor
+    {
+        public int Value { get; }
+        public CancellingConstructor(int value) => _materializationCancellation.Value!();
+    }
+
     [Fact]
     public async Task RetryDateUsesConfiguredClockAndStillMakesOneAttempt()
     {

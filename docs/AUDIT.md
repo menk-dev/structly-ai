@@ -87,5 +87,14 @@ comments nor this offline comparison prove current model/API support.
 - Two additional reproductions ran in an isolated console under `/tmp/structly-audit`,
   referencing the built runtime assembly; both produced the findings above.
 
-No production changes were made. Packaging, remote release setup, Windows execution and
-live provider behavior were not revalidated. Phase 7 remains pending as documented.
+The original audit made no production changes. Both findings were subsequently fixed:
+delta progress observers pause the inactivity timer while total/callback deadlines remain
+active, and DTO cancellation exceptions are classified as nontransient InvalidOutput.
+Regression coverage includes observer timeout, restored stream inactivity, terminal usage,
+constructor/setter exceptions and actual caller/total-deadline precedence.
+Post-fix verification passed locked restore, formatting, Release build, all 437 offline
+tests, package creation and isolated package-consumer/analyzer validation. The original
+reproductions now retain input usage=10: buffered completion succeeds and the constructor
+exception produces InvalidOutput with IsTransient=false.
+Remote release setup, Windows execution and live provider behavior were not revalidated.
+Phase 7 remains pending as documented.

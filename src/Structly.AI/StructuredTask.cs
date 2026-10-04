@@ -153,8 +153,10 @@ public sealed partial class StructuredTask<T>
             return value is null ? Invalid([new("$", "NullRoot", "The output root must be an object.")], metadata)
                 : StructuredResult<T>.Success(value, metadata);
         }
-        catch (Exception exception) when (exception is not OutOfMemoryException and not StackOverflowException and not AccessViolationException and not OperationCanceledException)
+        catch (Exception exception) when (exception is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
         {
+            // Host materialization cancellation is an output failure. The execution
+            // layer independently checks actual caller cancellation and deadlines.
             return Invalid([new("$", "Deserialization", "Output must be valid JSON constructible as the declared DTO.")], metadata);
         }
     }
