@@ -1,7 +1,8 @@
 # Structly.AI design and behavior contract
 
-Phase 1 decision record, 2026-10-04. Examples describe the proposed API, not existing
-production code. Initialization was verified: empty .NET 10 library, offline xUnit
+Phase 1 decision record, updated for phase 2 on 2026-10-04. The local task/schema/result
+API is implemented; provider and advanced examples describe later phases.
+Initialization was verified: empty .NET 10 library, offline xUnit
 project, locked dependencies and CI/release scaffolding; both references present,
 ignored and outside the solution. No previous phase handoff exists.
 
@@ -305,13 +306,21 @@ once; use that contract for schema, sample/guidance and output validation/deseri
 | Description | DescriptionAttribute type/property; SchemaAttribute optional Name/Description; task metadata overrides type metadata. Blank supplied metadata invalid. |
 | Converter/extension/include/polymorphism/number-handling/populate attributes | Reject incompatible serialization overrides with path; fields excluded unless inclusion requested (unsupported). JsonRequired allowed, redundant. |
 | DynamicVocabulary(setName) | String or supported string collection only; constrains items, nullable independently. |
-| StringConstraint | MinLength/MaxLength nullable nonnegative int, Pattern, Format. Supported formats date-time/time/date/duration/email/hostname/ipv4/ipv6/uuid; schema and local checks agree. Invalid pattern/format/bounds/type rejected. |
-| NumberConstraint | Optional finite decimal Minimum/Maximum; inclusive, min <= max, numeric members only. |
-| CollectionConstraint | Optional nonnegative MinItems/MaxItems, min <= max, collections only. |
+| StringConstraint | MinLength/MaxLength nonnegative int, or -1 for unspecified; Pattern, Format. Supported formats date-time/time/date/duration/email/hostname/ipv4/ipv6/uuid; schema and local checks agree. Invalid pattern/format/bounds/type rejected. |
+| NumberConstraint | Optional finite double Minimum/Maximum (NaN means unspecified); inclusive, min <= max, numeric members only. Compare original JSON numbers against the emitted round-trip decimal representation without CLR rounding. |
+| CollectionConstraint | Nonnegative MinItems/MaxItems, or -1 for unspecified; min <= max, collections only. |
+
+Constraint attribute correction in phase 2: nullable int and decimal properties cannot
+be used as C# attribute named arguments. Use -1 for omitted lengths/cardinalities and
+Double.NaN for omitted numeric bounds. Supplied numeric bounds use finite doubles,
+matching emitted JSON numbers; DTO decimal values remain supported.
 
 Constraint strings count Unicode scalar length. Pattern uses JSON Schema search
-semantics with documented portable ECMAScript subset, rejects unsupported .NET-only
-constructs; regex execution bounded (100ms), timeout invalid output. Format validators
+semantics with a deliberately small portable ASCII ECMAScript subset: literals,
+character classes, alternation, quantifiers and literal punctuation escapes. Groups,
+backreferences, shorthand/Unicode escape classes and class subtraction are rejected;
+patterns are nonblank and at most 4,096 UTF-16 characters. Regex execution is bounded
+(100ms), timeout invalid output. Format validators
 must have explicit positive/negative fixtures; no arbitrary format accepted as no-op.
 DataAnnotations are not implicitly interpreted; use these constraint attributes or
 host business validation. Fine-tuned/model-specific unsupported constraints yield a
@@ -339,6 +348,74 @@ token types/nulls, enum/vocabulary, numeric bounds, constraints recursively. Des
 alone accepts missing/null DTO values. No JSON repair/code-fence stripping/coercion.
 Deserializer/host DTO construction failures become safe InvalidOutput; catastrophic
 runtime exceptions not swallowed. Detached JsonElement schema inspection cannot mutate task.
+
+### Implemented local API (phase 2)
+
+`ReadOutput` exposes the local validation/deserialization path for offline use and for
+the provider path to reuse. Invalid JSON/typed values produce InvalidOutput, invalid
+vocabularies produce UnsupportedSchema, and null arguments throw. Optional supplied
+metadata is retained by identity, including usage on output-processing failures.
+Output diagnostics are bounded to 100 issues; unknown JSON keys are reported at their
+containing object without reproducing untrusted key text. Host constructor/setter errors
+are sanitized; host cancellation and catastrophic exceptions propagate.
+
+```csharp
+var task = StructuredTask.Create<Ticket>(new StructuredTaskOptions
+{
+    Instructions = "Extract a ticket.",
+    SchemaName = "ticket"
+});
+IReadOnlyDictionary<string, IReadOnlyList<string>> choices =
+    new Dictionary<string, IReadOnlyList<string>> { ["queues"] = ["billing", "technical"] };
+var schema = task.CreateSchema(choices); // Detached JsonElement, no HTTP.
+var result = task.ReadOutput(
+    """{"summary":"Duplicate charge","queue":"billing","reference":null}""",
+    choices);
+Ticket ticket = result.EnsureSuccess();
+```
+
+Task construction validates static shape/constraints and strict-schema limits without
+requiring runtime vocabularies; CreateSchema/ReadOutput require every referenced set.
+SerializationProfile uses PropertyNaming.CamelCase (default) or Preserve, without
+configurable converters/resolvers. Get-only DTO properties must bind to the selected
+JSON constructor; hidden members and private setters are rejected. Overrides of the
+same virtual property are resolved once. Unknown reference annotations are nullable;
+MaybeNull/AllowNull widen reference members, without changing nonnullable value types.
+The internal serializer clears IsRequired metadata because presence is already checked
+for every key; this supports JsonRequired on constructor-bound get-only properties,
+which the default serializer otherwise rejects despite valid constructor binding.
+
+Custom enumerable support is deliberately explicit: a unique IEnumerable<T>,
+ICollection<T>, public parameterless constructor and serializer CreateObject support.
+The host owns constructor/Add/setter behavior; failures during actual materialization
+become InvalidOutput. Get-only enumerable wrappers that cannot be populated are rejected.
+Sets reject duplicates using deserialized element equality (matching HashSet/ISet),
+which can invoke host DTO constructors/equality before final DTO construction.
+No unsupported uniqueItems keyword is emitted; set uniqueness and CLR scalar ranges
+are additional local checks. Integer lexical forms must be accepted by the default
+System.Text.Json integer converter, so fractional/exponent integer spellings are not
+coerced. Floating-point and decimal conversion otherwise follows System.Text.Json;
+nonfinite/overflow values are rejected and bounds check the unrounded JSON number.
+
+Formats use explicit string checks: exact D UUID, calendar date, timestamp/time with
+required offset, ordered ISO duration components (including week-only durations),
+ASCII mailbox syntax without display names, DNS hostname labels, strict dotted IPv4
+and unscoped IPv6. CLR Guid/date/time properties additionally must deserialize using
+their standard converter (for example DateTimeOffset's offset/range restrictions).
+All nine formats have positive and negative fixtures; no unknown format is accepted.
+
+The common schema boundary currently applies OpenAI strict ceilings to every task,
+since OpenAI is the only approved provider. Property/static-enum/string/depth budgets
+are checked while resolving/emitting, counting sibling repetitions. Dynamic entry counts
+are checked before allocating vocabulary arrays, values are checked as copied, and a capped writer enforces the
+1 MiB serialized limit including descriptions/escaping. There is no shared or
+vocabulary cache; immutable task contracts retain neither caller dictionaries nor values.
+Per-call input snapshots require the caller not to mutate while a method is running.
+
+Task model/credential settings and provider request validation remain phase 3;
+usage callbacks, progress, cancellation exception and deadlines remain phase 4;
+output specifications and cache diagnostics remain phase 5. Their table entries above
+are still the approved contract, not claims of implementation in this phase.
 
 ## Remaining capability policies (phases 4–6)
 
@@ -434,6 +511,8 @@ Official OpenAI documentation opened and checked 2026-10-04:
 - [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
   supports Responses text.format json_schema/strict, object roots, required closed objects,
   nullable branches and the limits recorded above; refusals/incomplete answers require handling.
+  Phase 2 rechecked this guide on 2026-10-04: same ceilings and nine formats; set
+  uniqueness stays local because uniqueItems is absent from the supported strict subset.
 - [Conversation state](https://developers.openai.com/api/docs/guides/conversation-state)
   documents stateless store=false and previous-response continuation. Storage is explicit
   library policy; local reuse is distinct from provider history.
