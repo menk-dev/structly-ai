@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   publish:
-    if: vars.GITHUB_PACKAGES_PUBLISH_ENABLED == 'true'
+    if: vars.PACKAGES_PUBLISH_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: github-packages
     permissions:
