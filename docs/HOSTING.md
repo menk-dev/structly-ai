@@ -4,7 +4,7 @@
 worker services and Generic Host applications. It requires .NET 10. The core `Structly.AI`
 package has no NuGet dependencies and can be used without hosting integration.
 
-Install with `dotnet add package Structly.AI.Hosting --version 0.3.0` from
+Install with `dotnet add package Structly.AI.Hosting --version 0.4.0` from
 [nuget.org](INSTALLATION.md). You can also reference the project locally.
 
 ## Settings
@@ -112,7 +112,7 @@ builder.Services.AddStructlyOpenAi(builder.Configuration, options =>
 Configure callbacks and `TimeProvider` in code. A custom credential resolver replaces
 the configured `ApiKey`. Request resolvers take precedence over task resolvers, which
 take precedence over the client resolver. Startup allows missing credentials so that
-requests can supply their own. Execution returns `Authentication` if no selected resolver
+requests can supply their own. Execution returns `CredentialsMissing` if no selected resolver
 provides a key.
 
 To change the section use `sectionName: "MyProvider"`, or pass
@@ -130,3 +130,24 @@ retrieved from DI. Options validation rejects invalid reloaded settings.
 `IHttpClientFactory` pools and disposes HTTP handlers. `OpenAiClient` does not dispose
 the `HttpClient` passed to it. Follow Microsoft's
 [typed client lifetime guidance](https://learn.microsoft.com/en-us/dotnet/core/extensions/httpclient-factory#avoid-typed-clients-in-singleton-services).
+
+## Callback-only registration and environment fallback
+
+```csharp
+services.AddStructlyOpenAi(options =>
+{
+    options.DefaultModel = new() { ModelId = "gpt-6-sol" };
+    options.UseEnvironmentApiKey = true;
+});
+```
+
+This overload uses the same startup validation and HTTP registration as section binding.
+`UseEnvironmentApiKey` defaults to false. The client chooses a custom resolver first,
+then a nonblank configured `ApiKey`, then an environment resolver when enabled.
+The environment resolver reads `OPENAI_API_KEY` on each execution, so existing clients
+observe changes. A selected resolver returning blank does not fall back.
+
+For an explicit section, use `services.AddStructlyOpenAi(configuration.GetSection("MyProvider"))`.
+
+The runnable [offline hosted consumer](../examples/Structly.AI.HostingConsumer/Program.cs)
+uses callback registration with a fake HTTP handler and no provider connection.

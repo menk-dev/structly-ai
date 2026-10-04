@@ -49,6 +49,8 @@ public sealed class ReliabilityTests
         clock.Advance(TimeSpan.FromSeconds(20));
         var result = await pending.WaitAsync(TestToken);
         Assert.Equal(StructuredErrorKind.DeadlineExceeded, result.Error!.Kind);
+        Assert.Equal(TimeSpan.FromSeconds(20), result.Error.TotalTimeout);
+        Assert.Contains("Total timeout", result.Error.Message);
         Assert.True(result.Error.IsTransient);
         Assert.Equal(0, handler.Calls);
         credential.SetException(new InvalidOperationException("secret late fault"));
@@ -204,6 +206,8 @@ public sealed class ReliabilityTests
         clock.Advance(TimeSpan.FromSeconds(1));
         var result = await pending.WaitAsync(TestToken);
         Assert.Equal(StructuredErrorKind.InactivityExceeded, result.Error!.Kind);
+        Assert.Equal(TimeSpan.FromSeconds(3), result.Error.InactivityTimeout);
+        Assert.Contains("Inactivity timeout", result.Error.Message);
         Assert.True(stream.IsDisposed);
         Assert.Equal("request", result.Metadata.ProviderRequestId);
     }

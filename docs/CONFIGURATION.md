@@ -48,7 +48,7 @@ See [advanced examples](ADVANCED.md).
 
 The library uses the request's credential resolver if set, otherwise the task's resolver,
 otherwise the client's resolver. If that resolver returns no key, execution returns
-`Authentication`; the library does not try another resolver. Caller cancellation still throws.
+`CredentialsMissing`; the library does not try another resolver. Caller cancellation still throws.
 
 `Credentials.FromStatic` stores the key you supply. `Credentials.FromEnvironment` reads
 the named environment variable on each call. A custom asynchronous resolver can choose

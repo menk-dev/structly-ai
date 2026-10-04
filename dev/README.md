@@ -31,8 +31,10 @@ rtk dotnet restore Structly.AI.slnx --locked-mode
 rtk dotnet format Structly.AI.slnx --verify-no-changes --no-restore
 rtk dotnet build Structly.AI.slnx -c Release --no-restore
 rtk dotnet test --solution Structly.AI.slnx -c Release --no-build
+rtk dotnet run --project examples/Structly.AI.HostingConsumer -c Release --no-build
 rtk dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages
 rtk dotnet pack src/Structly.AI.Hosting/Structly.AI.Hosting.csproj -c Release --no-build -o artifacts/packages
+rtk dotnet pack src/Structly.AI.Testing/Structly.AI.Testing.csproj -c Release --no-build -o artifacts/packages
 rtk dotnet run --project tools/Structly.AI.PackageValidation -c Release --no-build -- artifacts/packages
 rtk git diff --check
 ```

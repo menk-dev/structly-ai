@@ -4,7 +4,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../../src/Structly.AI.Hosting/Structly.AI.Hosting.csproj" />
     <ProjectReference Include="../../src/Structly.AI.Testing/Structly.AI.Testing.csproj" />
-    <ProjectReference Include="../../src/Structly.AI/Structly.AI.csproj" />
   </ItemGroup>
 </Project>

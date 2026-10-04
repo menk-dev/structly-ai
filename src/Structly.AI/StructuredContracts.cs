@@ -30,7 +30,7 @@ public enum StructuredErrorKind
     InvalidRequest,
     /// <summary>Unsupported schema or vocabulary.</summary>
     UnsupportedSchema,
-    /// <summary>Missing or rejected credentials.</summary>
+    /// <summary>Malformed or rejected credentials, or a failed resolver.</summary>
     Authentication,
     /// <summary>Access denied.</summary>
     PermissionDenied,
@@ -53,7 +53,11 @@ public enum StructuredErrorKind
     /// <summary>Malformed provider envelope.</summary>
     InvalidResponse,
     /// <summary>JSON does not satisfy the typed contract.</summary>
-    InvalidOutput
+    InvalidOutput,
+    /// <summary>No selected credentials are available.</summary>
+    CredentialsMissing,
+    /// <summary>A provider batch item failed without an HTTP classification.</summary>
+    BatchItemFailed
 }
 
 /// <summary>A categorized failure without sensitive provider content.</summary>
@@ -79,6 +83,12 @@ public sealed record StructuredError
     public bool IsTransient { get; init; }
     /// <summary>Gets the optional HTTP status.</summary>
     public HttpStatusCode? HttpStatusCode { get; init; }
+    /// <summary>Gets the numeric HTTP status.</summary>
+    public int? HttpStatusCodeValue => HttpStatusCode is { } status ? (int)status : null;
+    /// <summary>Gets the effective total timeout on deadline failures.</summary>
+    public TimeSpan? TotalTimeout { get; init; }
+    /// <summary>Gets the effective inactivity timeout on inactivity failures.</summary>
+    public TimeSpan? InactivityTimeout { get; init; }
     /// <summary>Gets the optional provider retry delay.</summary>
     public TimeSpan? RetryAfter
     {
@@ -175,6 +185,14 @@ public sealed record StructuredUsage
 public sealed record StructuredMetadata
 {
     readonly JsonElement? _rawResponse;
+    /// <summary>Gets the batch identifier.</summary>
+    public string? BatchId { get; init; }
+    /// <summary>Gets an uploaded file retained when batch creation fails.</summary>
+    public string? UploadedFileId { get; init; }
+    /// <summary>Gets the caller batch item identifier.</summary>
+    public string? BatchCustomId { get; init; }
+    /// <summary>Gets whether this is a batch item.</summary>
+    public bool IsBatch { get; init; }
     /// <summary>Gets a local execution identifier.</summary>
     public Guid ExecutionId { get; init; } = Guid.NewGuid();
     /// <summary>Gets the operation name.</summary>

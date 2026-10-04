@@ -96,3 +96,19 @@ a request configured at runtime.
 
 Adjust severity through `.editorconfig`, for example
 `dotnet_diagnostic.STAI002.severity = suggestion`. Suppression does not change runtime rules.
+
+## Examples and vocabulary order
+
+Tasks used only for schemas, validation or examples may omit `Instructions`. Explicit blank
+instructions are rejected. Typed execution and typed prewarming require effective nonblank
+instructions: request instructions override task instructions, and missing instructions return
+`InvalidRequest` before credentials or HTTP execution.
+
+`task.CreateExample(vocabularies)` returns detached JSON validated through `ReadOutput`.
+Patterns and constraints that the bounded generator cannot reliably satisfy throw
+`ArgumentException`; provide your own example for output specifications in that case.
+The generator limits examples to 10,000 nodes, 1,000 array items and 1 MiB of string characters.
+
+`StructuredTaskOptions.VocabularyOrder` defaults to `VocabularyOrder.Ordinal`.
+Choose `PreserveInput` to retain caller ordering in schemas, examples, specifications and
+batch preparation. Inputs are copied; ordinal duplicates remain invalid under either policy.

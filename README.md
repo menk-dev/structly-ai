@@ -13,7 +13,7 @@ Generic Host. Install packages from nuget.org.
 ## Quick start
 
 See the [installation guide](https://github.com/menk-dev/structly-ai/blob/main/docs/INSTALLATION.md#consuming-from-your-projects)
-and install with `dotnet add package Structly.AI --version 0.3.0`. Configure a model ID
+and install with `dotnet add package Structly.AI --version 0.4.0`. Configure a model ID
 supported by your account and supply credentials explicitly:
 
 ```csharp
@@ -74,7 +74,7 @@ builder.Services.AddStructlyOpenAi(builder.Configuration);
 Inject `OpenAiClient` into endpoints or application services. Configure the
 `Structly:OpenAI` section with a `DefaultModel`, timeouts and model profiles; supply
 `Structly__OpenAI__ApiKey` through the host's environment configuration or use user secrets.
-Install it with `dotnet add package Structly.AI.Hosting --version 0.3.0`.
+Install it with `dotnet add package Structly.AI.Hosting --version 0.4.0`.
 See the [hosting guide](https://github.com/menk-dev/structly-ai/blob/main/docs/HOSTING.md)
 for configuration and ASP.NET Core and worker examples.
 
@@ -127,3 +127,7 @@ See the [development guide](https://github.com/menk-dev/structly-ai/blob/main/de
 for local checks, architecture and release maintenance.
 
 Licensed under the [MIT License](https://github.com/menk-dev/structly-ai/blob/main/LICENSE).
+
+For prepared embedding and typed Responses batches, see [batch operations](docs/BATCHES.md).
+Use [Structly.AI.Testing](docs/TESTING.md) for offline provider envelopes and explicit fixture
+completion. See [0.4.0 migration](docs/MIGRATION-0.4.md) for contract changes.

@@ -23,6 +23,8 @@ does not schedule or send retries.
 | --- | --- |
 | InvalidRequest | Correct the input or options. The library rejected the request before sending it. |
 | UnsupportedSchema | Correct the output type or vocabularies using the issue paths and codes. |
+| CredentialsMissing | Supply a resolver that returns a nonblank key. An explicitly selected resolver does not fall back. |
+| BatchItemFailed | Inspect the application batch record; the provider reported an item error without an HTTP status. |
 | Authentication / PermissionDenied | Check credentials and access permissions. The library does not try another key. |
 | RateLimited | Check `RetryAfter` and your application's time limit before retrying. |
 | ProviderUnavailable / TransportFailure | Check `IsTransient` and metadata, then decide whether to retry. |
@@ -53,3 +55,9 @@ metadata and warnings. Catch it as `OperationCanceledException` for normal cance
 handling, or use the specific type to read any available token counts. Caller cancellation
 takes precedence over timeouts. Callback failures add warnings without replacing the
 operation's outcome. See [execution](EXECUTION.md) and [usage](USAGE.md).
+
+`HttpStatusCodeValue` exposes the numeric status alongside `HttpStatusCode`.
+Deadline failures include the effective `TotalTimeout`; inactivity failures include the effective
+`InactivityTimeout`. Their messages identify the expired budget. Invalid-output messages include
+at most five escaped path/code pairs, capped at 512 characters, with an omitted-issue indicator.
+They exclude issue messages and output values. `Issues` retains every diagnostic.
