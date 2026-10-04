@@ -9,7 +9,15 @@ requirement or a public API to preserve.
 
 This plan describes outcomes and verification rather than prescribing class names or
 implementation details. The initial baseline is one empty .NET 10 library, an offline test
-project, and CI/release scaffolding. Initialization is complete; all phases below are pending.
+project, and CI/release scaffolding. Initialization is complete; phase completion is
+tracked below.
+
+The owner clarified during phase 1 that the release must functionally replace either
+reference: the required feature set is at least the union of `ref1/` and `ref2/`, without
+preserving their API style. The F01–F17 coverage map in `docs/DESIGN.md` is the required
+release scope. This explicitly includes embeddings, image generation and analyzer
+feedback and supersedes their default deferral. No capability in that map may be dropped
+merely because it was originally described as optional.
 
 ## Instructions for the executing agent
 
@@ -33,7 +41,8 @@ Before working:
 During execution:
 
 - Stay within the phase's scope. Implement the simplest design that meets the agreed
-  behavior; do not introduce speculative provider layers or new packages.
+  behavior; do not introduce speculative provider layers or unneeded packages. The
+  approved analyzer's compiler dependencies belong only to its phase 6 project.
 - Verify current provider behavior against official documentation when needed. Record
   sources and relevant assumptions in the design document; do not inherit model IDs,
   cache semantics, or limits from reference comments without verification.
@@ -60,7 +69,7 @@ Before declaring a phase complete:
 
 | Phase | Outcome | Prerequisite | Status |
 | --- | --- | --- | --- |
-| 1 | Scope, API proposal, and behavior contract | Initialization | Pending |
+| 1 | Scope, API proposal, and behavior contract | Initialization | Complete |
 | 2 | Public contracts and schema engine | Phase 1 | Pending |
 | 3 | Working typed calls through the initial provider | Phase 2 | Pending |
 | 4 | Reliable execution and observability | Phase 3 | Pending |
@@ -77,9 +86,9 @@ Work:
 
 - Compare reference implementations and tests against the assessment in `docs/DESIGN.md`.
   Identify strengths, incompatibilities, and failure modes rather than copying their shape.
-- Define the initial provider and release scope. Start with structured output; assess
-  OpenAI as the initial provider. Explicitly defer embeddings, image generation, and Roslyn
-  analyzers unless the user requests them.
+- Define the initial provider and release scope. Start implementation with structured
+  output; assess OpenAI as the initial provider. Include embeddings, image generation
+  and analyzer feedback under the owner's clarified functional coverage requirement.
 - Propose the consumer API for configuration, typed requests/results, task reuse, and
   async execution. Decide whether sessions or response-type registration provide enough
   value to justify their lifecycle and complexity.
@@ -182,13 +191,15 @@ the design; unsupported progress or retry features must be explicitly documented
 
 ## Phase 5 — Complete the approved capability set
 
-**Purpose:** incorporate the remaining reference strengths that belong in the initial release.
+**Purpose:** complete the required reference capability set, except analyzer feedback
+assigned to phase 6 in the phase 1 design.
 
 Work:
 
-- Revisit the phase 1 scope and implement the included capabilities not already delivered:
-  these may include multimodal messages, continuation, output specifications, dynamic
-  vocabularies, and provider cache configuration or diagnostics.
+- Revisit the F01–F17 phase 1 coverage map and implement every runtime capability not
+  already delivered, including free text, multimodal messages, continuation, output
+  specifications, dynamic vocabulary interactions, provider cache controls/diagnostics
+  and prewarming, embeddings and image generation.
 - Keep output specifications, examples, and schemas derived from the same contract so
   prompts cannot disagree with validation or serialization.
 - Make continuation and any provider-side persistence semantics explicit. Do not imply
@@ -202,9 +213,9 @@ Work:
 Deliverables: the remaining approved capabilities, interaction tests, revised examples,
 and `docs/PHASE-5.md`.
 
-Complete when every initial-release capability has implementation, documentation, and
-acceptance coverage. If no additional capabilities were approved, document the scope audit
-and complete the phase without adding features. Deferred capabilities remain deferred.
+Complete when every required runtime capability in F01–F16 has implementation,
+documentation, and acceptance coverage. Analyzer feedback (F17) remains assigned to
+phase 6. Deferred capabilities beyond the reference union remain deferred.
 
 ## Phase 6 — Prepare the library for consumers
 
@@ -212,6 +223,10 @@ and complete the phase without adding features. Deferred capabilities remain def
 
 Work:
 
+- Implement the approved Roslyn analyzer feedback (F17) against the settled runtime
+  rules, verify diagnostic parity, and include it in the packed consumer validation.
+- Audit the F01–F17 map against both references; all required runtime and analyzer
+  capabilities must be implemented before release readiness is complete.
 - Review the public surface for consistency, minimal dependencies, clear defaults, useful
   diagnostics, and correct lifecycle behavior. Resolve rough edges without restoring
   compatibility with the references.
