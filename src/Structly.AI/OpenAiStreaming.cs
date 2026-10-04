@@ -86,15 +86,22 @@ public sealed partial class OpenAiClient
                             summary = part;
                             if (!request.IncludeReasoningSummary) continue;
                         }
-                        await execution.Progress(new()
+                        // Observer latency is host processing, not provider inactivity.
+                        // Total and callback deadlines remain active while reading is paused.
+                        execution.StopInactivity();
+                        try
                         {
-                            Kind = summary is null ? StructuredProgressKind.OutputTextDelta : StructuredProgressKind.ReasoningSummaryDelta,
-                            TextDelta = delta,
-                            OutputIndex = output,
-                            SummaryIndex = summary,
-                            ResponseId = execution.Metadata.ResponseId,
-                            ModelId = execution.Metadata.ResolvedModel
-                        }).ConfigureAwait(false);
+                            await execution.Progress(new()
+                            {
+                                Kind = summary is null ? StructuredProgressKind.OutputTextDelta : StructuredProgressKind.ReasoningSummaryDelta,
+                                TextDelta = delta,
+                                OutputIndex = output,
+                                SummaryIndex = summary,
+                                ResponseId = execution.Metadata.ResponseId,
+                                ModelId = execution.Metadata.ResolvedModel
+                            }).ConfigureAwait(false);
+                        }
+                        finally { execution.ResetInactivity(idle); }
                         execution.Token.ThrowIfCancellationRequested();
                     }
                     else if (type == "error") throw new JsonException("Stream error without terminal response.");
