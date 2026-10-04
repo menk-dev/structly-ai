@@ -27,6 +27,7 @@ jobs:
       - run: dotnet build Structly.AI.slnx -c Release --no-restore
       - run: dotnet test --solution Structly.AI.slnx -c Release --no-build
       - run: dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages
+      - run: dotnet run --project tools/Structly.AI.PackageValidation -c Release --no-build -- artifacts/packages
       - uses: actions/upload-artifact@v4
         with:
           name: packages-${{ matrix.os }}
