@@ -1,47 +1,61 @@
-# Execution, streaming and accounting
+# Execution, streaming and callbacks
 
-Reuse OpenAiClient and StructuredTask<T> concurrently. Each call snapshots vocabularies, messages, embedding inputs,
-provider metadata and model options before resolving credentials. Request credentials,
-clocks, warnings and callbacks belong to that call. The library neither owns nor mutates
-HttpClient. Configure its Timeout to Timeout.InfiniteTimeSpan and disable redirects and
-transport retries when credential isolation and exactly one transport attempt are needed.
+You can reuse `OpenAiClient` and `StructuredTask<T>` across concurrent calls. Before reading
+credentials, each call copies vocabularies, messages, embedding inputs, provider metadata
+and model options. Credentials, clocks, warnings and callbacks are kept separate for each call.
 
-## Deadlines and cancellation
+The library does not manage or change your `HttpClient`. Set its timeout to
+`Timeout.InfiniteTimeSpan`. Disable redirects and automatic HTTP retries if you need to
+keep credentials on the selected endpoint and send exactly one HTTP attempt.
 
-OpenAiClientOptions.TotalTimeout defaults to 120 seconds; StructuredRequest.TotalTimeout
-replaces it. Text and prewarm wrap those controls in Request; embeddings and images
-expose TotalTimeout directly. All operations share the same budget and observer policy.
-Total budgets must be positive and at most 24 hours; inactivity budgets must be positive. Total time includes local
-validation, credential resolution, sending, body reading, output processing and callback
-waiting. The configurable TimeProvider supplies monotonic elapsed time and UTC retry dates.
-Synchronous host code, including DTO constructors/setters and delegate invocation before
-its first await, cannot be preempted: it must return promptly. Cancellation is checked at
-execution boundaries; an expired budget overrides a returned output.
+## Timeouts and cancellation
 
-Caller cancellation throws StructuredOperationCanceledException with the original caller
-token, Metadata and immutable Warnings. Before finalization, caller cancellation wins over
-total expiration, total wins over inactivity, and inactivity wins over provider/output
-outcomes. Pre-cancelled calls send nothing. Cancellation after completion is not retroactive.
-Library deadlines return transient DeadlineExceeded or InactivityExceeded errors. Independent
-transport cancellation, including HttpClient.Timeout, returns transient TransportFailure.
-Cancellation exceptions thrown by DTO constructors or setters return nontransient
-InvalidOutput; actual caller cancellation or expired execution deadlines still take precedence.
+`OpenAiClientOptions.TotalTimeout` defaults to 120 seconds. A request's `TotalTimeout`
+overrides it. Text and prewarm requests put these settings in `Request`; embedding and
+image requests expose `TotalTimeout` directly.
 
-For noncooperative async resolvers, HTTP sends, content acquisition, reads or callbacks,
-the client stops waiting at the deadline, observes eventual faults and disposes late
-responses/streams. It disposes its request, response and body resources on every exit.
-Abandoning a wait does not guarantee the provider stopped processing or charging the call.
+The total timeout must be positive and no more than 24 hours. An inactivity timeout must
+be positive. Total time includes validation, credential resolution, HTTP sending and reading,
+output processing and waiting for callbacks. The configured `TimeProvider` supplies elapsed
+time and UTC time for retry dates.
+
+Synchronous application code cannot be interrupted. This includes output constructors and
+setters, and callback code before its first `await`. Keep it short. The library checks
+cancellation between execution steps and returns a timeout error if time has expired,
+even if output processing returned a value.
+
+Before the result is finalized, outcomes have this order of precedence:
+
+1. Caller cancellation.
+2. Total timeout.
+3. Streaming inactivity timeout.
+4. The provider or output result.
+
+Caller cancellation throws `StructuredOperationCanceledException` with the original token,
+metadata and read-only warnings. An already-cancelled call sends nothing. Cancelling after
+completion does not change the result. Library timeouts return transient `DeadlineExceeded`
+or `InactivityExceeded` errors. Independent transport cancellation, including
+`HttpClient.Timeout`, returns transient `TransportFailure`.
+
+If an output constructor or setter throws a cancellation exception, the result is
+nontransient `InvalidOutput`, unless caller cancellation or a library timeout takes precedence.
+
+When asynchronous resolvers, sends, reads or callbacks ignore cancellation, the library
+stops waiting at the timeout. It observes later faults and disposes responses and streams
+that arrive late. Requests, responses and body resources are disposed on every exit.
+The provider may continue processing and charging after the library stops waiting.
 
 ## Streaming and progress
 
-Set Stream=true explicitly; streaming does not require a callback. Optional request or
-client InactivityTimeout starts when SSE body reading begins and resets on each complete
-SSE line, including comments and keep-alives. Partial bytes do not extend it. A client
-default is applied only to streaming calls; specifying request inactivity or Progress on
-a nonstreaming call returns InvalidRequest before credentials or HTTP.
-The inactivity timer pauses during delta progress observers and restarts with the full
-inactivity window afterward. Observer latency still consumes the total execution budget
-and remains subject to the one-second callback limit.
+Set `Stream=true` to stream a response. A progress callback is optional.
+`InactivityTimeout` starts when SSE body reading begins and resets for each complete
+SSE line, including comments and keep-alives. Partial bytes do not reset it.
+
+A client inactivity timeout applies only to streaming calls. Setting request inactivity
+or `Progress` on a nonstreaming call returns `InvalidRequest` before credentials or HTTP.
+While a delta progress callback runs, the inactivity timer pauses. It restarts with the
+full interval afterward. Callback time still counts toward the total timeout and the
+one-second callback limit.
 
 ```csharp
 var request = new StructuredRequest
@@ -57,74 +71,85 @@ var request = new StructuredRequest
 var result = await client.ExecuteAsync(task, request, cancellationToken);
 ```
 
-DisplayProgressAsync and RecordUsageAsync are host callbacks. Progress is ordered:
-Started, OutputTextDelta/ReasoningSummaryDelta, then Completed after typed output
-validation. IncludeReasoningSummary requests reasoning.summary=auto and is valid only
-with streaming; model support remains the caller's responsibility. OutputIndex and
-SummaryIndex identify summary parts. Raw reasoning events are ignored. Progress fragments
-and summaries are sensitive and are not validated final output.
+`DisplayProgressAsync` and `RecordUsageAsync` are application callbacks. Progress arrives
+in order: `Started`, then `OutputTextDelta` or `ReasoningSummaryDelta`, then `Completed`
+after output validation. `IncludeReasoningSummary` requests `reasoning.summary=auto` and
+requires streaming. Check that the model supports it. `OutputIndex` and `SummaryIndex`
+identify summary parts. Raw reasoning events are ignored. Progress text and summaries may
+contain sensitive data and have not passed final output validation.
 
-SSE supports UTF-8 fragments, multiline data, CR/LF/CRLF, an initial BOM and comments.
-Unknown and ancillary event types are ignored; malformed JSON/recognized delta shapes,
-event/type mismatch and invalid UTF-8 return InvalidResponse. A completed/incomplete/failed
-terminal envelope is mandatory; EOF, a standalone error event or deltas alone cannot
-produce success. Terminal output passes the same refusal/status/schema rules as a buffered
-response. MaxResponseBytes (16 MiB default) bounds the complete buffered response or bytes
-consumed from SSE, including comments. Images use the independent MaxImageResponseBytes (128 MiB default)
-to accommodate base64; embeddings use MaxResponseBytes. A terminal event ends reading and disposes the stream;
-there is no requirement to wait for connection EOF. Raw capture retains the terminal
-response envelope, not the stream's event history.
+The SSE reader supports fragmented UTF-8, multiline data, CR, LF and CRLF line endings,
+an initial byte-order mark, and comments. It ignores unknown and unrelated event types.
+Malformed JSON, invalid recognized delta data, mismatched event types and invalid UTF-8
+return `InvalidResponse`.
 
-Progress callbacks wait at most one second or the remaining total budget. A fault,
-cancellation or timeout adds ProgressObserverFailed/ProgressObserverTimedOut and disables
-subsequent progress callbacks; stream processing and usage observation continue. No-budget
-callbacks receive ProgressObserverSkipped. Callback tokens are bounded independently of
-the caller token; total expiration still takes precedence.
+A final completed, incomplete or failed response event is required. End-of-stream, a
+standalone error event or deltas alone cannot produce success. The final output passes
+the same refusal, status and schema checks as a buffered response.
 
-## Usage and safe diagnostics
+`MaxResponseBytes` defaults to 16 MiB. It limits the buffered response or all bytes read
+from SSE, including comments. Embeddings use the same limit. Images use
+`MaxImageResponseBytes`, which defaults to 128 MiB to allow for base64 data. Reading stops
+and the stream is disposed after the final response event; the connection need not close
+first. Raw capture stores the final response object, not the SSE event history.
 
-When any valid usage count is available, the request UsageObserver replaces the client
-observer and receives one StructuredUsageEvent. Refusal, incomplete output and invalid
-output still retain usage. Missing usage produces no event. Counts remain independently
-nullable; malformed counts add InvalidUsage warnings and do not invent zeroes or costs.
-Streaming cancellation before a terminal envelope may leave billing unknown.
+### Progress callback failures
 
-The event describes the output outcome before observation; CallerCancelled records caller
-cancellation at that point. Later cancellation/deadlines can change the final outcome.
-The observer token is independent of caller cancellation and bounded by five seconds or
-the remaining total budget. Fault/cancellation adds UsageObserverFailed, observer timeout
-adds UsageObserverTimedOut, and no remaining budget adds UsageObserverSkipped. Observer
-failure preserves the primary outcome; total expiration or caller cancellation still wins.
-Delivery is best effort and is never retried. Noncooperative callbacks can continue after
-return and must tolerate cancellation; their late faults are observed.
+The library waits at most one second, or the remaining total timeout, for a progress
+callback. A fault or cancellation adds `ProgressObserverFailed`; a timeout adds
+`ProgressObserverTimedOut`. Both disable later progress callbacks, while stream reading
+and usage recording continue. If no time remains, the warning is `ProgressObserverSkipped`.
+Callback tokens are separate from the caller token. The total timeout still takes precedence.
 
-Cache diagnostics retain comparison outcome/reason strings and counts, including unknown
-strings. Diagnostics explain a comparison, while Usage.CachedInputTokens measures reported
-reuse. Embeddings map prompt_tokens to InputTokens. Images retain reported text/image
-input and output token details; no missing count is inferred. See [Advanced features](ADVANCED.md).
+## Usage callbacks
 
-Read result.Metadata or cancellation-exception Metadata for final available accounting.
-Deduplicate event/result records using ExecutionId if consuming both. Truncated/malformed
-responses, abandoned sends and preterminal cancellation can leave usage unknown: the
-library cannot promise observation of every billed call.
+When any valid usage count is available, one `StructuredUsageEvent` goes to the request
+observer, or the client observer if the request has none. Refusal, incomplete output and
+invalid output can still include usage. No usage means no callback. Counts are independently
+nullable. Malformed counts add `InvalidUsage` warnings; they are not replaced with zeros
+or calculated costs. Cancellation before a final streaming response may leave charges unknown.
 
-There is no automatic body, prompt, credential, output or exception logging. Error messages
-and warnings use safe fixed descriptions, never provider/host exception text. Response IDs,
-model IDs, correlation IDs and independent usage counts remain available for diagnostics.
-CaptureRawResponse and CaptureOutputText explicitly retain sensitive data, including on
-billed failures. Host callbacks and any host logging must choose their own data policy.
+The event describes the result before the callback runs. `CallerCancelled` records
+cancellation at that point. Later cancellation or timeouts may change the final result.
 
-## Retry ownership and duplicate work
+The callback token is separate from caller cancellation. The library waits at most five
+seconds, or the remaining total timeout. A fault or cancellation adds `UsageObserverFailed`;
+a timeout adds `UsageObserverTimedOut`; no time remaining adds `UsageObserverSkipped`.
+Callback failure does not replace the operation result, but total timeout and caller
+cancellation still take precedence. The callback is not retried. Code that ignores its
+token may continue after the operation returns; later faults are observed.
 
-The library performs one attempt and never sleeps/retries automatically. Hosts own job
-budgets, concurrency limits, backoff and retry scheduling. Avoid retry loops in both a
-handler and the host when a bounded number of attempts matters. RetryAfter retains valid
-Retry-After seconds/date hints, with past dates clamped to zero against the configured
-TimeProvider. IsTransient is a scheduling hint, not a promise that replay is safe or free;
-quota exhaustion is not transient. Refusal, incomplete or invalid output can be billed.
+Cache diagnostics retain comparison results, reasons and counts, including unknown strings.
+`Usage.CachedInputTokens` is the provider's reported cached input count. Embedding
+`prompt_tokens` becomes `InputTokens`. Images retain reported text and image token counts.
+Missing counts stay unknown. See [advanced features](ADVANCED.md).
 
-IdempotencyKey is only an optional OpenAI header passthrough. The library provides no
-replay store, local deduplication or provider deduplication guarantee. CorrelationId stays
-local; OpenAiResponseOptions.Metadata is explicit provider-visible metadata. A timeout
-or network failure can occur after the provider accepted the request. Account for that
-uncertainty before scheduling a new attempt.
+Read final usage from `result.Metadata` or cancellation-exception metadata. If you record
+both callback data and result data, deduplicate using `ExecutionId`. Malformed responses,
+abandoned sends and early cancellation can leave usage unknown. The library cannot report
+every charge the provider makes.
+
+## Diagnostics and captured data
+
+The library does not log bodies, prompts, credentials, output or exceptions automatically.
+Errors and warnings use fixed descriptions rather than provider or application exception
+text. Response IDs, model IDs, correlation IDs and token counts remain available.
+
+`CaptureRawResponse` and `CaptureOutputText` retain potentially sensitive data, including
+on failed operations that may be billed. Your application must decide what to store and log.
+
+## Retries
+
+The library sends one attempt and does not wait or retry automatically. Your application
+sets job time limits, concurrency limits, retry delays and schedules. Avoid retry loops
+in both an HTTP handler and application code if you need a known maximum number of attempts.
+
+`RetryAfter` preserves valid `Retry-After` seconds or dates. Past dates become zero using
+the configured `TimeProvider`. `IsTransient` helps with retry decisions; it does not promise
+that another attempt is safe or free. Quota exhaustion is not transient. Refused, incomplete
+and invalid output can be billed.
+
+`IdempotencyKey` passes through as an OpenAI header. The library does not store previous
+requests or guarantee that the provider prevents duplicate processing. `CorrelationId`
+stays local; `OpenAiResponseOptions.Metadata` is sent to the provider. A timeout or network
+failure can happen after the provider accepts the request. Consider that before retrying.

@@ -1,84 +1,86 @@
-# Design and regression boundaries
+# Design and tests
 
-## Architecture and scope
+## Package structure
 
-The runtime targets .NET 10 and uses framework HTTP, JSON, reflection and time APIs without
-NuGet runtime dependencies. The same `Structly.AI` package ships a `netstandard2.0` Roslyn
-analyzer under `analyzers/dotnet/cs`. Compiler dependencies remain private to the analyzer
-and its tests; compiler-host compatibility prevents sharing the runtime assembly directly.
+The core library targets .NET 10. It uses framework HTTP, JSON, reflection and time APIs,
+with no NuGet runtime dependencies. Its package includes a `netstandard2.0` Roslyn analyzer
+under `analyzers/dotnet/cs`. Compiler dependencies are private to the analyzer and its tests.
+The analyzer cannot reference the .NET 10 runtime assembly because it must load in the compiler.
 
-The library replaced the functional capabilities of two reference implementations without
-preserving their public API. Immutable tasks and a directly configured client replace
-mutable sessions and type registration. Caller-owned DI can register the concrete client.
-Additional providers/frameworks, automatic retries, Native AOT, tool calling, image editing
-and audio/video/file inputs remain outside the current scope. These are scope boundaries,
-not an approved implementation backlog.
+Tasks are immutable, and clients take explicit settings. The optional `Structly.AI.Hosting`
+package registers the client with dependency injection, binds configuration and validates
+settings. The core package can be used without it.
 
-## Shared schema contract
+Other providers, automatic retries, Native AOT, tool calling, image editing, and audio,
+video and file inputs are not currently supported. This list describes current limits;
+it is not a plan to implement those features.
 
-`SchemaResolver` resolves serialization into a task-owned immutable contract.
-`SchemaWriter`, `OutputValidator` and `OutputSpecification` consume that contract so wire
-schemas, local validation and generated guidance agree. Keep supported shapes aligned with
-[SCHEMAS.md](../docs/SCHEMAS.md); broad reflection discovery alone does not prove a shape
-can deserialize correctly.
+## Schema handling
 
-Vocabularies are snapshotted per request; there is no global or vocabulary-specific schema
-cache. This avoids retaining unbounded caller data and mixing distinct serialization or
-vocabulary inputs. Preserve nullable enum branches, enum wire names, nested element
-nullability, ignored-member semantics and constructor-bound DTO support when changing rules.
-Generated examples must pass local validation, including constraints and vocabularies.
+`SchemaResolver` builds an immutable description of the task's serialization rules.
+`SchemaWriter`, `OutputValidator` and `OutputSpecification` use it to generate the JSON
+schema, validate output and generate output instructions. Keep supported types consistent
+with [SCHEMAS.md](../docs/SCHEMAS.md). Finding a type through reflection does not prove
+that `System.Text.Json` can deserialize it.
 
-The analyzer independently inspects Roslyn symbols. Parity tests compile the same snippets
-and compare analyzer/runtime issue codes and serialized paths. Both fail on the first
-contract issue. Runtime vocabularies, dynamic settings, serialized schema byte size and
-provider compatibility remain runtime concerns; see the consumer guide for diagnostic limits.
+Each request copies its vocabularies. There is no global schema cache for vocabulary data.
+This avoids keeping unlimited caller data in memory or reusing another request's values.
+When changing schema rules, preserve nullable enums, serialized enum names, nullable
+collection items, ignored properties and constructor-bound properties. Generated examples
+must pass the same validation as real output, including constraints and vocabularies.
 
-## Execution and provider boundaries
+The analyzer checks Roslyn symbols separately. Tests compile the same examples and compare
+analyzer and runtime issue codes and JSON paths. Both report the first schema issue.
+Vocabularies, dynamic settings, serialized schema size and provider support are checked
+at runtime. See the schema guide for analyzer limits.
 
-`OpenAiClient` shares bounded transport, credentials, safe failure classification and
-finalization across responses, embeddings, images and prewarming. Response construction,
-terminal parsing, streaming and auxiliary operations stay in their feature files.
-Model profiles are explicit caller configuration; model selection and retries belong to
-the host. Provider feature support must be checked against official documentation when
-changing wire behavior, rather than inherited from reference comments or old fixtures.
+## Execution
 
-Preserve the policies documented in [EXECUTION.md](../docs/EXECUTION.md),
+`OpenAiClient` shares HTTP handling, credential resolution, error handling, timeouts and
+result completion across responses, embeddings, images and prewarming. Request construction,
+response parsing, streaming and operation-specific processing stay in their feature files.
+Your application configures model profiles, chooses models and handles retries. When
+changing provider requests, check official documentation rather than old comments or fixtures.
+
+Preserve the behavior described in [EXECUTION.md](../docs/EXECUTION.md),
 [FAILURES.md](../docs/FAILURES.md) and [USAGE.md](../docs/USAGE.md):
 
-- Validate requests before credentials or transport; snapshot mutable request inputs and
-  isolate credentials, options, callbacks and vocabulary state across concurrent calls.
-- Send one attempt. Caller cancellation takes precedence over total expiration, then
-  streaming inactivity, then provider/output outcomes before finalization.
-- Capture available identity and usage before output processing. Refusal, incomplete or
-  invalid output can be billed; observation is best effort and missing counts stay unknown.
-- Bound callbacks and noncooperative async waits. Observe late faults and dispose late
-  responses/streams. Synchronous host code cannot be preempted and must return promptly.
-- Never expose provider/host exception text in safe errors or log sensitive bodies by
-  default. Raw envelope and output retention are explicit opt-ins.
+- Validate requests before resolving credentials or sending HTTP. Copy mutable request
+  data and keep credentials, options, callbacks and vocabularies separate across calls.
+- Send one attempt. Before completion, caller cancellation takes precedence over the
+  total timeout, then streaming inactivity, then provider and output results.
+- Read response IDs and usage before processing output. Failed output can be billed.
+  Usage callbacks can fail, and missing counts must stay unknown.
+- Limit callback waits and asynchronous work that ignores cancellation. Observe later
+  faults and dispose late responses and streams. Synchronous application code must return promptly.
+- Keep provider and application exception text out of errors and warnings. Do not log
+  sensitive bodies by default. Raw response and output capture require explicit settings.
 
-Streaming requires a terminal envelope; deltas or EOF alone cannot produce success. Raw
-capture retains the terminal envelope rather than the event history. Delta observer time
-pauses inactivity measurement while total and callback budgets remain active.
-DTO constructor/setter cancellation exceptions become nontransient `InvalidOutput` unless
-actual execution cancellation or expiration takes precedence. Both rules have regressions
-from the completed audit and must survive future refactoring.
+Streaming needs a final response event. Deltas or end-of-stream alone cannot produce
+success. Raw capture stores the final response, not the event history. Delta callback
+time pauses the inactivity timer but still counts toward total and callback timeouts.
 
-Advanced response/cache controls remain explicitly provider-specific. Compatibility is
-configured per model, unsupported combinations fail locally, and unknown diagnostic strings
-are retained. No cache-hit, storage, replay or deduplication guarantee is implied.
-See [ADVANCED.md](../docs/ADVANCED.md) for supported wire behavior and limitations.
+Cancellation exceptions from output constructors or setters become nontransient
+`InvalidOutput`, unless actual caller cancellation or a library timeout takes precedence.
+Keep the regression tests for these rules when refactoring.
 
-## Regression coverage
+Cache settings are provider-specific and configured per model. Unsupported combinations
+fail before sending, and unknown diagnostic strings are retained. Cache settings do not
+guarantee reuse, storage or protection from duplicate requests.
+See [ADVANCED.md](../docs/ADVANCED.md).
 
-| Area | Tests and acceptance boundaries |
+## Test coverage
+
+| Area | Tests and behavior checked |
 | --- | --- |
-| Schema and output | `SchemaTests`, `SchemaLimitTests`, `OutputTests`, `VocabularyTests`: serialization fidelity, supported/unsupported shapes, strict limits, constraints and vocabulary isolation |
-| Responses | `OpenAiClientTests`, `AdvancedResponseTests`: exact wire JSON, validation suppresses auth/send, failure taxonomy, metadata, text/messages/vision, changed-schema continuation, guidance/cache/prewarm interactions |
-| Execution | `ReliabilityTests`: caller/total/inactivity precedence, observer bounds, buffered completion after slow progress, genuine stalls, cleanup, usage on failed output and concurrent isolation |
-| Auxiliary operations | `AuxiliaryOperationTests`: embedding index reordering/completeness and finite vectors; image count/base64/format, transparent JPEG rejection and independent response limits |
-| Analyzer | `AnalyzerTests`: runtime parity, valid DTO acceptance, unsupported shape diagnostics and legacy attribute guidance |
-| Package | `Structly.AI.PackageValidation`: isolated packed consumer, bundled analyzer rejection and artifact/version integrity |
+| Schema and output | `SchemaTests`, `SchemaLimitTests`, `OutputTests`, `VocabularyTests`: serialization rules, supported types, limits, constraints and separate request vocabularies |
+| Responses | `OpenAiClientTests`, `AdvancedResponseTests`: request JSON, validation before credentials and HTTP, errors, metadata, text and image messages, follow-up schemas, output instructions and caching |
+| Execution | `ReliabilityTests`: cancellation and timeout precedence, callback limits, slow progress, stalled reads, cleanup, usage on invalid output and concurrent calls |
+| Embeddings and images | `AuxiliaryOperationTests`: complete embedding indexes, ordering and finite vectors; image count, base64, format, transparent JPEG rejection and response limits |
+| Hosting | `HostingTests`: configuration binding, dependency injection, settings validation, credentials, HTTP client settings and configuration reloads |
+| Analyzer | `AnalyzerTests`: agreement with runtime checks, valid output types, unsupported types and migration diagnostics |
+| Packages | `Structly.AI.PackageValidation`: package contents and versions, symbols, a separate test application and rejection of an unsupported output type by the packaged analyzer |
 
-Tests should exercise interactions and failure boundaries, including nullable enum collections,
-concurrent vocabularies, changed schemas, observer failure and captured usage. Offline fixtures
-establish library behavior; they do not certify current provider or model support.
+Test combinations and failure cases, such as nullable enum collections, concurrent
+vocabularies, changed schemas, callback failures and usage on invalid output. Offline tests
+check library behavior. They do not prove that a provider or model supports a feature today.

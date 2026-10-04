@@ -1,21 +1,21 @@
 # Development
 
-Consumer documentation lives in [docs/](../docs/). This directory contains ongoing
-maintainer guidance:
+User guides are in [docs/](../docs/). This directory covers development and releases:
 
-- [Design and regression boundaries](DESIGN.md)
+- [Design and tests](DESIGN.md)
 - [Release setup, publication and recovery](RELEASES.md)
 
-Use the SDK in `global.json` and follow [AGENTS.md](../AGENTS.md). Dependencies are
-centrally managed and locked. Dependency changes require restore with `--force-evaluate`
-and committed lockfiles. Ignored `ref1/` and `ref2/` are historical assessment material,
-excluded from the solution and packages; development must not depend on their presence.
+Use the SDK in `global.json` and follow [AGENTS.md](../AGENTS.md). Package versions are
+listed in `Directory.Packages.props` and recorded in lockfiles. After changing a dependency,
+restore with `--force-evaluate` and commit the updated lockfiles. Ignored `ref1/` and `ref2/`
+directories contain old reference code. They are excluded from builds and packages; the
+project must build without them.
 
 ## Dependency updates
 
 Dependabot checks NuGet packages and GitHub Actions weekly. Patch and minor updates
-automatically enable squash merging; both required Linux and Windows CI checks must pass
-against the current base before merging. Major updates and all `Microsoft.CodeAnalysis`
+merge automatically once the required Linux and Windows CI checks pass against the
+current base. Major updates and all `Microsoft.CodeAnalysis`
 updates require maintainer review because analyzer compatibility depends on consumers'
 compiler versions. Merged branches are deleted automatically.
 
@@ -37,14 +37,14 @@ rtk dotnet run --project tools/Structly.AI.PackageValidation -c Release --no-bui
 rtk git diff --check
 ```
 
-Normal tests are deterministic, offline and independent of provider credentials. Use fake
-HTTP handlers, synthetic response/SSE fixtures, gated streams and controlled time where
-practical. Live provider checks are optional and paid calls require explicit authorization.
+Tests run offline without provider credentials. Use fake HTTP handlers and response
+data. Control streams and time when testing cancellation or timeouts. Live provider tests
+are optional; get explicit approval before making paid calls.
 
-Package validation checks identity, framework, license, dependencies, file allowlist,
-README/XML documentation, portable PDB/Source Link and version/changelog consistency.
-It runs a consumer outside the repository with a fresh cache and local feed only, then
-requires a compilation failure from the packed analyzer for an unsupported DTO.
+Package validation checks package IDs, target frameworks, licenses, dependencies, contents,
+documentation, debug symbols, source links and version numbers. It installs the core package
+from a local feed in a separate application with a fresh cache. It also checks that the
+packaged analyzer rejects an unsupported output type during compilation.
 
-Completed implementation plans, handoffs and fixed audit reports were removed. Git history
-retains those records; current behavior belongs in consumer guides, code and regression tests.
+Old implementation plans and resolved audit reports are available in Git history. Keep
+current behavior documented in the user guides, code and tests.

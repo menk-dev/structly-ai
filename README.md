@@ -1,17 +1,19 @@
 # Structly.AI
 
-Typed, validated LLM output for unattended .NET workflows. Define a DTO, create an
-immutable task, and receive a categorized result with response identity and usage—even
-when a billed response fails output validation.
+Structly.AI turns OpenAI output into .NET objects and checks it against your schema.
+Define an output type, create a reusable task, and execute it. Each result includes
+either a value or an error, along with any response IDs and token counts reported by
+the provider. Token counts can still be available when the output is invalid.
 
 Supports **.NET 10** and OpenAI. The runtime has no NuGet dependencies. The package also
-includes a C# Roslyn analyzer for early schema feedback. Available as `Structly.AI`
-version `0.1.0` on GitHub Packages; configure the authenticated feed below or use the local workflow.
+includes a C# Roslyn analyzer that checks supported output types during compilation.
+Version `0.2.0` adds the optional `Structly.AI.Hosting` package for ASP.NET Core and
+Generic Host. Install packages from GitHub Packages using the feed settings below.
 
 ## Quick start
 
 For GitHub Packages, [configure the authenticated package feed](https://github.com/menk-dev/structly-ai/blob/main/docs/INSTALLATION.md#consuming-from-your-projects)
-and install with `dotnet add package Structly.AI --version 0.1.0`. Configure a model ID
+and install with `dotnet add package Structly.AI --version 0.2.0`. Configure a model ID
 supported by your account and supply credentials explicitly:
 
 ```csharp
@@ -50,16 +52,17 @@ public sealed record Ticket
 }
 ```
 
-Every included property must appear in the JSON; nullable properties permit explicit
-`null`. Tasks validate schemas at creation and can be reused concurrently. Invalid
-requests fail before credential resolution or HTTP. `EnsureSuccess()` is available
-when exceptions fit your host; caller cancellation throws
-`StructuredOperationCanceledException`, retaining any captured usage.
+Every included property must appear in the JSON. Nullable properties may contain `null`;
+they cannot be omitted. Creating a task checks its schema. You can reuse the task for
+concurrent requests. Invalid requests fail before the library reads credentials or sends
+HTTP requests. Use `EnsureSuccess()` if you prefer exceptions to checking the result.
+Caller cancellation throws `StructuredOperationCanceledException`, which includes any
+token counts already received.
 
 ## ASP.NET Core and .NET Hosting
 
 Use the optional `Structly.AI.Hosting` package for dependency injection, settings from
-`appsettings.json`, startup validation and factory-managed HTTP handlers:
+`appsettings.json`, settings validation at startup, and `IHttpClientFactory`:
 
 ```csharp
 using Structly.AI.Hosting;
@@ -71,49 +74,52 @@ builder.Services.AddStructlyOpenAi(builder.Configuration);
 Inject `OpenAiClient` into endpoints or application services. Configure the
 `Structly:OpenAI` section with a `DefaultModel`, timeouts and model profiles; supply
 `Structly__OpenAI__ApiKey` through the host's environment configuration or use user secrets.
-See the [hosting guide](https://github.com/menk-dev/structly-ai/blob/main/docs/HOSTING.md) for complete JSON and ASP.NET Core/worker examples.
-This package is built alongside the core library; install it from the next release
-or use a project reference locally.
+Install it with `dotnet add package Structly.AI.Hosting --version 0.2.0`.
+See the [hosting guide](https://github.com/menk-dev/structly-ai/blob/main/docs/HOSTING.md)
+for configuration and ASP.NET Core and worker examples.
 
 ## Guides
 
 - [ASP.NET Core and Generic Host integration](https://github.com/menk-dev/structly-ai/blob/main/docs/HOSTING.md)
-- [Configuration and transport ownership](https://github.com/menk-dev/structly-ai/blob/main/docs/CONFIGURATION.md)
+- [Client and HTTP configuration](https://github.com/menk-dev/structly-ai/blob/main/docs/CONFIGURATION.md)
 - [Schema support, constraints and analyzer diagnostics](https://github.com/menk-dev/structly-ai/blob/main/docs/SCHEMAS.md)
 - [Failure handling](https://github.com/menk-dev/structly-ai/blob/main/docs/FAILURES.md)
 - [Cancellation, deadlines, streaming and retries](https://github.com/menk-dev/structly-ai/blob/main/docs/EXECUTION.md)
-- [Usage accounting](https://github.com/menk-dev/structly-ai/blob/main/docs/USAGE.md)
+- [Token counts and usage callbacks](https://github.com/menk-dev/structly-ai/blob/main/docs/USAGE.md)
 - [Guidance, messages, vision, continuation, caching, embeddings and images](https://github.com/menk-dev/structly-ai/blob/main/docs/ADVANCED.md)
 
-The library sends one attempt. The host owns retries, model selection and transport
-policy. Provider features depend on the selected model; no model fallback, cache-hit,
-storage-availability or duplicate-billing guarantee is implied. Arbitrary JSON converters,
-recursive DTOs, dictionaries and polymorphic schemas are unsupported. Additional providers,
-frameworks, automatic retries, Native AOT, tool calling, image editing and audio/video/file
-input are outside the current release scope.
+Each operation sends one request. Your application chooses the model and controls HTTP
+settings and retries. Check that the selected model supports the features you request.
+The library does not switch models automatically or guarantee cache reuse, stored response
+availability, or protection from duplicate charges.
+
+Arbitrary JSON converters, recursive output types, dictionaries and polymorphic schemas
+are unsupported. This release does not support other providers, automatic retries,
+Native AOT, tool calling, image editing, or audio, video and file input.
 
 ## Run without credentials
 
 The [consumer example](https://github.com/menk-dev/structly-ai/tree/main/examples/Structly.AI.Consumer)
-uses a simulated HTTP response, exercises typed output, dynamic vocabularies, guidance,
-accounting and cancellation, and never calls a provider:
+uses a simulated HTTP response to demonstrate typed output, dynamic vocabularies, output
+instructions, token counts and cancellation. It does not call a provider:
 
 ```sh
 dotnet run --project examples/Structly.AI.Consumer -c Release
 ```
 
-Verify the actual NuGet artifact in an isolated consumer with a fresh package cache
-and a local feed only:
+Build both packages and check them with a separate test application. The test application
+uses a fresh package cache and installs the core package from the local feed:
 
 ```sh
 dotnet restore Structly.AI.slnx --locked-mode
 dotnet build Structly.AI.slnx -c Release --no-restore
 dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages
+dotnet pack src/Structly.AI.Hosting/Structly.AI.Hosting.csproj -c Release --no-build -o artifacts/packages
 dotnet run --project tools/Structly.AI.PackageValidation -c Release --no-build -- artifacts/packages
 ```
 
-The validator also checks metadata, XML documentation, symbols, source information,
-version consistency and a failing DTO diagnosed by the packed analyzer.
+The validator checks both packages' contents and versions, documentation and debug symbols.
+It also checks that the packaged analyzer rejects an unsupported output type.
 
 ## Development
 
