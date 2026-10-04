@@ -210,15 +210,13 @@ static void ValidateAssemblyVersion(ZipArchive archive, string name, string vers
 
 static async Task<(int ExitCode, string Output)> Dotnet(string directory, params string[] arguments)
 {
-    var start = new ProcessStartInfo("rtk")
+    var start = new ProcessStartInfo("dotnet")
     {
         WorkingDirectory = directory,
         RedirectStandardOutput = true,
         RedirectStandardError = true,
         UseShellExecute = false
     };
-    start.ArgumentList.Add("proxy");
-    start.ArgumentList.Add("dotnet");
     foreach (var argument in arguments) start.ArgumentList.Add(argument);
     using var process = Process.Start(start)!;
     var stdout = process.StandardOutput.ReadToEndAsync();
