@@ -64,8 +64,12 @@ public sealed record StructuredRequest
     public Func<StructuredProgress, CancellationToken, ValueTask>? Progress { get; init; }
     /// <summary>Gets a best-effort accounting callback overriding the client observer.</summary>
     public Func<StructuredUsageEvent, CancellationToken, ValueTask>? UsageObserver { get; init; }
-    /// <summary>Gets required nonblank text input.</summary>
-    public required string Input { get; init; }
+    /// <summary>Gets nonblank text input, mutually exclusive with Messages.</summary>
+    public string? Input { get; init; }
+    /// <summary>Gets ordered messages, mutually exclusive with Input.</summary>
+    public IReadOnlyList<StructuredMessage>? Messages { get; init; }
+    /// <summary>Gets optional contract-derived output guidance.</summary>
+    public OutputSpecificationOptions? OutputSpecification { get; init; }
     /// <summary>Gets runtime vocabularies, snapshotted at execution entry.</summary>
     public IReadOnlyDictionary<string, IReadOnlyList<string>>? Vocabularies { get; init; }
     /// <summary>Gets model selection overriding task and client.</summary>

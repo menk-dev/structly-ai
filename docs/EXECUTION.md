@@ -1,6 +1,6 @@
 # Execution, streaming and accounting
 
-Reuse OpenAiClient and StructuredTask<T> concurrently. Each call snapshots vocabularies,
+Reuse OpenAiClient and StructuredTask<T> concurrently. Each call snapshots vocabularies, messages, embedding inputs,
 provider metadata and model options before resolving credentials. Request credentials,
 clocks, warnings and callbacks belong to that call. The library neither owns nor mutates
 HttpClient. Configure its Timeout to Timeout.InfiniteTimeSpan and disable redirects and
@@ -9,7 +9,9 @@ transport retries when credential isolation and exactly one transport attempt ar
 ## Deadlines and cancellation
 
 OpenAiClientOptions.TotalTimeout defaults to 120 seconds; StructuredRequest.TotalTimeout
-replaces it. Total budgets must be positive and at most 24 hours; inactivity budgets must be positive. Total time includes local
+replaces it. Text and prewarm wrap those controls in Request; embeddings and images
+expose TotalTimeout directly. All operations share the same budget and observer policy.
+Total budgets must be positive and at most 24 hours; inactivity budgets must be positive. Total time includes local
 validation, credential resolution, sending, body reading, output processing and callback
 waiting. The configurable TimeProvider supplies monotonic elapsed time and UTC retry dates.
 Synchronous host code, including DTO constructors/setters and delegate invocation before
@@ -63,7 +65,8 @@ event/type mismatch and invalid UTF-8 return InvalidResponse. A completed/incomp
 terminal envelope is mandatory; EOF, a standalone error event or deltas alone cannot
 produce success. Terminal output passes the same refusal/status/schema rules as a buffered
 response. MaxResponseBytes (16 MiB default) bounds the complete buffered response or bytes
-consumed from SSE, including comments. A terminal event ends reading and disposes the stream;
+consumed from SSE, including comments. Images use the independent MaxImageResponseBytes (128 MiB default)
+to accommodate base64; embeddings use MaxResponseBytes. A terminal event ends reading and disposes the stream;
 there is no requirement to wait for connection EOF. Raw capture retains the terminal
 response envelope, not the stream's event history.
 
@@ -89,6 +92,11 @@ adds UsageObserverTimedOut, and no remaining budget adds UsageObserverSkipped. O
 failure preserves the primary outcome; total expiration or caller cancellation still wins.
 Delivery is best effort and is never retried. Noncooperative callbacks can continue after
 return and must tolerate cancellation; their late faults are observed.
+
+Cache diagnostics retain comparison outcome/reason strings and counts, including unknown
+strings. Diagnostics explain a comparison, while Usage.CachedInputTokens measures reported
+reuse. Embeddings map prompt_tokens to InputTokens. Images retain reported text/image
+input and output token details; no missing count is inferred. See [Advanced features](ADVANCED.md).
 
 Read result.Metadata or cancellation-exception Metadata for final available accounting.
 Deduplicate event/result records using ExecutionId if consuming both. Truncated/malformed
