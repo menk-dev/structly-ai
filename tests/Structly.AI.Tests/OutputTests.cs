@@ -25,10 +25,10 @@ public sealed class OutputTests
         Assert.False(result.IsSuccess);
         Assert.Equal(StructuredErrorKind.InvalidOutput, result.Error!.Kind);
         Assert.Contains(result.Error.Issues, x => x.Code == code);
-        Assert.Same(metadata, result.Metadata);
+        Assert.Equal(metadata with { SchemaName = result.Metadata.SchemaName }, result.Metadata);
         Assert.Equal(0, result.Value?.Value ?? 0);
         var exception = Assert.Throws<StructuredOperationException>(() => result.EnsureSuccess());
-        Assert.Same(metadata, exception.Metadata);
+        Assert.Same(result.Metadata, exception.Metadata);
     }
 
     [Theory]
@@ -163,7 +163,7 @@ public sealed class OutputTests
         Assert.Equal(StructuredErrorKind.InvalidOutput, result.Error!.Kind);
         Assert.DoesNotContain("sensitive", result.Error.Message);
         Assert.DoesNotContain("sensitive", String.Join(" ", result.Error.Issues.Select(x => x.Message)));
-        Assert.Same(metadata, result.Metadata);
+        Assert.Equal(metadata with { SchemaName = result.Metadata.SchemaName }, result.Metadata);
     }
 
     [Fact]

@@ -57,14 +57,14 @@ public sealed partial class OpenAiClient
     {
         ArgumentNullException.ThrowIfNull(task);
         ArgumentNullException.ThrowIfNull(request);
-        return RunOperation(request, "Structured", execution => ExecuteCore(task, request, execution), cancellationToken);
+        return RunOperation(request, "Structured", execution => ExecuteCore(task, request, execution), cancellationToken, task.SchemaName);
     }
 
     async Task<StructuredResult<T>> RunOperation<T>(StructuredRequest request, string operation,
-        Func<OpenAiExecution, Task<StructuredResult<T>>> core, CancellationToken cancellationToken)
+        Func<OpenAiExecution, Task<StructuredResult<T>>> core, CancellationToken cancellationToken, string? schemaName = null)
     {
         using var execution = new OpenAiExecution(request, _options, cancellationToken);
-        execution.Metadata = execution.Metadata with { Operation = operation };
+        execution.Metadata = execution.Metadata with { Operation = operation, SchemaName = schemaName };
         StructuredResult<T> result;
         try { result = await core(execution).ConfigureAwait(false); }
         catch (OperationCanceledException)
@@ -109,7 +109,7 @@ public sealed partial class OpenAiClient
             var guidance = request.OutputSpecification is { } specification ? task.CreateOutputSpecification(specification, vocabularies) : null;
             var model = SelectModel(request.ModelSelection ?? task.ModelSelection ?? _options.DefaultModel);
             execution.Metadata = execution.Metadata with { RequestedModel = model.ModelId };
-            payload = ResponsePayload(request, model, task.Instructions, guidance);
+            payload = ResponsePayload(request, model, request.Instructions ?? task.Instructions, guidance);
             var format = new Dictionary<string, object?> { ["type"] = "json_schema", ["name"] = task.SchemaName, ["schema"] = schema, ["strict"] = true };
             if (task.Description is not null) format["description"] = task.Description;
             payload["text"] = new { format };

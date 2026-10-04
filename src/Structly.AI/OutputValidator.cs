@@ -85,7 +85,7 @@ static class OutputValidator
         {
             var text = value.GetString()!;
             var entries = node.Vocabulary is { } key ? vocabularies[key] : node.EnumValues;
-            if (entries is not null && Array.BinarySearch(entries, text, StringComparer.Ordinal) < 0)
+            if (entries is not null && !entries.Contains(text, StringComparer.Ordinal))
                 Issue("EnumValue", "Value must exactly match a declared enum or vocabulary wire value.");
             var length = SchemaWriter.ScalarCount(text);
             if (node.MinLength >= 0 && length < node.MinLength || node.MaxLength >= 0 && length > node.MaxLength)

@@ -179,6 +179,8 @@ public sealed record StructuredMetadata
     public Guid ExecutionId { get; init; } = Guid.NewGuid();
     /// <summary>Gets the operation name.</summary>
     public string? Operation { get; init; }
+    /// <summary>Gets the resolved schema name for typed operations.</summary>
+    public string? SchemaName { get; init; }
     /// <summary>Gets the caller correlation identifier.</summary>
     public string? CorrelationId { get; init; }
     /// <summary>Gets the provider name.</summary>

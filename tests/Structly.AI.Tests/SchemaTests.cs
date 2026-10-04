@@ -21,6 +21,65 @@ public sealed class SchemaTests
         => element.TryGetProperty("anyOf", out var branches) ? branches[0] : element;
 
     [Fact]
+    public void PropertyOrderOverridesDeclarationOrderIncludingInheritedMembers()
+    {
+        var task = Create<OrderedChild>();
+        string[] names = ["first", "reason", "matches", "baseReason", "baseAnswer", "last"];
+        Assert.Equal(names, task.CreateSchema().GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+        using var serialized = JsonDocument.Parse(JsonSerializer.Serialize(new OrderedChild(), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
+        Assert.Equal(names, serialized.RootElement.EnumerateObject().Select(x => x.Name));
+    }
+    public class OrderedBase
+    {
+        public string BaseReason { get; init; } = "";
+        public int BaseAnswer { get; init; }
+        [JsonPropertyOrder(-1)] public int First { get; init; }
+    }
+    public sealed class OrderedChild : OrderedBase
+    {
+        public string Reason { get; init; } = "";
+        public int Matches { get; init; }
+        [JsonPropertyOrder(1)] public int Last { get; init; }
+    }
+
+    [Fact]
+    public void EnumConvertersAndDeclarationOrderAreSupported()
+    {
+        var task = Create<CompatibilityPayload>();
+        var schema = task.CreateSchema();
+        string[] names = ["reason", "matches", "fit", "genericFit", "propertyFit", "genericPropertyFit"];
+        Assert.Equal(names, schema.GetProperty("properties").EnumerateObject().Select(x => x.Name));
+        Assert.Equal(names, schema.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
+        Assert.Equal(["Intended", "Good", "Stretch"], NonNull(schema.GetProperty("properties").GetProperty("fit")).GetProperty("enum").EnumerateArray().Select(x => x.GetString()));
+        var guidance = task.CreateOutputSpecification(new() { IncludeExample = true });
+        Assert.True(guidance.IndexOf("$.reason", StringComparison.Ordinal) < guidance.IndexOf("$.matches", StringComparison.Ordinal));
+        var example = guidance.Split("Example of valid output JSON:\n")[1];
+        using var document = JsonDocument.Parse(example);
+        Assert.Equal(names, document.RootElement.EnumerateObject().Select(x => x.Name));
+        Assert.True(task.ReadOutput("""{"reason":"why","matches":1,"fit":"Intended","genericFit":"Good","propertyFit":"Done","genericPropertyFit":"Done"}""").IsSuccess);
+        Assert.True(task.ReadOutput("""{"reason":"why","matches":1,"fit":null,"genericFit":null,"propertyFit":null,"genericPropertyFit":null}""").IsSuccess);
+        Assert.False(task.ReadOutput("""{"reason":"why","matches":1,"fit":0,"genericFit":null,"propertyFit":null,"genericPropertyFit":null}""").IsSuccess);
+        Assert.True(Create<ConverterDto>().ReadOutput("""{"value":"Done"}""").IsSuccess);
+    }
+
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public enum TraitFit { Intended, Good, Stretch }
+    [JsonConverter(typeof(JsonStringEnumConverter<GenericFit>))]
+    public enum GenericFit { Intended, Good, Stretch }
+    public sealed record CompatibilityPayload
+    {
+        public required string Reason { get; init; }
+        public int Matches { get; init; }
+        public TraitFit? Fit { get; init; }
+        public GenericFit? GenericFit { get; init; }
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public State? PropertyFit { get; init; }
+        [JsonConverter(typeof(JsonStringEnumConverter<State>))]
+        public State? GenericPropertyFit { get; init; }
+    }
+    public sealed class InvalidConverterDto { [JsonConverter(typeof(JsonStringEnumConverter))] public int Value { get; set; } }
+
+    [Fact]
     public void SchemaIsClosedRequiredOrderedAndAlignedWithSerialization()
     {
         var task = Create<Ticket>();
@@ -32,7 +91,7 @@ public sealed class SchemaTests
         Assert.Equal(["queue_name", "details", "nullableState", "state"], schema.GetProperty("required").EnumerateArray().Select(x => x.GetString()));
         var properties = schema.GetProperty("properties");
         Assert.Equal("Queue", properties.GetProperty("queue_name").GetProperty("description").GetString());
-        Assert.Equal(new[] { "in-progress", "Done" }.Order(StringComparer.Ordinal), properties.GetProperty("state").GetProperty("enum").EnumerateArray().Select(x => x.GetString()));
+        Assert.Equal(new[] { "in-progress", "Done" }, properties.GetProperty("state").GetProperty("enum").EnumerateArray().Select(x => x.GetString()));
         Assert.Equal("null", properties.GetProperty("nullableState").GetProperty("anyOf")[1].GetProperty("type").GetString());
         var output = task.ReadOutput("""{"queue_name":"billing","details":null,"nullableState":null,"state":"in-progress"}""");
         Assert.True(output.IsSuccess);
@@ -129,7 +188,7 @@ public sealed class SchemaTests
             typeof(Box<(int, string)>), typeof(Box<Tuple<int, string>>), typeof(Box<IAsyncEnumerable<string>>),
             typeof(Box<AbstractDto>), typeof(Box<IOutput>), typeof(Cycle), typeof(CollectionCycle), typeof(Computed),
             typeof(PrivateSetter), typeof(AmbiguousConstructor), typeof(UnboundConstructor), typeof(Hidden), typeof(DuplicateName),
-            typeof(BlankName), typeof(BlankDescription), typeof(ConditionalIgnore), typeof(DirectionIgnore), typeof(ConverterDto),
+            typeof(BlankName), typeof(BlankDescription), typeof(ConditionalIgnore), typeof(DirectionIgnore), typeof(InvalidConverterDto),
             typeof(ExtensionDto), typeof(IncludedField), typeof(IncludedProperty), typeof(Polymorphic), typeof(NumberHandling),
             typeof(PopulateDto), typeof(Box<Flags>), typeof(Box<Aliases>), typeof(Box<EmptyEnum>), typeof(Box<BadWireEnum>),
             typeof(Box<DuplicateWireEnum>), typeof(Box<OnlyEnumerable>), typeof(BadStringTarget), typeof(BadNumberTarget),
