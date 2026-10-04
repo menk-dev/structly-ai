@@ -108,6 +108,7 @@ public sealed record StructuredUsage
     readonly long? _inputTextTokens;
     readonly long? _inputImageTokens;
     readonly long? _outputImageTokens;
+    readonly long? _outputTextTokens;
     /// <summary>Gets reported input tokens.</summary>
     public long? InputTokens
     {
@@ -162,6 +163,12 @@ public sealed record StructuredUsage
         get => _outputImageTokens;
         init => _outputImageTokens = value < 0 ? throw new ArgumentOutOfRangeException(nameof(value), "Usage counts must be nonnegative or null.") : value;
     }
+    /// <summary>Gets reported image output text tokens.</summary>
+    public long? OutputTextTokens
+    {
+        get => _outputTextTokens;
+        init => _outputTextTokens = value < 0 ? throw new ArgumentOutOfRangeException(nameof(value), "Usage counts must be nonnegative or null.") : value;
+    }
 }
 
 /// <summary>Identity and accounting retained even when output processing fails.</summary>
@@ -186,6 +193,8 @@ public sealed record StructuredMetadata
     public string? ProviderRequestId { get; init; }
     /// <summary>Gets reported usage without inferred counts.</summary>
     public StructuredUsage? Usage { get; init; }
+    /// <summary>Gets provider cache comparison diagnostics without inferring reuse.</summary>
+    public OpenAI.CacheDiagnostics? CacheDiagnostics { get; init; }
     /// <summary>Gets output text only when explicitly captured.</summary>
     public string? OutputText { get; init; }
     /// <summary>Gets a detached raw envelope only when explicitly captured.</summary>

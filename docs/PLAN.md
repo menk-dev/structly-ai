@@ -74,7 +74,7 @@ Before declaring a phase complete:
 | 2 | Public contracts and schema engine | Phase 1 | Complete |
 | 3 | Working typed calls through the initial provider | Phase 2 | Complete |
 | 4 | Reliable execution and observability | Phase 3 | Complete |
-| 5 | Approved advanced structured-output capabilities | Phase 4 | Pending |
+| 5 | Approved advanced structured-output capabilities | Phase 4 | Complete |
 | 6 | Consumer usability and release readiness | Phase 5 | Pending |
 | 7 | Release automation activation and first publication | Phase 6 and external setup | Pending |
 
