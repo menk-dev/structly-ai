@@ -24,6 +24,7 @@ Dependency changes require `dotnet restore --force-evaluate` and committing the 
 - `src/Structly.AI`: the single shipping library; currently an empty assembly.
 - `tests/Structly.AI.Tests`: offline tests using xUnit and Microsoft.Testing.Platform.
 - `docs/DESIGN.md`: reference assessment and decisions for the implementation phase.
+- `docs/PLAN.md`: numbered implementation phases and agent execution instructions.
 - `docs/RELEASES.md`: automation and the external setup needed to enable it.
 
 `ref1/` and `ref2/` are local reference material, ignored by Git and excluded from the
