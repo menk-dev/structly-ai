@@ -1,8 +1,9 @@
 # Structly.AI design and behavior contract
 
-Phase 1 decision record, updated for phase 5 on 2026-10-04. The runtime capability
-set F01–F16 is implemented, including advanced responses, caching, embeddings and images.
-Analyzer feedback (F17) remains assigned to phase 6.
+Phase 1 decision record, updated for phase 6 on 2026-10-04. The complete required
+capability set F01–F17 is implemented, including advanced responses, caching, embeddings,
+images and packed analyzer feedback. Consumer/package/release preparation is complete;
+external activation and publication remain phase 7.
 Initialization was verified: empty .NET 10 library, offline xUnit
 project, locked dependencies and CI/release scaffolding; both references present,
 ignored and outside the solution. No previous phase handoff exists.
@@ -548,8 +549,8 @@ ancillary reasoning safely. Unknown envelope fields allowed; no hidden JSON-mode
 ## Dependencies, verification and next phases
 
 Runtime: framework HttpClient/System.Text.Json/reflection/TimeProvider, no new production
-packages. Analyzer alone needs Microsoft.CodeAnalysis.CSharp PrivateAssets=all; select
-current compatible version and lock in phase 6. Keep xUnit v3/Microsoft.Testing.Platform
+packages. Analyzer and its dedicated tests use Microsoft.CodeAnalysis.CSharp 4.14.0
+with PrivateAssets=all, locked in phase 6. Keep xUnit v3/Microsoft.Testing.Platform
 scaffold and central package/lock policies. Do not run references as project dependencies.
 
 Normal tests deterministic/offline: schema/serialization matrix, golden wire JSON and
@@ -569,9 +570,10 @@ observer precedence; phase 5 completes F05–F16 and interaction audit; phase 6 
 consumer/package/release readiness. Required contracts may be introduced when their phase
 needs them, but policies above cannot be silently changed or deferred to shrink scope.
 
-Publication decisions (phase 6): owner confirmation of package identity/license/initial
-version; runtime framework decision net10.0 is settled for implementation. No legal
-license selected, no remote settings/publishing/paid calls authorized by phase 1.
+Publication decisions settled by the owner during phase 6: package ID Structly.AI,
+MIT license (copyright menk-dev), runtime net10.0, initial release 0.1.0 and the existing
+Conventional Commit/Release Please version policy. No remote setting changes, publication
+or paid calls are authorized by phase 6.
 
 ## Phase 3 implementation boundary and evidence (historical)
 
@@ -736,3 +738,63 @@ lookup-boundary details, so no lookup-window or cache-reuse guarantee is encoded
 dimension restrictions and advanced feature availability remain model/provider policy,
 with unsupported model-specific options returned as provider failures rather than dropped.
 No model defaults/ranking, pricing, automatic retries or paid calls were introduced.
+
+
+## Phase 6 consumer and analyzer boundary
+
+F01–F17 has implementation, documentation and offline acceptance evidence. Phase 6
+revisited both reference READMEs, API models, schema/provider/specification tests and
+ref1 analyzer/tests against the coverage map; no missing union capability was found.
+The immutable task/direct client design retains reuse, validation and isolation without
+mutable sessions or speculative provider interfaces. Public defaults, option ownership,
+result categories and callback lifecycle were reviewed against the runtime and existing
+339-case regression suite. No runtime behavior or API compatibility policy changed.
+
+StructuredSchemaAnalyzer ships in the same Structly.AI NuGet package under
+analyzers/dotnet/cs. It targets netstandard2.0 and privately references
+Microsoft.CodeAnalysis.CSharp 4.14.0, a compatible API baseline for the supported .NET 10
+compiler host. Compiler dependencies are isolated to the analyzer and its dedicated test
+project; the shipped runtime has no package dependencies. All dependency graphs are locked.
+[NuGet analyzer conventions](https://learn.microsoft.com/en-us/nuget/guides/analyzers-conventions)
+and [Roslyn package framework support](https://www.nuget.org/packages/Microsoft.CodeAnalysis.CSharp/4.14.0)
+were checked on 2026-10-04. These concern packaging/compiler APIs; no provider behavior
+was changed or paid/live credentials accessed.
+
+STAI001 is an error for statically provable shape/name/attribute/constructor/constraint
+and structural/enum/string-limit violations. Diagnostics retain runtime issue codes and
+serialized paths at generic Create, inspection, ExecuteAsync and typed PrewarmAsync call
+sites. It reports the first contract issue, matching runtime fail-fast resolution. Roslyn
+symbol inspection and reflection cannot share a runtime assembly because compiler hosts
+must load netstandard2.0; parity tests compile the same snippets, run the analyzer and
+invoke the real runtime factory, checking both code and path. Limits count repeated
+inline emissions and Unicode scalars rather than inheriting ref1's obsolete 500-entry
+limit or simplistic first-letter casing. Valid positional/constructor-bound records,
+nullable collections/enums and standard/custom serialization shapes remain supported.
+
+STAI002 is advisory legacy attribute replacement guidance (warning), including unresolved
+qualified names during migration. It recommends the new constraint attributes rather
+than ref1's application-only validation. Unresolved legacy attributes already produce
+compiler errors; guidance itself need not make otherwise unrelated code unusable.
+Generated code and open generic type parameters are skipped. Unknown naming options
+only trigger issues proven under both supported naming policies. Runtime vocabularies,
+dynamic settings, serialized schema byte-size, DTO execution and provider support still
+require runtime validation; analyzer success is not a provider compatibility certificate.
+See [SCHEMAS.md](SCHEMAS.md) for the precise boundary.
+
+The README replaces scaffold claims with a quick start and supported limitations.
+CONFIGURATION/SCHEMAS/FAILURES/USAGE complement EXECUTION/ADVANCED. The runnable consumer
+uses a simulated Responses handler without real credentials; package validation copies
+it outside the repository, uses an isolated package cache and local feed only, runs it,
+and then requires a compilation error from the bundled analyzer for a dictionary DTO.
+It also checks exact package contents, dependency freedom, owner-approved identity/license,
+framework, README/XML, portable PDB/Source Link and assembly/package/tag version agreement.
+The package contains LICENSE, README, runtime DLL/XML and analyzer DLL; the symbol package
+contains the runtime portable PDB. Ignored references are neither package files nor sources.
+
+Release preparation corrects bootstrap state: empty manifest plus initial-version=0.1.0
+instead of pretending 0.1.0 was previously released. CI and tag publication run package
+validation, and the latter checks the release tag. Package and symbol uploads are separate,
+recoverable steps. [RELEASES.md](RELEASES.md) records source-backed policy and recovery.
+Remote protection/bot tokens, NuGet package ownership, trusted publishing, actual release
+PR generation, cross-platform CI and publication are phase 7 external checks. Local phase 6
+does not activate them. No required local phase 6 work remains.

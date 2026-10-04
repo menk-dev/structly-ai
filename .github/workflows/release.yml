@@ -43,6 +43,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.version.outputs.tag }}
+          fetch-depth: 0
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
@@ -51,6 +52,10 @@ jobs:
       - run: dotnet build Structly.AI.slnx -c Release --no-restore
       - run: dotnet test --solution Structly.AI.slnx -c Release --no-build
       - run: dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages
+      - name: Validate packed consumer and release version
+        env:
+          RELEASE_TAG: ${{ needs.version.outputs.tag }}
+        run: dotnet run --project tools/Structly.AI.PackageValidation -c Release --no-build -- artifacts/packages "$RELEASE_TAG"
       - name: Attach packages to release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -60,7 +65,11 @@ jobs:
         id: login
         with:
           user: ${{ vars.NUGET_USER }}
-      - name: Publish package and symbols
+      - name: Publish package
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
-        run: dotnet nuget push artifacts/packages/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push artifacts/packages/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --no-symbols --skip-duplicate
+      - name: Publish symbols
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push artifacts/packages/*.snupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate

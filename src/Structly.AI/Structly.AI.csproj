@@ -6,6 +6,7 @@
     <Description>Typed, structured LLM output for automated .NET workflows.</Description>
     <PackageTags>llm;structured-output;automation;ai</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/menk-dev/structly-ai</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/menk-dev/structly-ai</PackageProjectUrl>
@@ -16,6 +17,9 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../Structly.AI.Analyzers/Structly.AI.Analyzers.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <None Include="../Structly.AI.Analyzers/bin/$(Configuration)/netstandard2.0/Structly.AI.Analyzers.dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
     <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>
 </Project>
