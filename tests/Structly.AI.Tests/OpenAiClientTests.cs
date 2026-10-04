@@ -359,6 +359,20 @@ public sealed class OpenAiClientTests
         Assert.Throws<ArgumentException>(() => TaskContract(new() { Instructions = "Extract", ModelSelection = new() { ModelId = "a", ProfileName = "b" } }));
     }
 
+    [Fact]
+    public async Task SetterCancellationIsNontransientInvalidOutputWithUsage()
+    {
+        using var handler = new Handler(_ => Task.FromResult(Response(Envelope())));
+        using var http = new HttpClient(handler);
+        var task = StructuredTask.Create<OutputTests.CancellingSetter>(new() { Instructions = "Extract" });
+        var result = await Client(http).ExecuteAsync(task, new() { Input = "input" }, TestContext.Current.CancellationToken);
+        Assert.Equal(StructuredErrorKind.InvalidOutput, result.Error!.Kind);
+        Assert.False(result.Error.IsTransient);
+        Assert.Equal(15, result.Metadata.Usage!.TotalTokens);
+        Assert.DoesNotContain("sensitive", result.Error.Message);
+        Assert.Equal(1, handler.Calls);
+    }
+
     public sealed class ConstrainedAnswer
     {
         [DynamicVocabulary("values"), StringConstraint(MinLength = 2)]

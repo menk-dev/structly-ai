@@ -247,7 +247,8 @@ waiting. Use monotonic elapsed time/internal TimeProvider injection in tests. Po
 finite TotalTimeout max 24h; per-request override replaces client timeout. Inactivity
 positive finite, supported only with Stream=true; otherwise InvalidRequest. Streaming
 starts inactivity at response-body read, resets on each complete SSE line including
-keep-alives; total remains active while lines arrive. Progress requires Stream=true;
+keep-alives. Inactivity pauses during delta progress observers and resumes with a full
+window afterward; total and callback deadlines remain active. Progress requires Stream=true;
 streaming without callback is allowed. No incomplete DTO published as final success.
 
 Stop waiting at deadlines even for non-cooperative async transport/resolver/callback;
@@ -359,7 +360,9 @@ vocabularies produce UnsupportedSchema, and null arguments throw. Optional suppl
 metadata is retained by identity, including usage on output-processing failures.
 Output diagnostics are bounded to 100 issues; unknown JSON keys are reported at their
 containing object without reproducing untrusted key text. Host constructor/setter errors
-are sanitized; host cancellation and catastrophic exceptions propagate.
+are sanitized, including cancellation exceptions, as nontransient InvalidOutput.
+Catastrophic exceptions propagate. The execution layer independently preserves actual
+caller cancellation and deadline precedence after materialization.
 
 ```csharp
 var task = StructuredTask.Create<Ticket>(new StructuredTaskOptions

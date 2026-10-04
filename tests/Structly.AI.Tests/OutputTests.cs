@@ -185,6 +185,32 @@ public sealed class OutputTests
         Assert.Throws<ArgumentNullException>(() => StructuredResult<string>.Success(null!, metadata));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void HostCancellationExceptionsAreSafeNontransientOutputFailures(bool setter)
+    {
+        var metadata = new StructuredMetadata { Usage = new() { OutputTokens = 20 } };
+        var error = setter
+            ? SchemaTests.Create<CancellingSetter>().ReadOutput("""{"value":1}""", metadata: metadata).Error
+            : SchemaTests.Create<CancellingConstructor>().ReadOutput("""{"value":1}""", metadata: metadata).Error;
+        Assert.Equal(StructuredErrorKind.InvalidOutput, error!.Kind);
+        Assert.False(error.IsTransient);
+        Assert.DoesNotContain("sensitive", error.Message);
+        Assert.DoesNotContain("sensitive", String.Join(" ", error.Issues.Select(x => x.Message)));
+    }
+
+    public sealed class CancellingConstructor
+    {
+        public int Value { get; }
+        public CancellingConstructor(int value) => throw new OperationCanceledException("sensitive");
+    }
+
+    public sealed class CancellingSetter
+    {
+        public int Value { get => 0; set => throw new OperationCanceledException("sensitive"); }
+    }
+
     [Fact]
     public void PublicAccountingContractsValidateCountsAndDetachCapturedJson()
     {
