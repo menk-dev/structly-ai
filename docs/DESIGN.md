@@ -1,8 +1,8 @@
 # Structly.AI design and behavior contract
 
-Phase 1 decision record, updated for phase 4 on 2026-10-04. The local task/schema/result
-API, OpenAI typed path, streaming and reliability are implemented; advanced examples
-describe phase 5.
+Phase 1 decision record, updated for phase 5 on 2026-10-04. The runtime capability
+set F01–F16 is implemented, including advanced responses, caching, embeddings and images.
+Analyzer feedback (F17) remains assigned to phase 6.
 Initialization was verified: empty .NET 10 library, offline xUnit
 project, locked dependencies and CI/release scaffolding; both references present,
 ignored and outside the solution. No previous phase handoff exists.
@@ -411,14 +411,14 @@ are checked while resolving/emitting, counting sibling repetitions. Dynamic entr
 are checked before allocating vocabulary arrays, values are checked as copied, and a capped writer enforces the
 1 MiB serialized limit including descriptions/escaping. There is no shared or
 vocabulary cache; immutable task contracts retain neither caller dictionaries nor values.
-Per-call input snapshots require the caller not to mutate while a method is running.
+Per-call input snapshots require the caller not to mutate while the snapshot is running.
 
 Task model/credential settings and provider request validation remain phase 3;
 usage callbacks, progress, cancellation exception and deadlines remain phase 4;
 output specifications and cache diagnostics remain phase 5. Their table entries above
 are still the approved contract, not claims of implementation in this phase.
 
-## Remaining capability policies (phases 4–6)
+## Advanced runtime and analyzer policies
 
 **Inputs:** Input string shorthand becomes one user text message; exactly one of Input
 or nonempty Messages. MessageRole enum System/Developer/User/Assistant, nonempty parts;
@@ -445,8 +445,9 @@ its future persistence, not use of prior stored ID. Changed response type/vocabu
 new response validated against current contract, no assumed prompt-cache reuse.
 
 **Provider settings:** OpenAiResponseOptions also supports provider Metadata, IdempotencyKey,
-CaptureRawResponse/CaptureOutputText (false), ReasoningSummary (Off default/Auto), PromptCacheKey,
-Cache options. Reasoning low/medium/high and summary explicitly sent only when chosen;
+CaptureRawResponse/CaptureOutputText (false), PromptCacheKey and Cache options.
+StructuredRequest.IncludeReasoningSummary (false) controls summaries. Reasoning
+low/medium/high and summary are explicitly sent only when chosen;
 unsupported model combinations rejected by provider, never dropped. Profiles map named
 choices to model ID/effort per operation; missing profile InvalidRequest. Profile names
 Frontier/Balanced/Fast/Tiny can reproduce ref1, without hard-coded aging model IDs.
@@ -461,8 +462,9 @@ parts); never raw chain-of-thought. Size limits and deadline cleanup apply throu
 
 **Cache:** OpenAiCacheOptions Mode Implicit/Explicit, Ttl (optional "30m"), comparison
 response ID; ContentPart.CacheBreakpoint marks provider breakpoint. Explicit mode needs
-at least one eligible input text/image breakpoint, maximum four writes per call (a conservative
-library limit matching ref2); do not mark top-level Instructions or assistant output.
+at least one eligible input text/image breakpoint, maximum four explicit markers per call;
+implicit mode permits at most three explicit markers, reserving the fourth write slot
+for the implicit boundary; do not mark top-level Instructions or assistant output.
 Breakpoints allowed also in implicit mode when documented; preserve exact placement.
 Use prompt_cache_options on supported model family; older retention InMemory/24Hours
 is a separate mutually exclusive setting. Require explicit cache compatibility profile
@@ -659,3 +661,78 @@ controlled-clock failure/concurrency scenarios. No live calls or credential acce
 Phase 5 remains responsible for advanced messages/continuation/cache/output guidance,
 free text, embeddings and images. It must reuse these budget/observer/cancellation policies
 rather than introducing separate retry loops or unbounded operations.
+
+
+## Phase 5 implementation boundary and evidence
+
+All F01–F16 runtime capabilities now have implementation, documentation and offline
+acceptance coverage. See [Advanced features](ADVANCED.md) for examples and concrete
+options. F17 analyzer feedback remains phase 6; no compiler dependencies were added.
+The audit revisited ref1's text/embedding/image requests, provider parsing and tests,
+and ref2's messages/continuation/cache models, provider tests and specification generator.
+Reference assumptions about fallback indexes, fabricated resolved image models, unvalidated
+base64 and invalid generated samples were corrected rather than preserved.
+
+TextRequest and OpenAiPrewarmRequest compose StructuredRequest in their Request property;
+this shares response controls without duplicating them. TextRequest adds optional
+instructions; typed prewarm uses task instructions/model/credentials/schema. Embedding
+and image requests live in Structly.AI.Embeddings and Structly.AI.Imaging, expose only
+the common execution/auth/accounting controls relevant to those endpoints, and require
+explicit ModelSelection. Profiles serves responses/text/prewarm; EmbeddingProfiles and
+ImageProfiles allow the same named preference to select different models. Auxiliary
+reasoning effort is locally invalid. All maps are snapshotted at client construction.
+
+StructuredRequest.Input is now optional, mutually exclusive with Messages. Its existing
+string wire form is retained when no guidance is appended; the provider treats it as one
+user message. Ordered messages are copied before credentials, images stay as supplied
+URLs/data URLs, and guidance appends to the last user content list. Assistant history
+text maps to output_text. Current instructions/schema are resent on continuation, Store
+remains false by default, and no local session or automatic provider storage was added.
+Changed type and dynamic vocabularies are supported on subsequent or concurrent calls.
+
+CreateOutputSpecification derives human-readable serialized field paths, descriptions,
+constraints and the complete strict schema from the same resolved contract. Samples
+walk the immutable contract and then pass ReadOutput, including host construction.
+Patterns/formats/sets or combined constraints without a reliable sample require ExampleJson
+or disabling examples. Generation has per-array/string and total-node/text ceilings to
+prevent multiplicative collection expansion; guidance failure is actionable ArgumentException
+for inspection or InvalidRequest on execution. IncludeFields/IncludeExample switches and
+AdditionalInstructions are independent. No unchecked sample reaches a provider request.
+
+CacheCompatibility maps exact selected model IDs to Modern or Legacy. Modern fields are
+prompt_cache_options mode/ttl/comparison_response_id and marked content-part boundaries;
+prewarm is emitted only by PrewarmAsync. Explicit mode requires 1–4 markers; implicit/default
+allows 0–3 explicit markers because the provider uses one write slot for its implicit
+boundary. Only 30m TTL is accepted. Legacy retention and modern controls stay mutually
+exclusive as an intentionally conservative library policy. Unknown support and unsupported
+combinations fail before auth. PromptCacheKey alone does not require advanced compatibility.
+Terminal cache diagnostics retain unknown strings and valid independent counts, warning
+on malformed counts without changing output. Prewarm requires completed, empty output,
+returns OpenAiPrewarmResult plus normal metadata/usage, and rejects generation/progress,
+continuation, output capture/guidance and Store=true. Neither operation promises a write
+or a hit; comparisons never load history.
+
+OpenAiClient now shares bounded send/read, safe HTTP classification, credentials and
+finalization across all endpoints. Responses retain the existing terminal/refusal/output
+parser and SSE behavior. Embeddings send float batches and optional dimensions, require
+unique complete indexes/equal nonempty finite vectors, and return immutable lists in input
+order. Images send GPT Image-style size/count/quality/background/output_format controls;
+positive custom dimensions override presets, transparent JPEG fails locally, and returned
+count/base64/format signatures are verified. No full image decoder or URL fetch is used.
+MaxImageResponseBytes defaults to 128 MiB separately from the 16 MiB response/embedding
+limit. Usage is captured before feature-specific parsing; image text/image input/output
+breakdowns and embedding prompt_tokens are preserved. Unknown image model/response IDs
+stay unknown instead of being copied from request configuration.
+
+Official documentation rechecked 2026-10-04: [Responses create](https://developers.openai.com/api/reference/cli/resources/responses/methods/create),
+[conversation state](https://developers.openai.com/api/docs/guides/conversation-state),
+[vision inputs](https://developers.openai.com/api/docs/guides/images-vision),
+[prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching),
+[cache diagnostics](https://developers.openai.com/api/docs/guides/prompt-caching/diagnostics),
+[embeddings create](https://developers.openai.com/api/reference/cli/resources/embeddings/methods/create),
+and [images generate](https://developers.openai.com/api/reference/cli/resources/images/methods/generate).
+The cache guide establishes the prewarm flag; endpoint references/guide differ in some
+lookup-boundary details, so no lookup-window or cache-reuse guarantee is encoded. Image
+dimension restrictions and advanced feature availability remain model/provider policy,
+with unsupported model-specific options returned as provider failures rather than dropped.
+No model defaults/ranking, pricing, automatic retries or paid calls were introduced.

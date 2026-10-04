@@ -50,7 +50,7 @@ public static class StructuredTask
 }
 
 /// <summary>An immutable typed contract, safe for concurrent schema and output inspection.</summary>
-public sealed class StructuredTask<T>
+public sealed partial class StructuredTask<T>
 {
     readonly SchemaNode _contract;
     readonly JsonSerializerOptions _serializer;
