@@ -5,12 +5,12 @@ immutable task, and receive a categorized result with response identity and usag
 when a billed response fails output validation.
 
 Supports **.NET 10** and OpenAI. The runtime has no NuGet dependencies. The package also
-includes a C# Roslyn analyzer for early schema feedback. First publication is planned
-as `Structly.AI` version `0.1.0`; until publication, use the local workflow below.
+includes a C# Roslyn analyzer for early schema feedback. Available as `Structly.AI`
+version `0.1.0` on GitHub Packages; configure the authenticated feed below or use the local workflow.
 
 ## Quick start
 
-After publication to GitHub Packages, [configure the authenticated package feed](https://github.com/menk-dev/structly-ai/blob/main/docs/RELEASES.md#consuming-from-your-projects)
+For GitHub Packages, [configure the authenticated package feed](https://github.com/menk-dev/structly-ai/blob/main/docs/RELEASES.md#consuming-from-your-projects)
 and install with `dotnet add package Structly.AI --version 0.1.0`. Configure a model ID
 supported by your account and supply credentials explicitly:
 

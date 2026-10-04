@@ -45,8 +45,8 @@ versioning supersedes the earlier Release Please bootstrap and release PR policy
    visibility/access. New packages default to private. Grant other consuming repositories
    Actions access when using their GITHUB_TOKEN.
 
-The main safeguards and environment were configured during phase 7. Actual publication
-and consumer verification must be recorded before declaring phase 7 complete.
+The main safeguards, environment and activation variable are configured. Version 0.1.0
+was published and consumed successfully on 2026-10-04; see PHASE-7.md for verification.
 
 ## Local release gates
 
@@ -134,5 +134,5 @@ Official sources: [GitHub NuGet registry authentication, publication and install
 [NuGet credential environment variables](https://learn.microsoft.com/en-us/nuget/consume-packages/consuming-packages-authenticated-feeds),
 [package source mapping](https://learn.microsoft.com/en-us/nuget/consume-packages/package-source-mapping),
 and [NuGet push options](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-nuget-push).
-No remote setting or publication was exercised during local preparation. Phase 7 must
-validate the actual tag, registry upload and authenticated consumer flow.
+Phase 7 validated the actual tag, registry upload, authenticated consumer and symbol
+downloads. See [PHASE-7.md](PHASE-7.md) for the publication record.
