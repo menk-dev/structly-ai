@@ -10,7 +10,7 @@ version `0.1.0` on GitHub Packages; configure the authenticated feed below or us
 
 ## Quick start
 
-For GitHub Packages, [configure the authenticated package feed](https://github.com/menk-dev/structly-ai/blob/main/docs/RELEASES.md#consuming-from-your-projects)
+For GitHub Packages, [configure the authenticated package feed](https://github.com/menk-dev/structly-ai/blob/main/docs/INSTALLATION.md#consuming-from-your-projects)
 and install with `dotnet add package Structly.AI --version 0.1.0`. Configure a model ID
 supported by your account and supply credentials explicitly:
 
@@ -56,8 +56,28 @@ requests fail before credential resolution or HTTP. `EnsureSuccess()` is availab
 when exceptions fit your host; caller cancellation throws
 `StructuredOperationCanceledException`, retaining any captured usage.
 
+## ASP.NET Core and .NET Hosting
+
+Use the optional `Structly.AI.Hosting` package for dependency injection, settings from
+`appsettings.json`, startup validation and factory-managed HTTP handlers:
+
+```csharp
+using Structly.AI.Hosting;
+
+var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddStructlyOpenAi(builder.Configuration);
+```
+
+Inject `OpenAiClient` into endpoints or application services. Configure the
+`Structly:OpenAI` section with a `DefaultModel`, timeouts and model profiles; supply
+`Structly__OpenAI__ApiKey` through the host's environment configuration or use user secrets.
+See the [hosting guide](https://github.com/menk-dev/structly-ai/blob/main/docs/HOSTING.md) for complete JSON and ASP.NET Core/worker examples.
+This package is built alongside the core library; install it from the next release
+or use a project reference locally.
+
 ## Guides
 
+- [ASP.NET Core and Generic Host integration](https://github.com/menk-dev/structly-ai/blob/main/docs/HOSTING.md)
 - [Configuration and transport ownership](https://github.com/menk-dev/structly-ai/blob/main/docs/CONFIGURATION.md)
 - [Schema support, constraints and analyzer diagnostics](https://github.com/menk-dev/structly-ai/blob/main/docs/SCHEMAS.md)
 - [Failure handling](https://github.com/menk-dev/structly-ai/blob/main/docs/FAILURES.md)
@@ -97,18 +117,7 @@ version consistency and a failing DTO diagnosed by the packed analyzer.
 
 ## Development
 
-Use the SDK in `global.json`. CI runs locked restore, formatting, Release build, the
-full offline suite, packing and isolated package validation on Linux and Windows:
-
-```sh
-dotnet format Structly.AI.slnx --verify-no-changes --no-restore
-dotnet test --solution Structly.AI.slnx -c Release --no-build
-git diff --check
-```
-
-Dependency changes require restoring with
-`--force-evaluate` and committing lockfiles. Ignored `ref1/` and `ref2/` are assessment
-material, excluded from the solution and packages. [Release setup and recovery](https://github.com/menk-dev/structly-ai/blob/main/docs/RELEASES.md)
-remain separate from local validation; publishing is disabled until explicitly activated.
+See the [development guide](https://github.com/menk-dev/structly-ai/blob/main/dev/README.md)
+for local checks, architecture and release maintenance.
 
 Licensed under the [MIT License](https://github.com/menk-dev/structly-ai/blob/main/LICENSE).

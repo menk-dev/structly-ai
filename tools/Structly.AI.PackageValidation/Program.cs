@@ -63,6 +63,28 @@ Require(sourceJson.RootElement.GetProperty("documents").EnumerateObject()
 Require(reader.Documents.All(x => !reader.GetString(reader.GetDocument(x).Name).Contains("/ref", StringComparison.Ordinal)), "Reference source in symbols.");
 Console.WriteLine($"Package metadata, contents, XML, symbols and source information passed ({version}).");
 
+using var hostingPackage = ZipFile.OpenRead(Path.Combine(packages, $"Structly.AI.Hosting.{version}.nupkg"));
+var hostingMetadata = ReadXml(hostingPackage, "Structly.AI.Hosting.nuspec");
+var hostingNs = hostingMetadata.Root!.Name.Namespace;
+var hostingDetails = hostingMetadata.Root.Element(hostingNs + "metadata")!;
+Require(hostingDetails.Element(hostingNs + "id")?.Value == "Structly.AI.Hosting", "Unexpected hosting package ID.");
+Require(hostingDetails.Element(hostingNs + "version")?.Value == version, "Unexpected hosting package version.");
+Require(hostingDetails.Element(hostingNs + "license")?.Value == "MIT", "Unexpected hosting license.");
+Require(hostingDetails.Descendants(hostingNs + "group").Single().Attribute("targetFramework")?.Value == "net10.0", "Unexpected hosting target framework.");
+var hostingDependencies = hostingDetails.Descendants(hostingNs + "dependency")
+    .ToDictionary(x => x.Attribute("id")!.Value, x => x.Attribute("version")!.Value, StringComparer.Ordinal);
+Require(hostingDependencies.Count == 3 && hostingDependencies.ContainsKey("Structly.AI")
+    && hostingDependencies.ContainsKey("Microsoft.Extensions.Http")
+    && hostingDependencies.ContainsKey("Microsoft.Extensions.Options.ConfigurationExtensions"), "Unexpected hosting dependencies.");
+Require(hostingDependencies["Structly.AI"].Trim('[', ']') == version, "Hosting and core package versions disagree.");
+ValidateAssemblyVersion(hostingPackage, "lib/net10.0/Structly.AI.Hosting.dll", version);
+Require(ReadXml(hostingPackage, "lib/net10.0/Structly.AI.Hosting.xml").Descendants("member")
+    .Any(x => x.Attribute("name")?.Value == "T:Structly.AI.Hosting.OpenAiHostingOptions"), "Missing hosting XML documentation.");
+Require(ReadText(hostingPackage, "README.md") == File.ReadAllText(Path.Combine(root, "README.md")), "Packed hosting README is stale.");
+using var hostingSymbols = ZipFile.OpenRead(Path.Combine(packages, $"Structly.AI.Hosting.{version}.snupkg"));
+Require(hostingSymbols.GetEntry("lib/net10.0/Structly.AI.Hosting.pdb") is { Length: > 0 }, "Missing hosting symbols.");
+Console.WriteLine("Hosting package metadata, dependencies, XML and symbols passed.");
+
 // Outside the repository: no Directory.Build.props, central versions, project references,
 // prior package cache or external feeds can make consumer validation pass accidentally.
 var consumer = Path.Combine(Path.GetTempPath(), "structly-package-" + Guid.NewGuid().ToString("N"));

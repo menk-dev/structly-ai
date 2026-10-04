@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Adds optional `Structly.AI.Hosting` integration for ASP.NET Core and Generic Host,
+  including appsettings binding, startup validation and factory-managed HTTP clients.
+
 ## 0.1.0
 
 - Initial .NET 10 release for typed and free-text OpenAI output with schema validation,
