@@ -10,7 +10,7 @@ version `0.1.0` on GitHub Packages; configure the authenticated feed below or us
 
 ## Quick start
 
-For GitHub Packages, [configure the authenticated package feed](https://github.com/menk-dev/structly-ai/blob/main/docs/RELEASES.md#consuming-from-your-projects)
+For GitHub Packages, [configure the authenticated package feed](https://github.com/menk-dev/structly-ai/blob/main/docs/INSTALLATION.md#consuming-from-your-projects)
 and install with `dotnet add package Structly.AI --version 0.1.0`. Configure a model ID
 supported by your account and supply credentials explicitly:
 
@@ -97,18 +97,7 @@ version consistency and a failing DTO diagnosed by the packed analyzer.
 
 ## Development
 
-Use the SDK in `global.json`. CI runs locked restore, formatting, Release build, the
-full offline suite, packing and isolated package validation on Linux and Windows:
-
-```sh
-dotnet format Structly.AI.slnx --verify-no-changes --no-restore
-dotnet test --solution Structly.AI.slnx -c Release --no-build
-git diff --check
-```
-
-Dependency changes require restoring with
-`--force-evaluate` and committing lockfiles. Ignored `ref1/` and `ref2/` are assessment
-material, excluded from the solution and packages. [Release setup and recovery](https://github.com/menk-dev/structly-ai/blob/main/docs/RELEASES.md)
-remain separate from local validation; publishing is disabled until explicitly activated.
+See the [development guide](https://github.com/menk-dev/structly-ai/blob/main/dev/README.md)
+for local checks, architecture and release maintenance.
 
 Licensed under the [MIT License](https://github.com/menk-dev/structly-ai/blob/main/LICENSE).
