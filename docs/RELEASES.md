@@ -123,6 +123,10 @@ release assets can be replaced. Keep the activation variable enabled for retries
 Treat published versions as immutable: use a new version for content corrections rather
 than replacing a version already consumed by your projects.
 
+Version 0.1.0 predates owner-authorized documentation history cleanup. Its published
+package and symbols retain their original source revision; do not rebuild or replace its
+release assets from the rewritten tag. Use a new version for subsequent content changes.
+
 If attachments succeed but the registry upload fails, verify `packages: write`, package
 association/access and the repository owner's feed, then rerun the original job.
 If the upload succeeds but consumer restore fails, check consumer credentials, package
