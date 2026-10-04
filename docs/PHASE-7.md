@@ -53,7 +53,7 @@ warnings/errors, 437 offline tests, package creation, metadata/content/XML/PDB/S
 a fresh local-feed consumer and packed analyzer rejection. Workflow YAML/shell syntax and
 Git whitespace checks passed. Linux and Windows CI passed before each workflow change merged.
 
-The published tag v0.1.0 resolves to a1bc60f5bbbe7352648318c386e5f46f0632de18. Version.txt,
+At publication, tag v0.1.0 resolved to a1bc60f5bbbe7352648318c386e5f46f0632de18. Version.txt,
 Directory.Build.props, changelog, packed versions and the tag agree on 0.1.0.
 Release run 37218608918 succeeded:
 https://github.com/menk-dev/structly-ai/actions/runs/37218608918
@@ -78,3 +78,7 @@ Future consumers need the documented authenticated feed and package access. The 
 consumer check verifies same-repository access; access for each additional consuming repository
 must be granted independently. No provider calls were made. Extra providers/frameworks and
 runtime capabilities beyond the approved scope remain deferred as in earlier handoffs.
+
+Owner-authorized Git history cleanup may subsequently change commit and tag hashes.
+Published package and symbol contents remain immutable and retain their original source
+revision. Documentation-only history cleanup does not trigger another package upload.
