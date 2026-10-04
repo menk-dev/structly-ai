@@ -60,3 +60,18 @@ Manual release validation: locked restore, formatter verification, Release build
 warnings/errors), all 437 offline tests, package creation, metadata/symbol checks, a fresh
 local-feed consumer and packed analyzer rejection passed. Workflow YAML/shell syntax
 and Git whitespace checks passed. First publication remains pending.
+
+## History cleanup and final publication gates
+
+The owner authorized rewriting published Git history to correct commit identity. All local
+refs and eight remote branch histories were rewritten with atomic force-with-lease updates;
+main files were unchanged. Temporary admin force-push access was restored to the original
+protected policy immediately after the push. Local reflogs were expired and unreachable
+objects pruned; all 256 remaining Git objects passed identity cleanup verification. Future
+commits use the owner-selected email. GitHub-controlled cached commits and PR refs cannot
+be erased by force-push; other clones must use the rewritten history to avoid reintroducing
+old commits. This is distinct from the verified branch histories.
+
+The release workflow also restores/runs the offline consumer from the authenticated
+GitHub feed in a fresh package cache after upload, with bounded retries for registry
+availability. The runtime has no dependencies, so the verification feed is GitHub only.

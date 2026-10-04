@@ -20,7 +20,8 @@ personal access token is required for publication. The workflow uses GITHUB_TOKE
 
 4. The release workflow verifies the tag belongs to main, runs the offline suite and
    package-consumer validation, creates a GitHub Release, attaches package/symbol artifacts,
-   and publishes the runtime package to GitHub Packages.
+   publishes the runtime package to GitHub Packages, and restores/runs a fresh consumer
+   solely from that authenticated feed.
 5. Verify the workflow succeeds, both release attachments download, and an authenticated
    consumer can install and use the registry package.
 
