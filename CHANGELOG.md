@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0
+
 - Supports default built-in string-enum converter attributes on enum types and properties.
 - Preserves declaration order for properties and enum entries, with `JsonPropertyOrder`
   taking precedence for properties.
