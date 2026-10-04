@@ -37,7 +37,7 @@ versioning supersedes the earlier Release Please bootstrap and release PR policy
    no release bot secret or RELEASE_AUTO_MERGE variable is needed.
 3. Create the `github-packages` environment. Leave reviewers unset for automatic publication
    after an explicit tag push, or intentionally configure approval if desired.
-4. Set `GITHUB_PACKAGES_PUBLISH_ENABLED` to `true` once release readiness is verified.
+4. Set `PACKAGES_PUBLISH_ENABLED` to `true` once release readiness is verified.
    The workflow publishes to the repository owner's feed, currently
    `https://nuget.pkg.github.com/menk-dev/index.json`, using GITHUB_TOKEN with job-scoped
    `packages: write`. No NuGet.org account or trusted publishing policy is needed.
