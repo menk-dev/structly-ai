@@ -1,7 +1,8 @@
 # Structly.AI design and behavior contract
 
-Phase 1 decision record, updated for phase 2 on 2026-10-04. The local task/schema/result
-API is implemented; provider and advanced examples describe later phases.
+Phase 1 decision record, updated for phase 3 on 2026-10-04. The local task/schema/result
+API and nonstreaming OpenAI typed path are implemented; reliability and advanced examples
+describe later phases.
 Initialization was verified: empty .NET 10 library, offline xUnit
 project, locked dependencies and CI/release scaffolding; both references present,
 ignored and outside the solution. No previous phase handoff exists.
@@ -104,7 +105,7 @@ var task = StructuredTask.Create<Ticket>(new StructuredTaskOptions
 using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
 var client = new OpenAiClient(http, new OpenAiClientOptions
 {
-    DefaultModel = configuredModel,
+    DefaultModel = new ModelSelection { ModelId = configuredModel },
     CredentialResolver = Credentials.FromEnvironment("OPENAI_API_KEY")
 });
 var request = new StructuredRequest
@@ -569,3 +570,43 @@ needs them, but policies above cannot be silently changed or deferred to shrink 
 Publication decisions (phase 6): owner confirmation of package identity/license/initial
 version; runtime framework decision net10.0 is settled for implementation. No legal
 license selected, no remote settings/publishing/paid calls authorized by phase 1.
+
+## Phase 3 implementation boundary and evidence
+
+The concrete OpenAiClient now executes nonstreaming structured text requests through
+caller-owned HttpClient, using CreateSchema and ReadOutput. StructuredRequest includes
+Input, Vocabularies, ModelSelection, credentials, MaxOutputTokens, CorrelationId and
+OpenAiResponseOptions. Task-specific selection/credentials are implemented. DefaultModel
+is a required ModelSelection; Profiles is an ordinal name-to-explicit-selection dictionary
+for structured output, snapshotted at construction. Phase 5 extends profile selection to
+other operation kinds. Selection replaces the entire prior selection, including effort;
+profile effort applies unless explicitly overridden. Unknown profiles fail before auth.
+
+OpenAiClientOptions currently includes BaseAddress and MaxResponseBytes (16 MiB default,
+positive, streaming read enforced even when Content-Length is absent). API directory URI
+must be absolute HTTP(S), end with slash, and contain no credentials/query/fragment.
+Default transport properties and headers are untouched. OpenAiResponseOptions currently
+includes Store (false), IdempotencyKey, Metadata (16 pairs, 64-character keys and
+512-character values), CaptureRawResponse and CaptureOutputText. No automatic retries.
+Callers must configure redirects/retries themselves and choose models supporting strict
+schemas; no embedded model ranking, IDs or model capability list.
+
+Phase 4 adds the agreed total/inactivity settings, SSE, bounded callbacks, diagnostics,
+and metadata-bearing cancellation exception. Phase 3 propagates caller cancellation
+as OperationCanceledException and classifies independent transport cancellation as
+TransportFailure. It does not yet enforce library deadlines or invoke observers. Phase 5
+adds messages/continuation/cache/output guidance and the remaining runtime operations.
+These are staged contracts, not changes to the agreed final behavior above.
+
+Official documentation rechecked 2026-10-04:
+[Responses create reference](https://developers.openai.com/api/reference/cli/resources/responses/methods/create)
+and [Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs).
+The typed wire uses text.format json_schema/strict, explicit store/stream and optional
+reasoning effort/token cap/metadata. Output comes from assistant message content rather
+than convenience output_text; reasoning is ignored. One completed assistant answer is
+required, text parts concatenate in order, refusal beats text, and terminal failed or
+incomplete status beats output parsing. Unknown/nonterminal envelopes fail safely.
+Usage counts are independent, nonnegative long values with malformed counts warned;
+cache-write and reasoning details are preserved without inferring missing totals.
+Fixtures model the documented envelope with synthetic model IDs and counts; no live
+provider access or API-key provisioning is required or performed for this phase.
