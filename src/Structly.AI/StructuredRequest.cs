@@ -1,0 +1,69 @@
+namespace Structly.AI;
+
+/// <summary>Explicit model or named profile selection.</summary>
+public sealed record ModelSelection
+{
+    /// <summary>Gets an explicit provider model ID.</summary>
+    public string? ModelId { get; init; }
+    /// <summary>Gets a consumer-configured profile name.</summary>
+    public string? ProfileName { get; init; }
+    /// <summary>Gets optional reasoning effort.</summary>
+    public ReasoningEffort? ReasoningEffort { get; init; }
+
+    internal void Validate()
+    {
+        if ((ModelId is null) == (ProfileName is null) ||
+            ModelId is not null && String.IsNullOrWhiteSpace(ModelId) ||
+            ProfileName is not null && String.IsNullOrWhiteSpace(ProfileName) ||
+            ReasoningEffort is { } effort && !Enum.IsDefined(effort))
+            throw new ArgumentException("Select exactly one nonblank model ID or profile and a supported effort.");
+    }
+}
+
+/// <summary>Provider reasoning effort; model support is provider-specific.</summary>
+public enum ReasoningEffort
+{
+    /// <summary>Low effort.</summary>
+    Low,
+    /// <summary>Medium effort.</summary>
+    Medium,
+    /// <summary>High effort.</summary>
+    High
+}
+
+/// <summary>Explicit credential factories; no ambient fallback.</summary>
+public static class Credentials
+{
+    /// <summary>Uses a fixed credential.</summary>
+    public static Func<CancellationToken, ValueTask<string?>> FromStatic(string credential)
+    {
+        if (String.IsNullOrWhiteSpace(credential)) throw new ArgumentException("Credential must be nonblank.", nameof(credential));
+        return _ => ValueTask.FromResult<string?>(credential);
+    }
+
+    /// <summary>Reads the named environment variable on every execution.</summary>
+    public static Func<CancellationToken, ValueTask<string?>> FromEnvironment(string variable)
+    {
+        if (String.IsNullOrWhiteSpace(variable)) throw new ArgumentException("Variable must be nonblank.", nameof(variable));
+        return _ => ValueTask.FromResult(Environment.GetEnvironmentVariable(variable));
+    }
+}
+
+/// <summary>Per-call settings for the nonstreaming typed provider path.</summary>
+public sealed record StructuredRequest
+{
+    /// <summary>Gets required nonblank text input.</summary>
+    public required string Input { get; init; }
+    /// <summary>Gets runtime vocabularies, snapshotted at execution entry.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>>? Vocabularies { get; init; }
+    /// <summary>Gets model selection overriding task and client.</summary>
+    public ModelSelection? ModelSelection { get; init; }
+    /// <summary>Gets credentials overriding task and client without fallback.</summary>
+    public Func<CancellationToken, ValueTask<string?>>? CredentialResolver { get; init; }
+    /// <summary>Gets a positive output token cap.</summary>
+    public int? MaxOutputTokens { get; init; }
+    /// <summary>Gets a local correlation identifier.</summary>
+    public string? CorrelationId { get; init; }
+    /// <summary>Gets provider-specific settings.</summary>
+    public OpenAI.OpenAiResponseOptions OpenAi { get; init; } = new();
+}
