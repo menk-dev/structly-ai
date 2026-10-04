@@ -59,3 +59,32 @@ jobs:
           GITHUB_PACKAGES_TOKEN: ${{ github.token }}
           PACKAGE_OWNER: ${{ github.repository_owner }}
         run: dotnet nuget push artifacts/packages/*.nupkg --api-key "$GITHUB_PACKAGES_TOKEN" --source "https://nuget.pkg.github.com/$PACKAGE_OWNER/index.json" --no-symbols --skip-duplicate
+      - name: Verify published package with a fresh consumer
+        env:
+          PACKAGE_OWNER: ${{ github.repository_owner }}
+          NuGetPackageSourceCredentials_github: Username=${{ github.actor }};Password=${{ github.token }}
+        run: |
+          consumer_dir="$(mktemp -d)"
+          trap 'rm -rf "$consumer_dir"' EXIT
+          version="$(cat version.txt)"
+          dotnet new console --framework net10.0 --no-restore --output "$consumer_dir"
+          cp examples/Structly.AI.Consumer/Program.cs "$consumer_dir/Program.cs"
+          dotnet add "$consumer_dir" package Structly.AI --version "$version" --no-restore
+          cat > "$consumer_dir/NuGet.Config" <<EOF
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="github" value="https://nuget.pkg.github.com/$PACKAGE_OWNER/index.json" />
+            </packageSources>
+          </configuration>
+          EOF
+          restored=false
+          for attempt in 1 2 3 4 5 6; do
+            if dotnet restore "$consumer_dir" --configfile "$consumer_dir/NuGet.Config" --packages "$consumer_dir/packages" --no-http-cache; then
+              restored=true
+              break
+            fi
+            if [ "$attempt" -lt 6 ]; then sleep 10; fi
+          done
+          [ "$restored" = true ]
+          dotnet run --project "$consumer_dir" -c Release --no-restore
