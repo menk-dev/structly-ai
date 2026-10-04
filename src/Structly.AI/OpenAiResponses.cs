@@ -23,7 +23,7 @@ public sealed partial class OpenAiClient
             if (request.OutputSpecification is not null || request.Vocabularies is not null) throw new ArgumentException("Text has no output contract.");
             var model = SelectModel(request.ModelSelection ?? _options.DefaultModel);
             execution.Metadata = execution.Metadata with { RequestedModel = model.ModelId };
-            payload = ResponsePayload(request, model, textRequest.Instructions);
+            payload = ResponsePayload(request, model, request.Instructions ?? textRequest.Instructions);
         }
         catch (ArgumentException) { return InvalidOptions<string>(execution); }
         return await Send(payload, "responses", request, execution, null,
@@ -52,7 +52,7 @@ public sealed partial class OpenAiClient
             if (request.Instructions is not null) throw new ArgumentException("Typed prewarm uses task instructions.");
             var model = SelectModel(request.Request.ModelSelection ?? task.ModelSelection ?? _options.DefaultModel);
             execution.Metadata = execution.Metadata with { RequestedModel = model.ModelId };
-            var payload = ResponsePayload(request.Request, model, task.Instructions, prewarm: true);
+            var payload = ResponsePayload(request.Request, model, request.Request.Instructions ?? task.Instructions, prewarm: true);
             var format = new Dictionary<string, object?>
             {
                 ["type"] = "json_schema",
@@ -63,7 +63,7 @@ public sealed partial class OpenAiClient
             if (task.Description is not null) format["description"] = task.Description;
             payload["text"] = new { format };
             return payload;
-        }), cancellationToken);
+        }), cancellationToken, task.SchemaName);
     }
 
     async Task<StructuredResult<OpenAiPrewarmResult>> PrewarmCore(OpenAiPrewarmRequest warm, OpenAiExecution execution,
@@ -80,7 +80,7 @@ public sealed partial class OpenAiClient
                 if (request.Vocabularies is not null) throw new ArgumentException("Untyped prewarm has no vocabularies.");
                 var model = SelectModel(request.ModelSelection ?? _options.DefaultModel);
                 execution.Metadata = execution.Metadata with { RequestedModel = model.ModelId };
-                payload = ResponsePayload(request, model, warm.Instructions, prewarm: true);
+                payload = ResponsePayload(request, model, request.Instructions ?? warm.Instructions, prewarm: true);
             }
             else payload = typedPayload();
         }

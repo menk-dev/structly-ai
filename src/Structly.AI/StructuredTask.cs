@@ -119,13 +119,13 @@ public sealed partial class StructuredTask<T>
     public JsonElement CreateSchema(IReadOnlyDictionary<string, IReadOnlyList<string>>? vocabularies = null)
         => SchemaWriter.Create(_contract, Description, vocabularies);
 
-    /// <summary>Validates JSON before deserializing. Local failures retain supplied metadata.</summary>
+    /// <summary>Validates JSON before deserializing. Results retain supplied metadata values and include this task's schema name.</summary>
     public StructuredResult<T> ReadOutput(string json,
         IReadOnlyDictionary<string, IReadOnlyList<string>>? vocabularies = null,
         StructuredMetadata? metadata = null)
     {
         ArgumentNullException.ThrowIfNull(json);
-        metadata ??= new StructuredMetadata { Operation = "ValidateOutput" };
+        metadata = (metadata ?? new StructuredMetadata { Operation = "ValidateOutput" }) with { SchemaName = SchemaName };
         Dictionary<string, string[]> values;
         try
         {

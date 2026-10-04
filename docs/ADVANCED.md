@@ -257,3 +257,25 @@ and [image generation reference](https://developers.openai.com/api/reference/cli
 checked on 2026-10-04. Choose models that support your dimensions and options and the
 Image API's base64 and `output_format` settings. Unsupported model-specific combinations
 return provider errors.
+
+## Instructions and task identification
+
+`StructuredTaskOptions.Instructions` supplies reusable task instructions.
+Set `StructuredRequest.Instructions` to replace them for one call; null uses the task
+instructions and whitespace is invalid. Typed prewarming uses the same request override,
+so use identical instructions when prewarming and executing. Typed prewarming still rejects
+`OpenAiPrewarmRequest.Instructions`; put the override on its `Request` instead.
+For text and untyped prewarming, request instructions override the operation's instructions.
+
+For additional source-specific instructions, use `StructuredRequest.Messages` with a
+`MessageRole.Developer` text message followed by a user message. Developer messages are
+additional input; they do not replace task instructions. `Messages` and `Input` are mutually exclusive.
+
+Typed results and usage events include the task's resolved `StructuredMetadata.SchemaName`.
+`Operation` identifies the operation category, such as `Structured` or `Prewarm`;
+`CorrelationId` remains available for the application's individual call identifier.
+Local `ReadOutput` results also include the schema name.
+
+Omitting `StructuredRequest.OpenAi` or explicitly assigning null both use default provider
+settings. For example, `OpenAi = useCache ? new() { PromptCacheKey = "source" } : null`
+is supported.

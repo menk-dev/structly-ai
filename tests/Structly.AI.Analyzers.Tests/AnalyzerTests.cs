@@ -16,6 +16,10 @@ public sealed class AnalyzerTests
     [Theory]
     [InlineData("public class Dto { public string Text { get; init; } = \"\"; }", null)]
     [InlineData("public record Dto(string Text, int Count);", null)]
+    [InlineData("[JsonConverter(typeof(JsonStringEnumConverter))] public enum Choice { A, B } public class Dto { public Choice? Value { get; set; } }", null)]
+    [InlineData("[JsonConverter(typeof(JsonStringEnumConverter<Choice>))] public enum Choice { A, B } public class Dto { public Choice? Value { get; set; } }", null)]
+    [InlineData("public enum Choice { A, B } public class Dto { [JsonConverter(typeof(JsonStringEnumConverter<Choice>))] public Choice? Value { get; set; } }", null)]
+
     [InlineData("public struct Dto { public int Count { get; set; } }", null)]
     [InlineData("public class Dto { public DateOnly Date { get; set; } public Guid Id { get; set; } }", null)]
     [InlineData("public class Dto { public List<string?>? Names { get; set; } public HashSet<int> Values { get; set; } = []; }", null)]

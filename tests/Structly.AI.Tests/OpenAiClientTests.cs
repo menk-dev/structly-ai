@@ -27,6 +27,69 @@ public sealed class OpenAiClientTests
     }
 
     [Fact]
+    public async Task TypedPrewarmUsesRequestInstructionsAndSchemaMetadata()
+    {
+        using var handler = new Handler(async message =>
+        {
+            using var document = JsonDocument.Parse(await message.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken));
+            Assert.Equal("Source instructions", document.RootElement.GetProperty("instructions").GetString());
+            Assert.Equal("answer", document.RootElement.GetProperty("text").GetProperty("format").GetProperty("name").GetString());
+            return Response(Envelope(output: []));
+        });
+        using var http = new HttpClient(handler);
+        var client = Client(http, new()
+        {
+            DefaultModel = new() { ModelId = "configured" },
+            CredentialResolver = Credentials.FromStatic("key"),
+            CacheCompatibility = new Dictionary<string, OpenAiCacheCompatibility> { ["configured"] = OpenAiCacheCompatibility.Modern }
+        });
+        StructuredUsageEvent? usage = null;
+        var result = await client.PrewarmAsync(TaskContract(), new()
+        {
+            Request = new()
+            {
+                Input = "input",
+                Instructions = "Source instructions",
+                OpenAi = null,
+                UsageObserver = (item, _) => { usage = item; return ValueTask.CompletedTask; }
+            }
+        }, TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Equal("answer", result.Metadata.SchemaName);
+        Assert.Equal("answer", usage!.Metadata.SchemaName);
+    }
+
+    [Fact]
+    public async Task NullableProviderOptionsInstructionsAndSchemaMetadataAreSupported()
+    {
+        using var handler = new Handler(async message =>
+        {
+            using var document = JsonDocument.Parse(await message.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken));
+            Assert.Equal("Source instructions", document.RootElement.GetProperty("instructions").GetString());
+            Assert.False(document.RootElement.GetProperty("store").GetBoolean());
+            return Response(Envelope());
+        });
+        using var http = new HttpClient(handler);
+        StructuredUsageEvent? usage = null;
+        var task = TaskContract();
+        var result = await Client(http).ExecuteAsync(task, new()
+        {
+            Input = "input",
+            OpenAi = null,
+            Instructions = "Source instructions",
+            UsageObserver = (item, _) => { usage = item; return ValueTask.CompletedTask; }
+        }, TestContext.Current.CancellationToken);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(task.SchemaName, result.Metadata.SchemaName);
+        Assert.Equal(task.SchemaName, usage!.Metadata.SchemaName);
+        Assert.Equal("Structured", usage.Metadata.Operation);
+        Assert.Equal(task.SchemaName, task.ReadOutput("""{"value":42}""").Metadata.SchemaName);
+        var invalid = await Client(http).ExecuteAsync(task, new() { Input = "input", Instructions = " " }, TestContext.Current.CancellationToken);
+        Assert.Equal(StructuredErrorKind.InvalidRequest, invalid.Error!.Kind);
+        Assert.Equal(task.SchemaName, invalid.Metadata.SchemaName);
+    }
+
+    [Fact]
     public async Task WireContractAndCallerTransportArePreserved()
     {
         using var handler = new Handler(async message =>

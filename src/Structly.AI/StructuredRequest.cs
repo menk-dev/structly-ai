@@ -80,6 +80,10 @@ public sealed record StructuredRequest
     public int? MaxOutputTokens { get; init; }
     /// <summary>Gets a local correlation identifier.</summary>
     public string? CorrelationId { get; init; }
-    /// <summary>Gets provider-specific settings.</summary>
-    public OpenAI.OpenAiResponseOptions OpenAi { get; init; } = new();
+    readonly OpenAI.OpenAiResponseOptions _openAi = new();
+    /// <summary>Gets provider-specific settings. Assigning null uses default settings.</summary>
+    [System.Diagnostics.CodeAnalysis.AllowNull]
+    public OpenAI.OpenAiResponseOptions OpenAi { get => _openAi; init => _openAi = value ?? new(); }
+    /// <summary>Gets optional nonblank instructions replacing task instructions for this call.</summary>
+    public string? Instructions { get; init; }
 }

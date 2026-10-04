@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.3.0
+
+- Supports default built-in string-enum converter attributes on enum types and properties.
+- Preserves declaration order for properties and enum entries, with `JsonPropertyOrder`
+  taking precedence for properties.
+- Includes schema names in typed result and usage metadata.
+- Treats explicitly null OpenAI request options as defaults and supports per-request
+  instructions, including typed prewarming.
+- Clarifies description attributes and developer-message instructions in the documentation.
+
 ## 0.2.0
 
 - Adds `Structly.AI.Hosting` for ASP.NET Core and Generic Host. It registers `OpenAiClient`

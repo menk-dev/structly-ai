@@ -80,7 +80,7 @@ static class SchemaResolver
         if (kind == SchemaKind.Enum)
         {
             if (type.IsDefined(typeof(FlagsAttribute))) Fail(path, "EnumFlags", "Use a non-flags enum with unique values.");
-            var fields = type.GetFields(BindingFlags.Public | BindingFlags.Static);
+            var fields = type.GetFields(BindingFlags.Public | BindingFlags.Static).OrderBy(x => x.MetadataToken).ToArray();
             budget.Enums += fields.Length;
             if (budget.Enums > 1000)
                 Fail(path, "EnumLimit", "Strict schemas support at most 1,000 emitted enum entries.");
@@ -88,7 +88,7 @@ static class SchemaResolver
             if (fields.Length == 0 || values.Distinct().Count() != fields.Length)
                 Fail(path, "EnumValues", "Enums must be nonempty without numeric aliases.");
             node.EnumValues = fields.Select(x => x.GetCustomAttribute<JsonStringEnumMemberNameAttribute>()?.Name ?? x.Name)
-                .Order(StringComparer.Ordinal).ToArray();
+                .ToArray();
             if (node.EnumValues.Any(String.IsNullOrWhiteSpace) || node.EnumValues.Distinct(StringComparer.Ordinal).Count() != fields.Length)
                 Fail(path, "EnumNames", "Enum wire names must be nonblank and ordinally unique.");
             var enumCharacters = 0;
@@ -140,7 +140,7 @@ static class SchemaResolver
                 Fail(path, "FieldInclusion", "Fields are excluded; use a public serializable property instead.");
         var properties = new List<PropertyInfo>();
         for (var current = type; current is not null && current != typeof(object); current = current.BaseType)
-            foreach (var property in current.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+            foreach (var property in current.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly).OrderBy(x => x.MetadataToken))
             {
                 if (property.GetCustomAttribute<JsonIgnoreAttribute>()?.Condition == JsonIgnoreCondition.Always) continue;
                 if (property.GetMethod?.IsPublic != true)
@@ -172,8 +172,7 @@ static class SchemaResolver
         }
         var context = new NullabilityInfoContext();
         var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var property in properties.OrderBy(x => x.GetCustomAttribute<JsonPropertyOrderAttribute>()?.Order ?? 0)
-            .ThenBy(x => Name(x, serializer), StringComparer.Ordinal))
+        foreach (var property in properties.OrderBy(x => x.GetCustomAttribute<JsonPropertyOrderAttribute>()?.Order ?? 0))
         {
             if (++budget.Properties > 5000)
                 Fail(path, "PropertyLimit", "Strict schemas support at most 5,000 emitted object properties.");
@@ -217,7 +216,14 @@ static class SchemaResolver
 
     static void RejectOverrides(MemberInfo member, string path)
     {
-        Type[] rejected = [typeof(JsonConverterAttribute), typeof(JsonExtensionDataAttribute), typeof(JsonIncludeAttribute),
+        var converter = member.GetCustomAttribute<JsonConverterAttribute>();
+        var declaredType = member is PropertyInfo property ? property.PropertyType : member as Type;
+        var enumType = declaredType is null ? null : Nullable.GetUnderlyingType(declaredType) ?? declaredType;
+        var converterType = converter?.ConverterType;
+        if (converter is not null && !(converter.GetType() == typeof(JsonConverterAttribute) && enumType?.IsEnum == true &&
+            (converterType == typeof(JsonStringEnumConverter) || converterType == typeof(JsonStringEnumConverter<>).MakeGenericType(enumType))))
+            Fail(path, "SerializationOverride", "Only default built-in string-enum converters on enum types or properties are supported.");
+        Type[] rejected = [typeof(JsonExtensionDataAttribute), typeof(JsonIncludeAttribute),
             typeof(JsonPolymorphicAttribute), typeof(JsonDerivedTypeAttribute), typeof(JsonNumberHandlingAttribute), typeof(JsonObjectCreationHandlingAttribute)];
         if (rejected.Any(x => member.IsDefined(x, true)))
             Fail(path, "SerializationOverride", "Custom converters, inclusion, extension data, polymorphism, number handling and population overrides are unsupported.");

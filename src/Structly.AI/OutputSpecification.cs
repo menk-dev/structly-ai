@@ -80,7 +80,7 @@ public sealed partial class StructuredTask<T>
             return JsonValue.Create(number);
         }
         var entries = node.Vocabulary is { } vocabulary ? values[vocabulary] : node.EnumValues;
-        if (entries is not null) return SampleText(entries.Order(StringComparer.Ordinal).First(), budget);
+        if (entries is not null) return SampleText(entries.First(), budget);
         if (node.Pattern is not null) throw SampleRequired();
         string text;
         if (node.Type == typeof(Guid)) text = "00000000-0000-0000-0000-000000000000";

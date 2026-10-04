@@ -349,7 +349,18 @@ public sealed class StructuredSchemaAnalyzer : DiagnosticAnalyzer
 
         static void RejectOverrides(ISymbol symbol, string path)
         {
-            if (new[] { "JsonConverterAttribute", "JsonExtensionDataAttribute", "JsonIncludeAttribute", "JsonPolymorphicAttribute",
+            var converter = Attribute(symbol, _json + "JsonConverterAttribute");
+            var type = symbol is IPropertySymbol property ? property.Type : symbol as ITypeSymbol;
+            if (type is INamedTypeSymbol nullable && nullable.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+                type = nullable.TypeArguments[0];
+            var converterType = Argument(converter) as INamedTypeSymbol;
+            var supported = type?.TypeKind == TypeKind.Enum && converterType is not null &&
+                converterType.ContainingNamespace.ToDisplayString() == "System.Text.Json.Serialization" &&
+                converterType.Name == "JsonStringEnumConverter" && (converterType.Arity == 0 ||
+                converterType.Arity == 1 && SymbolEqualityComparer.Default.Equals(converterType.TypeArguments[0], type));
+            if (converter is not null && !supported)
+                Fail(path, "SerializationOverride", "Only default built-in string-enum converters on enum types or properties are supported.");
+            if (new[] { "JsonExtensionDataAttribute", "JsonIncludeAttribute", "JsonPolymorphicAttribute",
                 "JsonDerivedTypeAttribute", "JsonNumberHandlingAttribute", "JsonObjectCreationHandlingAttribute" }.Any(x => Attribute(symbol, _json + x) is not null))
                 Fail(path, "SerializationOverride", "Custom converters, inclusion, extension data, polymorphism, number handling and population overrides are unsupported.");
         }

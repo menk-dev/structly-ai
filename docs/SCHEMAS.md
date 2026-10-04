@@ -15,17 +15,18 @@ it. Failure returns `InvalidOutput` or `UnsupportedSchema`.
 | Root | A non-null concrete class or struct with at least one included property. |
 | Members | Public getters with public setters or init accessors, or get-only properties bound to the selected JSON constructor. Every included property is required. Fields are excluded. |
 | Naming | System.Text.Json camel case by default. `SerializationProfile.Naming=PropertyNaming.Preserve` keeps CLR names. `JsonPropertyName` overrides both. Names must be nonblank and unique, including inherited properties. |
+| Order | Properties retain declaration order within each type, with derived members before inherited members. `JsonPropertyOrder` overrides this order; equal order values retain declaration order. Schema properties, required entries, field guidance and generated examples use the same order. Enum entries retain declaration order. |
 | Nullability | Nullable types and nullability attributes allow explicit null. Missing properties are invalid. A nullable collection and nullable items are separate settings. |
 | Scalars | string, bool, integral types, float/double/decimal, Guid, DateOnly, DateTime, DateTimeOffset. Date/identity types use format validation. |
-| Enums | Strings with exact, case-sensitive serialized names. `JsonStringEnumMemberName` is supported. Enums must be nonempty, with no flags or numeric aliases. Nullable enums use a separate null branch. |
+| Enums | Strings with exact, case-sensitive serialized names. `JsonStringEnumMemberName` is supported. Enums must be nonempty, with no flags or numeric aliases. Nullable enums use a separate null branch. Default `[JsonConverter(typeof(JsonStringEnumConverter))]` and `[JsonConverter(typeof(JsonStringEnumConverter<TEnum>))]` are supported on enum types and enum properties, including nullable properties. Numeric output remains invalid. |
 | Collections | One-dimensional arrays (except byte[]), List, IReadOnlyList, IList, ICollection, IEnumerable, IReadOnlyCollection, HashSet and ISet. Supported custom collections need one IEnumerable<T>, ICollection<T> and a public parameterless constructor supported by System.Text.Json. |
 | Constructors | One JsonConstructor, otherwise public parameterless or sole public constructor. Parameters bind to included properties by CLR name (case insensitive) and exact type. DTO construction must also succeed at output time. |
 | Ignore | `JsonIgnore` with Always excludes the property; Never includes it. Conditional omission is unsupported because included properties are required. |
-| Descriptions | `Description` or `Schema(Description=...)`, nonblank if supplied. `Schema.Name` uses 1–64 ASCII letters/digits/underscore/hyphen. |
+| Descriptions | `System.ComponentModel.DescriptionAttribute` (for example, `[Description("Why this match was selected")]`) or `Schema(Description=...)`, nonblank if supplied. `Schema.Name` uses 1–64 ASCII letters/digits/underscore/hyphen. |
 
 Dictionaries, arbitrary object/JsonElement/JsonNode, abstract/interface DTOs, tuples,
 delegates, recursive DTOs/collections, multidimensional arrays, TimeSpan/TimeOnly/Uri,
-async enumerables, converters, inclusion/extension data, polymorphism, number handling
+async enumerables, other converters, inclusion/extension data, polymorphism, number handling
 and population overrides are rejected. Standard DataAnnotations do not change the schema.
 
 ## Constraints and vocabularies
