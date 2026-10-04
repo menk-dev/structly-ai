@@ -89,23 +89,23 @@ Official compiler/NuGet and Release Please sources are linked in DESIGN and RELE
 
 Commands and final results:
 
-- `rtk dotnet restore Structly.AI.slnx --force-evaluate`: generated new locked graphs.
-- `rtk dotnet restore Structly.AI.slnx --locked-mode`: passed, all seven projects.
-- `rtk dotnet format Structly.AI.slnx --verify-no-changes --no-restore`: passed.
-- `rtk dotnet build Structly.AI.slnx -c Release --no-restore`: passed, zero warnings/errors.
-- `rtk proxy dotnet test --solution Structly.AI.slnx -c Release --no-build`: 427 passed
+- `dotnet restore Structly.AI.slnx --force-evaluate`: generated new locked graphs.
+- `dotnet restore Structly.AI.slnx --locked-mode`: passed, all seven projects.
+- `dotnet format Structly.AI.slnx --verify-no-changes --no-restore`: passed.
+- `dotnet build Structly.AI.slnx -c Release --no-restore`: passed, zero warnings/errors.
+- `dotnet test --solution Structly.AI.slnx -c Release --no-build`: 427 passed
   (339 runtime + 88 analyzer), zero failed/skipped, entirely offline.
-- `rtk dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages`:
+- `dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages`:
   local nupkg/snupkg created, unpublished.
-- `rtk dotnet run --project tools/Structly.AI.PackageValidation -c Release --no-build -- artifacts/packages v0.1.0`:
+- `dotnet run --project tools/Structly.AI.PackageValidation -c Release --no-build -- artifacts/packages v0.1.0`:
   metadata/content/XML/PDB/Source Link/versions passed; fresh consumer passed; packed
   analyzer rejected invalid DTO with STAI001. Wrong tag v0.2.0 was separately rejected.
-- `rtk git diff --check`: passed. Local documentation links, release JSON and workflow
+- `git diff --check`: passed. Local documentation links, release JSON and workflow
   YAML parsing passed. Reference/artifact ignore and tracked-file checks passed.
 
 Restore/formatter/test runner/fresh consumer needed sandbox escalation for local
 MSBuild/Microsoft.Testing.Platform communication pipes, consistent with earlier phases.
-Formatting was applied with rtk proxy dotnet format because RTK's wrapper verifies.
+Formatting was applied with `dotnet format`.
 Initial test runs exposed implicit conversion handling on target-typed options, indexer
 metadata names and an oversized Unicode fixture; these were corrected. Initial consumer
 validation exposed a non-seekable ZIP PDB stream and a fake message missing its required

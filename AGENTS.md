@@ -4,7 +4,7 @@ Use lowercase built-in type aliases for type declarations, such as `string`, `in
 
 Class fields should use readonly-first declarations with underscore-prefixed camelCase names, for example `readonly int _someVar;`. Prefer inline constructors where they keep dependencies clear and concise. Do not write explicit `private` or `internal` modifiers where C# already implies the same accessibility.
 
-Program architecture should follow vertical slices: keep endpoint behavior, request models, validators, and feature-specific helpers close to the feature they serve. When working on FastEndpoints endpoints, follow the patterns in `AGENTS.fast-endpoints.md`.
+Program architecture should follow vertical slices: keep endpoint behavior, request models, validators, and feature-specific helpers close to the feature they serve.
 
 Avoid abstraction unless it reduces meaningful duplication or is necessary because multiple implementations of the abstraction exist. Prefer direct, readable feature code over speculative interfaces or service layers.
 

@@ -70,15 +70,15 @@ ignored references were present; no prerequisite gap or unrelated changes were f
 
 Final verification:
 
-- `rtk dotnet restore Structly.AI.slnx --locked-mode`: passed, unchanged lockfiles.
-- `rtk dotnet format Structly.AI.slnx --verify-no-changes --no-restore`: passed.
-- `rtk dotnet build Structly.AI.slnx -c Release --no-restore`: passed, zero warnings/errors.
-- `rtk proxy dotnet test --solution Structly.AI.slnx -c Release --no-build`: 129 passed,
+- `dotnet restore Structly.AI.slnx --locked-mode`: passed, unchanged lockfiles.
+- `dotnet format Structly.AI.slnx --verify-no-changes --no-restore`: passed.
+- `dotnet build Structly.AI.slnx -c Release --no-restore`: passed, zero warnings/errors.
+- `dotnet test --solution Structly.AI.slnx -c Release --no-build`: 129 passed,
   zero failed/skipped.
-- `rtk dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages`:
+- `dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages`:
   produced the 0.1.0 package and symbols. ZIP inspection verified runtime assembly/XML
   documentation and symbol PDB; no reference files. Artifacts remain ignored/unpublished.
-- `rtk git diff --check`: passed. Reference ignore/tracked-file checks passed;
+- `git diff --check`: passed. Reference ignore/tracked-file checks passed;
   no changes to dependencies, lockfiles or release configuration.
 
 Normal tests are offline,
@@ -91,8 +91,8 @@ generated DTO fixtures exercise 5,000/5,001 properties and repeated sibling coun
 
 The sandbox denies Unix sockets needed by Microsoft.Testing.Platform and the formatter's
 MSBuild host. Those commands require execution outside the sandbox for local IPC;
-they still use no provider/network calls. RTK's format wrapper verifies rather than
-applies changes, so `rtk proxy dotnet format ... --no-restore` was used to apply formatting.
+they still use no provider/network calls. Formatting was applied with
+`dotnet format ... --no-restore`.
 The formatter cannot automatically fix IDE1006 names; these were corrected directly.
 Locked solution restore also failed silently within the sandbox (MSBuild reported zero
 errors even in diagnostic mode), then passed outside it without dependency changes.

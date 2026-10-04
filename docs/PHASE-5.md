@@ -108,19 +108,19 @@ the final suite, not assumed complete from status labels.
 
 Final commands and outcomes:
 
-- `rtk dotnet restore Structly.AI.slnx --locked-mode`: passed; dependencies/lockfiles unchanged.
-- `rtk dotnet format Structly.AI.slnx --verify-no-changes --no-restore`: passed.
-- `rtk dotnet build Structly.AI.slnx -c Release --no-restore`: passed, zero warnings/errors.
-- `rtk proxy dotnet test --solution Structly.AI.slnx -c Release --no-build`: 339 passed,
+- `dotnet restore Structly.AI.slnx --locked-mode`: passed; dependencies/lockfiles unchanged.
+- `dotnet format Structly.AI.slnx --verify-no-changes --no-restore`: passed.
+- `dotnet build Structly.AI.slnx -c Release --no-restore`: passed, zero warnings/errors.
+- `dotnet test --solution Structly.AI.slnx -c Release --no-build`: 339 passed,
   zero failed/skipped, all offline.
-- `rtk dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages`:
+- `dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages`:
   package and symbols created locally, ignored and unpublished.
-- `rtk git diff --check`: passed. Tracked-reference, ignored-reference/artifact and local
+- `git diff --check`: passed. Tracked-reference, ignored-reference/artifact and local
   documentation-link checks passed.
 
 Restore, formatter and test runner needed approved sandbox escalation for local MSBuild/
 Microsoft.Testing.Platform named pipes, as in prior phases. Formatting application used
-`rtk proxy dotnet format ... --no-restore`, because RTK's formatter wrapper verifies.
+`dotnet format ... --no-restore`.
 An initial concurrency test incorrectly matched the substring red in the schema word
 required; matching the quoted vocabulary value corrected the test. Subsequent full
 suites passed. Controlled clocks and explicit gates cover async budgets and isolation;

@@ -12,10 +12,10 @@ personal access token is required for publication. The workflow uses GITHUB_TOKE
 3. Fetch main, create its release tag and push it:
 
    ```sh
-   rtk git switch main
-   rtk git pull --ff-only
-   rtk git tag v0.1.0
-   rtk git push origin v0.1.0
+   git switch main
+   git pull --ff-only
+   git tag v0.1.0
+   git push origin v0.1.0
    ```
 
 4. The release workflow verifies the tag belongs to main, runs the offline suite and

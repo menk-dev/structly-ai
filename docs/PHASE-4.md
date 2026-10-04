@@ -81,18 +81,17 @@ the implementation boundary; PLAN.md marks only phase 4 complete.
 
 Final verification commands and results:
 
-- `rtk dotnet restore Structly.AI.slnx --locked-mode`: passed; lockfiles unchanged.
-- `rtk dotnet format Structly.AI.slnx --verify-no-changes --no-restore`: passed.
-- `rtk dotnet build Structly.AI.slnx -c Release --no-restore`: passed, zero warnings/errors.
-- `rtk proxy dotnet test --solution Structly.AI.slnx -c Release --no-build`: 205 passed,
+- `dotnet restore Structly.AI.slnx --locked-mode`: passed; lockfiles unchanged.
+- `dotnet format Structly.AI.slnx --verify-no-changes --no-restore`: passed.
+- `dotnet build Structly.AI.slnx -c Release --no-restore`: passed, zero warnings/errors.
+- `dotnet test --solution Structly.AI.slnx -c Release --no-build`: 205 passed,
   zero failed/skipped; all deterministic/offline.
-- `rtk dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages`:
+- `dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages`:
   package and symbols created locally; ignored and unpublished.
-- `rtk git diff --check`: passed. Reference/package ignore and tracked-reference checks passed.
+- `git diff --check`: passed. Reference/package ignore and tracked-reference checks passed.
 
 Restore, formatter and test runner required sandbox escalation for local MSBuild/testing IPC,
-as in prior phases. Formatter application used `rtk proxy dotnet format ... --no-restore`
-because the RTK wrapper verifies formatting. The initial sandbox test/restore/format attempts
+as in prior phases. Formatter application used `dotnet format ... --no-restore`. The initial sandbox test/restore/format attempts
 could not access required local pipes; subsequent approved runs passed. Linux validation is
 complete; Windows CI remains the cross-platform check. No live calls, remote settings changes,
 publishing or credentials were involved.

@@ -106,8 +106,7 @@ dotnet test --solution Structly.AI.slnx -c Release --no-build
 git diff --check
 ```
 
-In Codex sessions prefix shell commands with `rtk`; use `rtk proxy dotnet test` for
-Microsoft.Testing.Platform output. Dependency changes require restoring with
+Dependency changes require restoring with
 `--force-evaluate` and committing lockfiles. Ignored `ref1/` and `ref2/` are assessment
 material, excluded from the solution and packages. [Release setup and recovery](https://github.com/menk-dev/structly-ai/blob/main/docs/RELEASES.md)
 remain separate from local validation; publishing is disabled until explicitly activated.

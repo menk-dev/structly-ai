@@ -38,22 +38,22 @@ from some reference comments, so implementation phases must recheck wire/model s
 
 ## Verification
 
-Initial `rtk git status --short` was clean. Inspected repository instructions, plan,
+Initial `git status --short` was clean. Inspected repository instructions, plan,
 design, solution/project/package configuration and scaffold test, plus available reference
-files via `rtk cat`, `rtk sed` and `rtk rg`. No prerequisite gap found; no prior handoff.
+files via `cat`, `sed` and `rg`. No prerequisite gap found; no prior handoff.
 
 Checks for this documentary phase:
 
-- `rtk git check-ignore ref1/StructuredLlmClient/README.md ref2/StructuredLlm/README.md`:
-  both ignored; `rtk git ls-files ref1 ref2`: empty. Solution and package project inspected;
+- `git check-ignore ref1/StructuredLlmClient/README.md ref2/StructuredLlm/README.md`:
+  both ignored; `git ls-files ref1 ref2`: empty. Solution and package project inspected;
   references are neither solution projects nor package inputs.
 - Official OpenAI documentation search/open: structured outputs, conversation state,
   streaming, reasoning summaries, cache controls/diagnostics, embeddings and image generation
   verified. Some initial endpoint/Markdown URLs failed to fetch; working official guide
   pages supplied evidence. Endpoint-specific fields must still be rechecked in phases 3/5.
-- `rtk python3` documentation check: F01–F17 coverage entries, balanced code fences,
+- `python3` documentation check: F01–F17 coverage entries, balanced code fences,
   local documentation links and phase status consistency passed.
-- `rtk git diff --check`: passed. Reviewed changed scope and contracts for consistency.
+- `git diff --check`: passed. Reviewed changed scope and contracts for consistency.
 
 No restore/build/test/pack needed: no production API or build configuration changed.
 Examples are conceptual and not compiled against nonexistent types. No credentials,

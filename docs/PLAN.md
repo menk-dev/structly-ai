@@ -48,8 +48,7 @@ During execution:
   cache semantics, or limits from reference comments without verification.
 - Normal tests must be deterministic, offline, and free of provider credentials. Live
   tests are opt-in and must not be needed for a phase to pass.
-- Follow repository coding and commit policies. Prefix shell commands with `rtk`.
-  If its test wrapper obscures Microsoft.Testing.Platform results, use `rtk proxy dotnet test`.
+- Follow repository coding and commit policies.
 - If an earlier decision needs correction, update the design and affected behavior/tests
   explicitly. Do not silently carry contradictions into the next phase.
 
@@ -284,12 +283,12 @@ remaining external actions; keep this phase partial or blocked.
 For implementation phases, run the following from the repository root:
 
 ```sh
-rtk dotnet restore Structly.AI.slnx --locked-mode
-rtk dotnet format Structly.AI.slnx --verify-no-changes --no-restore
-rtk dotnet build Structly.AI.slnx -c Release --no-restore
-rtk proxy dotnet test --solution Structly.AI.slnx -c Release --no-build
-rtk dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages
-rtk git diff --check
+dotnet restore Structly.AI.slnx --locked-mode
+dotnet format Structly.AI.slnx --verify-no-changes --no-restore
+dotnet build Structly.AI.slnx -c Release --no-restore
+dotnet test --solution Structly.AI.slnx -c Release --no-build
+dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages
+git diff --check
 ```
 
 Regenerate and commit lockfiles when dependencies change. Run phase-specific checks in

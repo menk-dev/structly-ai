@@ -79,9 +79,9 @@ comments nor this offline comparison prove current model/API support.
 
 ## Verification
 
-- `rtk dotnet build Structly.AI.slnx -c Release --no-restore`: seven projects, zero errors,
+- `dotnet build Structly.AI.slnx -c Release --no-restore`: seven projects, zero errors,
   zero warnings.
-- `rtk proxy dotnet test --solution Structly.AI.slnx -c Release --no-build`: 427 passed,
+- `dotnet test --solution Structly.AI.slnx -c Release --no-build`: 427 passed,
   zero failed/skipped. The first sandboxed invocation could not create runner IPC pipes;
   an approved elevated offline run succeeded.
 - Two additional reproductions ran in an isolated console under `/tmp/structly-audit`,

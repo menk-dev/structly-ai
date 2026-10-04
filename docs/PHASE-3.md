@@ -52,14 +52,14 @@ does not authorize paid calls, so no key inspection, provisioning or live access
 Clean Git status at entry; phase 2 implementation, tests and handoff were verified present.
 Final verification commands:
 
-- `rtk dotnet restore Structly.AI.slnx --locked-mode`: passed; lockfiles unchanged.
-- `rtk dotnet format Structly.AI.slnx --verify-no-changes --no-restore`: passed.
-- `rtk dotnet build Structly.AI.slnx -c Release --no-restore`: passed, zero warnings/errors.
-- `rtk proxy dotnet test --solution Structly.AI.slnx -c Release --no-build`: 164 passed,
+- `dotnet restore Structly.AI.slnx --locked-mode`: passed; lockfiles unchanged.
+- `dotnet format Structly.AI.slnx --verify-no-changes --no-restore`: passed.
+- `dotnet build Structly.AI.slnx -c Release --no-restore`: passed, zero warnings/errors.
+- `dotnet test --solution Structly.AI.slnx -c Release --no-build`: 164 passed,
   zero failed/skipped (129 existing tests, 35 provider fixture cases).
-- `rtk dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages`:
+- `dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages`:
   package and symbols created; ignored and unpublished.
-- `rtk git diff --check`: passed. Reference ignore/tracked-file checks passed.
+- `git diff --check`: passed. Reference ignore/tracked-file checks passed.
 
 Tests cover outgoing fields/schema/constraints/vocabularies, model/credential precedence,
 profile snapshots, concurrent request credential isolation, per-call environment reads,
@@ -69,7 +69,7 @@ metadata, safe diagnostics, rate/quota hints, one-attempt behavior, byte ceiling
 cancellation/failure, precancel, raw capture lifetime and resource ownership/disposal.
 Tests are deterministic/offline with fake handlers and synthetic credentials. Initial test
 build required adding xUnit test-context cancellation tokens; final checks pass. Formatter
-application used `rtk proxy dotnet format ... --no-restore` because RTK's wrapper verifies.
+application used `dotnet format ... --no-restore`.
 Restore, formatter and test runner used sandbox escalation for local MSBuild/testing IPC,
 consistent with phase 2's platform limitation. No provider requests. Windows CI remains
 cross-platform validation.
