@@ -45,3 +45,18 @@ The first release workflow run failed because RELEASE_PLEASE_TOKEN is absent. It
 exposed empty release PR JSON evaluation in the auto-merge step; the expression now
 uses an empty-object fallback so missing PR output does not produce a template error.
 The owner must configure a dedicated release token in GitHub Secrets.
+
+## Manual release update
+
+The owner selected manual versioning/tagging, superseding the earlier release bot setup.
+Release Please configuration is removed. The release workflow runs on v-prefixed tag pushes
+or dispatch with an existing tag, verifies main ancestry/version/changelog, validates and
+publishes using GITHUB_TOKEN. Missing release bot credentials are no longer a blocker.
+Both Linux and Windows CI passed for the activation PR; it merged after required checks.
+A .gitattributes LF checkout rule fixed Windows formatter failures. History identity cleanup
+was explicitly authorized before first publication; its verification is recorded below.
+
+Manual release validation: locked restore, formatter verification, Release build (zero
+warnings/errors), all 437 offline tests, package creation, metadata/symbol checks, a fresh
+local-feed consumer and packed analyzer rejection passed. Workflow YAML/shell syntax
+and Git whitespace checks passed. First publication remains pending.

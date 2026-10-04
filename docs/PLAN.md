@@ -259,11 +259,11 @@ usable version. This phase needs external access and explicit authorization for 
 Work:
 
 - Follow `docs/RELEASES.md` and inspect existing remote settings before changing them.
-  Configure the release bot, required checks, auto-merge policy, GitHub Packages identity/access, and
+  Configure required checks, GitHub Packages identity/access, and
   environment settings as authorized. Never store credentials in the repository.
-- Enable publishing only after phase 6 readiness is confirmed. Align the bootstrap version
-  and release history so the first generated release has the intended version.
-- Exercise the release PR flow and verify checks finish before unattended merging occurs.
+- Enable publishing only after phase 6 readiness is confirmed. Confirm version.txt, Directory.Build.props and CHANGELOG.md agree on the intended
+  version before tagging. Releases use manual versioning and tag-triggered publishing.
+- Verify the version-update PR passes required checks before merging and tagging main.
   Confirm the released tag, built package version, changelog, and uploaded artifacts agree.
 - Publish the authorized release, verify package availability and consumption, and record
   the outcome. Verify the symbol package is downloadable from the GitHub release separately from
@@ -275,7 +275,7 @@ Deliverables: operational release automation, verified first release, updated se
 recovery documentation, and `docs/PHASE-7.md`.
 
 Complete when the first usable package is available and the configured process can handle
-subsequent releases without routine manual versioning, packaging, or upload steps. If access
+subsequent releases with manual version updates/tagging and automated packaging/upload. If access
 or publication authorization is missing, complete independent preparation and record the
 remaining external actions; keep this phase partial or blocked.
 
