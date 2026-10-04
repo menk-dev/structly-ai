@@ -1,14 +1,20 @@
-# Usage accounting
+# Token counts and usage callbacks
 
-`result.Metadata.Usage` contains provider-reported nullable nonnegative counts. Missing
-counts remain unknown; the library never invents zero, totals, pricing or cost. Metadata
-also carries ExecutionId, CorrelationId, operation, provider, requested/resolved model,
-response/request IDs and optional cache diagnostics. Unknown resolved identity stays unknown.
+`result.Metadata.Usage` contains the token counts reported by the provider. Each count
+is nullable and nonnegative. A missing count means unknown, not zero. The library does
+not calculate missing totals, prices or costs.
 
-Accounting runs before typed/vector/image processing. Refusal, incomplete responses,
-malformed output and other billed failures can retain usage. If caller cancellation
-occurs after usage capture, inspect `StructuredOperationCanceledException.Metadata`.
-An abandoned request may still be billed without usable usage metadata.
+Metadata also includes `ExecutionId`, `CorrelationId`, the operation and provider,
+requested and resolved model IDs, response and request IDs, and optional cache diagnostics.
+If the provider does not report the resolved model or response ID, that value stays unknown.
+
+The library reads usage before processing typed output, vectors or images. Counts can
+therefore be available even when the provider refuses a request or returns incomplete
+or invalid output. After caller cancellation, check
+`StructuredOperationCanceledException.Metadata`. A request that you stopped waiting for
+may still be billed even if no usage was received.
+
+## Record usage
 
 ```csharp
 var request = new StructuredRequest
@@ -21,23 +27,31 @@ var request = new StructuredRequest
 };
 ```
 
-Here `ledger.RecordAsync` is a host function returning ValueTask. A request observer
-overrides the optional client observer. There is one observer delivery per execution
-when usage is available; absence of usage does not create a fabricated accounting event.
-If recording both observer and result metadata, deduplicate by ExecutionId. Delivery is
-best effort, bounded by five seconds or the remaining total budget.
-It is not a transactional exactly-once ledger. Callback exceptions/timeouts produce
-safe warnings without masking success, failure or cancellation. Callbacks should honor
-their token.
+Here, `ledger.RecordAsync` is application code returning `ValueTask`. A request's
+`UsageObserver` replaces the client observer. When usage is available, the library calls
+one observer once per execution. When usage is missing, it does not call the observer.
+If you record both callback data and result metadata, deduplicate using `ExecutionId`.
 
-Common counts include InputTokens, OutputTokens, TotalTokens, CachedInputTokens,
-CacheWriteTokens and ReasoningTokens. Embedding prompt_tokens maps to input tokens;
-image usage preserves available text/image breakdowns. Provider omission means unknown.
-Cache diagnostics preserve unknown diagnostic strings and valid independent counts;
-malformed counts add warnings. Neither a cache key nor prewarming guarantees reuse or cost.
+The library waits at most five seconds, or the remaining total timeout, for the callback.
+It does not retry the callback or guarantee that your record was saved. Exceptions and
+timeouts add warnings without replacing the operation's result or cancellation. Callbacks
+should respect their cancellation token.
 
-Default diagnostics exclude prompts, output, raw reasoning, credentials and raw provider
-error bodies. There is no default logging sink. If you enable `CaptureOutputText` or
-`CaptureRawResponse`, choose your own retention and access policy. Streaming raw capture
-contains the terminal response envelope, not an SSE transcript. Progress may include
-output text and explicitly requested reasoning summaries; see [execution](EXECUTION.md).
+## Available counts
+
+Counts include `InputTokens`, `OutputTokens`, `TotalTokens`, `CachedInputTokens`,
+`CacheWriteTokens` and `ReasoningTokens`. Embedding `prompt_tokens` becomes `InputTokens`.
+Image usage retains any reported text and image breakdowns.
+
+Cache diagnostics keep unknown diagnostic strings and valid counts. Malformed counts
+add warnings. A cache key or prewarm request does not guarantee reuse or lower costs.
+
+## Captured data
+
+Default diagnostics omit prompts, output, raw reasoning, credentials and raw provider
+error bodies. The library does not log automatically. If you enable `CaptureOutputText`
+or `CaptureRawResponse`, decide where that data is stored and who can access it.
+
+For streaming, raw capture contains the final response object, not every SSE event.
+Progress callbacks may receive output text and requested reasoning summaries.
+See [execution](EXECUTION.md).

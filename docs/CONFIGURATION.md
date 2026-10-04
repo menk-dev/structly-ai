@@ -1,17 +1,22 @@
 # Configuration
 
-Structly.AI targets .NET 10. Use `Structly.AI` for task/request/result contracts and
-`Structly.AI.OpenAI` for the provider. Embeddings and images use `Structly.AI.Embeddings`
-and `Structly.AI.Imaging`. The runtime uses framework APIs only.
+Structly.AI requires .NET 10. Task, request and result types are in `Structly.AI`.
+The OpenAI client is in `Structly.AI.OpenAI`. Embedding and image types are in
+`Structly.AI.Embeddings` and `Structly.AI.Imaging`. The core package has no NuGet dependencies.
 
-For ASP.NET Core and Generic Host, use the optional [hosting integration](HOSTING.md)
-to bind settings and register a factory-managed client.
+For ASP.NET Core and Generic Host, the optional [hosting package](HOSTING.md) registers
+the client and reads settings from configuration.
 
-Create a long-lived `OpenAiClient` with a caller-owned `HttpClient`. Set HTTP timeout to
-`Timeout.InfiniteTimeSpan` so the library owns deadlines. The client never mutates the
-transport's headers, base address or timeout and does not dispose it. Supply handlers,
-pooling, proxy and connection policy in the host. Dispose the transport when its owner
-shuts down. Client options and task settings are snapshotted; reuse clients/tasks concurrently.
+## HTTP client
+
+Create an `OpenAiClient` with an `HttpClient` that your application manages. Keep both
+for reuse across calls. Set `HttpClient.Timeout` to `Timeout.InfiniteTimeSpan` so
+Structly.AI's timeouts control execution.
+
+Structly.AI does not change the HTTP client's headers, base address or timeout, and
+does not dispose it. Your application configures handlers, connection pooling and proxies,
+then disposes the HTTP client when it is no longer needed. Structly.AI copies client
+options and task settings when they are created. Clients and tasks support concurrent calls.
 
 ```csharp
 using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
@@ -27,28 +32,41 @@ var client = new OpenAiClient(http, new OpenAiClientOptions
 });
 ```
 
-`configuredModel` is a host configuration value. Select exactly one `ModelId` or
-`ProfileName`. Request selection replaces task selection, which replaces the client's
-default. Profiles can specify `ReasoningEffort.Low`, `Medium` or `High`. The library
-has no model list, ranking or fallback. Response/text/prewarm use `Profiles`; auxiliary
-calls require their own model selection and use `EmbeddingProfiles` or `ImageProfiles`.
-Those operations reject reasoning settings. See [advanced examples](ADVANCED.md).
+## Models
 
-Credential precedence is request > task > client. The selected resolver never falls
-back if it returns a missing key. `Credentials.FromStatic` captures the explicitly
-supplied credential; `Credentials.FromEnvironment` rereads the named variable each call.
-A custom async resolver can select tenant credentials. No ambient default credential is
-read. Set request credentials instead of changing shared HTTP authorization headers.
-Missing credentials return `Authentication`; caller cancellation still throws.
+In this example, `configuredModel` comes from your application's settings. Select exactly
+one `ModelId` or `ProfileName`. A request's selection overrides the task's selection;
+the task's selection overrides the client default.
 
-`BaseAddress` defaults to `https://api.openai.com/v1/`; custom endpoints must speak the
-same API. Defaults are a 120-second total budget, no inactivity deadline, buffered
-responses, `Store=false`, and no raw output/envelope capture. Response and embedding
-envelopes are limited to 16 MiB; images to 128 MiB. Configure `MaxResponseBytes` and
-`MaxImageResponseBytes` when your workload needs different limits.
+Profiles may set `ReasoningEffort.Low`, `Medium` or `High`. The library does not keep a
+model list, rank models or choose a fallback. Structured output, free text and prewarming
+use `Profiles`. Embeddings and images need their own model selection and use
+`EmbeddingProfiles` and `ImageProfiles`. They reject reasoning settings.
+See [advanced examples](ADVANCED.md).
 
-Provide exactly one of `StructuredRequest.Input` or ordered `Messages`. Requests are
-snapshotted before credential resolution; do not mutate caller collections during that
-snapshot. Observers, DTO constructors and setters are host code. Cancellation cannot
-forcibly interrupt synchronous host code. See [execution](EXECUTION.md) for budgets,
-streaming and callback limits and [usage](USAGE.md) for observer delivery.
+## Credentials
+
+The library uses the request's credential resolver if set, otherwise the task's resolver,
+otherwise the client's resolver. If that resolver returns no key, execution returns
+`Authentication`; the library does not try another resolver. Caller cancellation still throws.
+
+`Credentials.FromStatic` stores the key you supply. `Credentials.FromEnvironment` reads
+the named environment variable on each call. A custom asynchronous resolver can choose
+a key for each tenant. The library does not read credentials unless you configure a resolver.
+Set request credentials rather than changing shared HTTP authorization headers.
+
+## Defaults and limits
+
+`BaseAddress` defaults to `https://api.openai.com/v1/`. A custom endpoint must implement
+the same API. By default, operations have a 120-second total timeout, no streaming
+inactivity timeout, buffered responses, `Store=false`, and no capture of raw responses
+or output text.
+
+Responses and embeddings are limited to 16 MiB. Images are limited to 128 MiB.
+Change `MaxResponseBytes` and `MaxImageResponseBytes` if needed.
+
+Supply either `StructuredRequest.Input` or ordered `Messages`, not both. The library
+copies request data before reading credentials. Do not change collections while that
+copy is being made. Callbacks, output constructors and setters must return promptly;
+cancellation cannot interrupt synchronous application code. See [execution](EXECUTION.md)
+for timeout and callback rules and [usage](USAGE.md) for token usage callbacks.

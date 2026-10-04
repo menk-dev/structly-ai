@@ -4,10 +4,14 @@ Use lowercase built-in type aliases for type declarations, such as `string`, `in
 
 Class fields should use readonly-first declarations with underscore-prefixed camelCase names, for example `readonly int _someVar;`. Prefer inline constructors where they keep dependencies clear and concise. Do not write explicit `private` or `internal` modifiers where C# already implies the same accessibility.
 
-Program architecture should follow vertical slices: keep endpoint behavior, request models, validators, and feature-specific helpers close to the feature they serve.
+Organize code by feature: keep endpoint behavior, request models, validators, and feature-specific helpers together.
 
-Avoid abstraction unless it reduces meaningful duplication or is necessary because multiple implementations of the abstraction exist. Prefer direct, readable feature code over speculative interfaces or service layers.
+Add an abstraction when it removes meaningful duplication or supports multiple existing implementations. Otherwise, use direct feature code rather than interfaces or service layers for possible future uses.
 
-Extract a method when its name communicates domain intent and its implementation hides incidental complexity or policy. Keep transparent construction and straightforward one-line delegation visible at the call site instead of wrapping them merely to shorten the caller. For example, a helper that sanitizes provider failures or applies a business rule is useful; a helper that only forwards to another method or replaces an already self-documenting constructor or object initializer is not.
+Extract a method when its name explains what the code does and its implementation contains details the caller does not need to follow. Keep straightforward construction and one-line delegation at the call site rather than wrapping them just to shorten the caller. A helper that sanitizes provider errors or applies a business rule is useful. A helper that only forwards a call or replaces a clear constructor or object initializer is not.
 
-Records with more than 2 unrelated properties should use explicit property definitions (optionally required, get/set/init, whatever is appropriate).
+Records with more than two unrelated properties should declare those properties explicitly. Use required, get, set, or init as appropriate.
+
+## Documentation
+
+Write for programmers in plain, precise language. Keep technical details, examples, and limitations. Explain what code does and where behavior must be implemented. Use words in their literal technical meaning; for example, describe resource ownership and disposal precisely, and say that applications implement retries rather than that a host "owns" them. Avoid figurative descriptions of code and management language.

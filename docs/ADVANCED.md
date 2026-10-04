@@ -1,22 +1,22 @@
-# Advanced runtime features
+# Messages, caching, embeddings and images
 
-All operations return StructuredResult<T> and share one-attempt HTTP execution, total
-budgets, caller cancellation, credential isolation, safe failures and bounded usage
-observers. See [Execution guidance](EXECUTION.md). No live credentials or provider calls
-are needed to inspect a schema or output specification.
+All operations return `StructuredResult<T>`. They use the same rules for one HTTP attempt,
+total timeouts, caller cancellation, per-call credentials, errors and usage callback limits.
+See [execution](EXECUTION.md). You can inspect a schema or generate output instructions
+without credentials or provider calls.
 
-## Messages, guidance and continuation
+## Messages and output instructions
 
-StructuredRequest accepts exactly one of Input (nonblank text shorthand) or Messages
-(a nonempty ordered list). Text shorthand retains the provider's string wire form unless
-guidance needs a message target; it means one user message. Supported roles are System,
-Developer, User and Assistant. Every message needs nonempty content. TextPart requires
-nonblank text; assistant text becomes output_text and other roles use input_text.
+Set either `StructuredRequest.Input` or `Messages`. `Input` is nonblank text representing
+one user message. It is sent as a string unless generated output instructions need to be
+added to a message. `Messages` is a nonempty ordered list. Supported roles are `System`,
+`Developer`, `User` and `Assistant`. Each message must have content, and each `TextPart`
+must contain nonblank text. Assistant text is sent as `output_text`; other roles use `input_text`.
 
-ImagePart is allowed only in user messages. Url must be absolute HTTPS without embedded
-credentials/fragments, or a nonempty base64 PNG/JPEG/WebP/GIF data URL. Detail is Auto,
-Low or High. The library validates URL/base64 syntax and never downloads an image; the
-provider validates image content and model support.
+`ImagePart` is allowed only in user messages. Its `Url` must be an absolute HTTPS URL
+without embedded credentials or a fragment, or a nonempty base64 PNG, JPEG, WebP or GIF
+data URL. `Detail` accepts `Auto`, `Low` or `High`. The library checks URL and base64
+syntax but does not download images. The provider checks image content and model support.
 
 ```csharp
 var request = new StructuredRequest
@@ -37,24 +37,33 @@ var request = new StructuredRequest
 var result = await client.ExecuteAsync(task, request, cancellationToken);
 ```
 
-CreateOutputSpecification(options, vocabularies) exposes the same guidance offline.
-IncludeFields and IncludeExample default to true. The field paths, descriptions, full
-schema and example come from the resolved serialization contract, including renamed
-properties, constraints and vocabulary values. Guidance is appended after existing
-content in the last user message; earlier messages and cache markers stay intact. A
-nonempty specification requires a user target.
+`CreateOutputSpecification(options, vocabularies)` generates the same output instructions
+without sending a request. `IncludeFields` and `IncludeExample` default to true. Property
+paths, descriptions, schema and example use the resolved serialization rules, including
+renamed properties, constraints and vocabulary values. Instructions are appended to the
+last user message after its existing content. Earlier messages and cache markers are unchanged.
+A nonempty specification requires a user message to append to.
 
-Generated examples choose nullable nulls, ordinal-first enum/vocabulary values, bounded
-scalars and the minimum collection cardinality. Every example must pass ReadOutput,
-including deserialization. Nonnullable patterns/formats, unique sets with multiple items,
-combined constraints or large expansions can require ExampleJson or IncludeExample=false.
-Generation is bounded to 10,000 nodes and 1 MiB of scalar text, with at most 1,000 items
-per generated array and 100,000 characters per generated unconstrained-format string.
-Caller examples also undergo local validation; no invalid sample is sent. Inspection
-throws ArgumentException for invalid guidance; execution returns InvalidRequest before
-credential resolution. Schema/vocabulary errors remain UnsupportedSchema.
+### Generated examples
 
-Continuation uses OpenAi.PreviousResponseId explicitly:
+Generated examples use null for nullable values, the first enum or vocabulary value in
+ordinal order, scalar values within constraints, and the minimum collection length.
+Every example must pass `ReadOutput`, including deserialization.
+
+For nonnullable patterns or formats, unique collections with multiple items, combined
+constraints or large examples, you may need to supply `ExampleJson` or set
+`IncludeExample=false`. Generation is limited to 10,000 nodes and 1 MiB of scalar text,
+with at most 1,000 items per array and 100,000 characters per generated string with an
+unconstrained format.
+
+Supplied examples are also validated locally. Invalid examples are not sent. Inspection
+throws `ArgumentException` for invalid output instructions; execution returns
+`InvalidRequest` before reading credentials. Schema and vocabulary errors remain
+`UnsupportedSchema`.
+
+## Follow-up requests
+
+Set `OpenAi.PreviousResponseId` to continue from an earlier response:
 
 ```csharp
 var followUp = await client.ExecuteAsync(task, new StructuredRequest
@@ -65,21 +74,24 @@ var followUp = await client.ExecuteAsync(task, new StructuredRequest
 }, cancellationToken);
 ```
 
-The host must retain a successful prior response ID that is available under the same
-provider account. Store defaults to false. Store=false on the follow-up controls that
-response's persistence; it does not prevent using a stored earlier response. Current
-instructions and schema are resent every time. Changing the task type or vocabularies
-is supported, and current output is validated against the new contract. There is no
-local conversation store, automatic history or retention guarantee.
+Your application must keep a successful response ID that remains available under the
+same provider account. `Store` defaults to false. `Store=false` on the follow-up controls
+storage of that response; it does not prevent using an earlier stored response.
+
+Current instructions and schema are sent on every call. You can change the task type or
+vocabularies, and the new output is checked against the new schema. The library does not
+store conversations or add history automatically. Availability of stored responses depends
+on the provider's retention rules.
 
 ## Free text
 
-TextRequest composes response input/execution controls in Request and has optional
-Instructions. Vocabularies and OutputSpecification are rejected because text has no
-typed contract. The wire omits text.format. Streaming, multimodal messages, continuation,
-model profiles, cache options and capture controls work as for structured responses.
-Completed output must be nonblank; refusal/incomplete/provider failures keep their normal
-categories and available usage.
+`TextRequest.Request` contains input and execution settings; `Instructions` is optional.
+`Vocabularies` and `OutputSpecification` are rejected because free text has no typed
+schema. The HTTP request omits `text.format`. Streaming, text and image messages, follow-up
+requests, profiles, cache settings and capture settings work as they do for structured output.
+
+Completed text must be nonblank. Refused, incomplete and failed responses use the same
+error categories and retain any available usage counts.
 
 ```csharp
 var text = await client.GenerateTextAsync(new TextRequest
@@ -90,13 +102,14 @@ var text = await client.GenerateTextAsync(new TextRequest
 string summary = text.EnsureSuccess();
 ```
 
-## Cache controls and prewarm
+## Cache settings
 
-PromptCacheKey is optional accounting/routing metadata. Its effect differs by model;
-it never guarantees reuse. Configure CacheCompatibility by exact resolved model ID:
-Modern enables mode/TTL/breakpoints/comparison/prewarm, Legacy enables CacheRetention.
-Unknown compatibility rejects advanced controls locally. The caller must configure this
-from actual provider/model support; the library does not guess from model names.
+`PromptCacheKey` is optional metadata used by the provider for accounting and request routing.
+Its effect depends on the model; it does not guarantee reuse. Configure `CacheCompatibility`
+using the exact resolved model ID. `Modern` enables mode, TTL, breakpoints, comparison and
+prewarming. `Legacy` enables `CacheRetention`. Unknown compatibility causes advanced cache
+settings to fail locally. Configure this from the provider's documented model support;
+the library does not infer support from model names.
 
 ```csharp
 var options = new OpenAiClientOptions
@@ -124,24 +137,29 @@ var cachedRequest = new StructuredRequest
 };
 ```
 
-Modern controls use prompt_cache_options and content-part prompt_cache_breakpoint with
-mode=explicit at the exact marked boundary. Explicit mode requires at least one marker
-and allows at most four; implicit/default mode allows three explicit markers, reserving
-the implicit write slot. Assistant output and top-level instructions cannot carry markers.
-Use a developer text message to mark reusable instructions. TTL, when supplied, must be
-30m. Legacy retention uses in_memory or 24h separately. Mixing legacy and modern options
-is rejected by library policy, even where a provider might accept both.
+Modern settings use `prompt_cache_options` and content-part `prompt_cache_breakpoint`.
+Explicit mode marks the exact cache boundary. It requires at least one marker and allows
+at most four. Implicit or default mode allows three explicit markers, reserving one slot
+for the implicit write. Assistant output and top-level instructions cannot have markers.
+Use a developer text message to mark reusable instructions. If supplied, TTL must be `30m`.
 
-Cache.ComparisonResponseId requests diagnostics; it does not load history. Metadata's
-CacheDiagnostics preserves unknown Type/Reason strings and independent comparison counts.
-Malformed diagnostic counts warn without masking output. CachedInputTokens and
-CacheWriteTokens are reported usage; neither keys nor diagnostics promise a hit or prices.
-Schema, vocabulary, instructions, model or reasoning changes can affect prefix reuse.
+Legacy retention accepts `in_memory` or `24h`. The library rejects combinations of legacy
+and modern settings, even if a provider might accept them.
 
-PrewarmAsync is a separate metadata-only operation. OpenAiPrewarmRequest composes Request
-plus optional Instructions; the typed overload takes a task and uses its instructions,
-model/credentials and current schema/vocabularies. It sends prompt_cache_options.prewarm=true
-and requires a completed empty-output envelope. No DTO is deserialized.
+`Cache.ComparisonResponseId` requests diagnostics; it does not load conversation history.
+`Metadata.CacheDiagnostics` keeps unknown `Type` and `Reason` strings and independently
+reported comparison counts. Malformed counts add warnings without replacing output.
+`CachedInputTokens` and `CacheWriteTokens` are reported usage counts. Keys and diagnostics
+do not guarantee a cache hit or a price. Changes to schemas, vocabularies, instructions,
+models or reasoning settings can affect prefix reuse.
+
+### Prewarming
+
+`PrewarmAsync` is a separate operation that returns metadata without output.
+`OpenAiPrewarmRequest` contains `Request` and optional `Instructions`. The typed overload
+also uses the task's instructions, model, credentials and current schema and vocabularies.
+It sends `prompt_cache_options.prewarm=true` and requires a completed response with empty
+output. It does not deserialize an output object.
 
 ```csharp
 var warm = await client.PrewarmAsync(task, new OpenAiPrewarmRequest
@@ -152,24 +170,25 @@ var warm = await client.PrewarmAsync(task, new OpenAiPrewarmRequest
 var answer = await client.ExecuteAsync(task, cachedRequest, cancellationToken);
 ```
 
-Prewarm rejects streaming, progress, reasoning summaries, output token caps, output
-guidance/capture, Store=true and continuation. Untyped prewarm also rejects vocabularies.
-Modern compatibility is required. The operation can incur usage and returns reported
-metadata even on failure; it guarantees neither a cache write nor future reuse.
+Prewarming requires `Modern` compatibility. It rejects streaming, progress callbacks,
+reasoning summaries, output token limits, output instructions and capture, `Store=true`,
+and follow-up requests. Untyped prewarming also rejects vocabularies. Prewarming can incur
+usage and returns reported metadata even on failure. It does not guarantee a cache write
+or reuse on the next request.
 
-These controls follow the official [prompt caching guide](https://developers.openai.com/api/docs/guides/prompt-caching)
+These settings follow the provider's [prompt caching guide](https://developers.openai.com/api/docs/guides/prompt-caching)
 and [diagnostics guide](https://developers.openai.com/api/docs/guides/prompt-caching/diagnostics),
-checked 2026-10-04. Minimum prefix lengths, retention, write availability and billing are
-provider/model policy.
+checked on 2026-10-04. Minimum prefix lengths, retention, write availability and billing
+depend on the provider and model.
 
 ## Embeddings and images
 
-Use Structly.AI.Embeddings for EmbeddingRequest and Structly.AI.Imaging for image types.
-Both operations require ModelSelection (explicit ModelId or ProfileName). Profiles are
-configured in OpenAiClientOptions.EmbeddingProfiles and ImageProfiles respectively;
-response/text/prewarm profiles use Profiles. Identical profile names can choose different
-models for each operation. Configuration dictionaries are snapshotted at construction.
-Auxiliary profiles and requests reject reasoning effort, rather than silently ignoring it.
+Embedding types are in `Structly.AI.Embeddings`; image types are in `Structly.AI.Imaging`.
+Both operations require `ModelSelection` with either `ModelId` or `ProfileName`. Configure
+their profiles in `OpenAiClientOptions.EmbeddingProfiles` and `ImageProfiles`. Structured
+output, text and prewarming use `Profiles`. The same profile name may select different
+models for different operations. Profile dictionaries are copied when the client is created.
+Embedding and image profiles and requests reject reasoning effort settings.
 
 ```csharp
 var embedded = await client.EmbedAsync(new EmbeddingRequest
@@ -193,30 +212,48 @@ var generated = await client.GenerateImagesAsync(new ImageGenerationRequest
 byte[] imageBytes = generated.EnsureSuccess()[0].ToBytes();
 ```
 
-Embeddings send one nonempty text batch with encoding_format=float, optional positive
-Dimensions, then reorder by unique complete indexes. Vectors must be finite, nonempty
-and equal length, matching Dimensions when supplied. Returned outer and inner lists
-are immutable. prompt_tokens maps to InputTokens; missing output counts stay null.
+### Embeddings
 
-Images send n (1–10), quality, background, output_format and size. Presets map Auto,
-Square, Portrait, Landscape and Wide to auto, 1024x1024, 1024x1536, 1536x1024 and 1536x864.
-Positive CustomDimensions override the preset; model-specific dimension restrictions
-are checked by the provider. Transparent JPEG fails locally. Output is base64 PNG/JPEG/
-WebP, in provider order, with the requested count. Reported format (when present) and
-decoded file signatures must match the request. This checks format signatures, not full
-image integrity. GeneratedImage exposes Base64Data, MediaType and ToBytes; no URL fetch
-or image decoder dependency is added. Images use MaxImageResponseBytes (128 MiB default),
-other envelopes MaxResponseBytes (16 MiB default).
+An embedding request sends one nonempty text batch with `encoding_format=float` and an
+optional positive `Dimensions` value. Results are reordered by index. Indexes must be
+unique and complete. Vectors must be nonempty, contain finite values and have equal lengths.
+If `Dimensions` is supplied, lengths must match it. Returned outer and inner lists are
+read-only. `prompt_tokens` becomes `InputTokens`; missing output counts stay null.
 
-Usage is captured before vector/image processing. An invalid vector, base64, count or
-format therefore preserves reported accounting and triggers the same bounded observer.
-Both requests expose TotalTimeout, CredentialResolver, UsageObserver, CorrelationId,
-IdempotencyKey and CaptureRawResponse. Streaming, continuation and cache controls are
-excluded from these contracts. Missing image response IDs/models remain unknown rather
-than being invented from the request. There are no automatic retries or batch splitting.
+### Images
 
-Wire behavior follows the official [embeddings reference](https://developers.openai.com/api/reference/cli/resources/embeddings/methods/create)
+Image requests send `n` from 1 to 10, quality, background, `output_format` and size.
+Size presets map as follows:
+
+| Preset | API value |
+| --- | --- |
+| Auto | auto |
+| Square | 1024x1024 |
+| Portrait | 1024x1536 |
+| Landscape | 1536x1024 |
+| Wide | 1536x864 |
+
+Positive `CustomDimensions` override the preset. The provider checks model-specific
+dimension restrictions. Transparent JPEG requests fail locally.
+
+Output contains the requested number of base64 PNG, JPEG or WebP images in provider order.
+The reported format, when present, and decoded file signatures must match the request.
+Signature checks do not validate the entire image. `GeneratedImage` exposes `Base64Data`,
+`MediaType` and `ToBytes`. The library does not fetch image URLs or include an image decoder.
+Images use `MaxImageResponseBytes`, which defaults to 128 MiB. Other responses use
+`MaxResponseBytes`, which defaults to 16 MiB.
+
+### Usage and request settings
+
+Usage is read before processing vectors or images. Invalid vectors, base64, counts or
+formats therefore retain any reported usage and call the same usage observer.
+Both request types expose `TotalTimeout`, `CredentialResolver`, `UsageObserver`,
+`CorrelationId`, `IdempotencyKey` and `CaptureRawResponse`. They do not support streaming,
+follow-up requests or cache settings. Missing image response IDs and model IDs remain
+unknown. The library does not retry or split batches automatically.
+
+Request and response formats follow the provider's [embeddings reference](https://developers.openai.com/api/reference/cli/resources/embeddings/methods/create)
 and [image generation reference](https://developers.openai.com/api/reference/cli/resources/images/methods/generate),
-checked 2026-10-04. Use models supporting the requested dimensions/options and the Image
-API base64/output_format contract; unsupported model-specific combinations are surfaced
-as provider failures.
+checked on 2026-10-04. Choose models that support your dimensions and options and the
+Image API's base64 and `output_format` settings. Unsupported model-specific combinations
+return provider errors.

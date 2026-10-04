@@ -1,12 +1,15 @@
 # .NET Hosting
 
-The optional `Structly.AI.Hosting` package targets .NET 10 and integrates with ASP.NET
-Core, worker services and Generic Host. The core `Structly.AI` package remains dependency-free.
-Install the hosting package from the next release or reference its project locally.
+`Structly.AI.Hosting` registers `OpenAiClient` with dependency injection in ASP.NET Core,
+worker services and Generic Host applications. It requires .NET 10. The core `Structly.AI`
+package has no NuGet dependencies and can be used without hosting integration.
+
+Install with `dotnet add package Structly.AI.Hosting --version 0.2.0` after configuring
+the [GitHub Packages feed](INSTALLATION.md). You can also reference the project locally.
 
 ## Settings
 
-Put this section in `appsettings.json`, replacing model IDs with your own selections:
+Add this section to `appsettings.json` and replace the model IDs with models you can use:
 
 ```json
 {
@@ -33,14 +36,14 @@ Put this section in `appsettings.json`, replacing model IDs with your own select
 ```
 
 Only `DefaultModel` is required. It can instead be `{ "ModelId": "your-response-model" }`.
-`CacheCompatibility` also binds as a dictionary of model IDs to enum names; see
-[advanced configuration](ADVANCED.md). InactivityTimeout applies only to streaming.
+`CacheCompatibility` accepts a dictionary of model IDs to enum names; see
+[advanced configuration](ADVANCED.md). `InactivityTimeout` applies only to streaming.
 
-The host loads configuration in its normal order: appsettings files, user secrets in
-Development, environment variables and command-line arguments. Store credentials using
+The default host configuration loads appsettings files, development user secrets,
+environment variables and command-line arguments in that order. Store credentials using
 `dotnet user-secrets set "Structly:OpenAI:ApiKey" "YOUR_KEY"` in development or set
 `Structly__OpenAI__ApiKey` in your deployment environment. `ApiKey` can also bind from
-JSON when the file is supplied securely. Registration does not implicitly read `OPENAI_API_KEY`.
+JSON if the file is stored securely. Registration does not read `OPENAI_API_KEY` automatically.
 
 ## ASP.NET Core
 
@@ -83,17 +86,17 @@ builder.Services.AddHostedService<Worker>();
 await builder.Build().RunAsync();
 ```
 
-Clients are transient typed HTTP clients. Resolve `OpenAiClient` within a DI scope for
-each unit of work in a singleton `BackgroundService`; inject `IServiceScopeFactory`
-and use `CreateScope()` rather than capturing a client for the worker's entire lifetime.
-Tasks can be registered as singletons and reused concurrently.
+`OpenAiClient` is registered as a transient typed HTTP client. In a singleton
+`BackgroundService`, inject `IServiceScopeFactory`, call `CreateScope()` for each job,
+and resolve the client from that scope. Do not keep one client for the worker's entire
+lifetime. Tasks can be singletons and reused across concurrent calls.
 
 ## Customization and lifetime
 
-`AddStructlyOpenAi` returns `IHttpClientBuilder` for handlers, proxy settings and connection
-pool policy. It sets `HttpClient.Timeout` to infinite so library execution budgets apply.
-Do not add automatic HTTP retries unless your application explicitly accepts retry and
-billing semantics. The library still sends one attempt per operation.
+`AddStructlyOpenAi` returns `IHttpClientBuilder`, which you can use to configure handlers,
+proxies and connection pooling. It sets `HttpClient.Timeout` to infinite so Structly.AI's
+timeouts control execution. The library sends one attempt per operation. Adding an HTTP
+retry handler can send more attempts and may cause additional provider charges.
 
 ```csharp
 builder.Services.AddStructlyOpenAi(builder.Configuration, options =>
@@ -106,22 +109,24 @@ builder.Services.AddStructlyOpenAi(builder.Configuration, options =>
 });
 ```
 
-Runtime callbacks and `TimeProvider` are configured in code. A custom credential resolver
-replaces configured `ApiKey`; request and task resolvers retain their higher precedence.
-Missing credentials are allowed at startup for request-specific credentials and produce
-`Authentication` at execution when no resolver supplies a key.
+Configure callbacks and `TimeProvider` in code. A custom credential resolver replaces
+the configured `ApiKey`. Request resolvers take precedence over task resolvers, which
+take precedence over the client resolver. Startup allows missing credentials so that
+requests can supply their own. Execution returns `Authentication` if no selected resolver
+provides a key.
 
 To change the section use `sectionName: "MyProvider"`, or pass
 `builder.Configuration.GetSection("MyProvider")` directly. Register one default client
-per service collection. `IOptionsMonitor<OpenAiHostingOptions>` exposes validated settings.
-Invalid model/profile selection, deadlines, endpoint URIs or size limits fail host startup
-without contacting a provider. Invalid settings also fail client resolution without a host.
-Validation messages omit configuration values and credentials.
+per service collection. Read validated settings through `IOptionsMonitor<OpenAiHostingOptions>`.
+Invalid model or profile selection, timeouts, endpoint URIs or size limits cause startup
+to fail without contacting a provider. Resolving a client with invalid settings also fails
+when there is no running host. Validation messages omit configuration values and credentials.
 
-When a configuration provider signals reload, newly resolved clients use the new settings.
-Existing clients retain their original snapshot, including the configured API key. Custom
-credential resolvers may resolve fresh credentials per operation. Do not mutate options
-objects retrieved from DI. Invalid reloads are rejected by options validation.
+After a configuration reload, newly resolved clients use the updated settings. Existing
+clients keep the settings they were created with, including the configured API key.
+Custom resolvers can read credentials on each operation. Do not modify options objects
+retrieved from DI. Options validation rejects invalid reloaded settings.
 
-The factory pools and disposes HTTP handlers; the core client keeps its existing caller-owned
-transport contract. Follow Microsoft's [typed client lifetime guidance](https://learn.microsoft.com/en-us/dotnet/core/extensions/httpclient-factory#avoid-typed-clients-in-singleton-services).
+`IHttpClientFactory` pools and disposes HTTP handlers. `OpenAiClient` does not dispose
+the `HttpClient` passed to it. Follow Microsoft's
+[typed client lifetime guidance](https://learn.microsoft.com/en-us/dotnet/core/extensions/httpclient-factory#avoid-typed-clients-in-singleton-services).

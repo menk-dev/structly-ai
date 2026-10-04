@@ -1,9 +1,10 @@
 # Failure handling
 
-Use `IsSuccess`, including for value-type outputs; a nullable `Value` is not a success
-indicator. Success has a usable `Value` and no error. Failure has one `StructuredError`
-with safe `Message`, `Kind`, `IsTransient`, optional HTTP status/RetryAfter and local
-`Issues`. Inspect `Metadata` and `Warnings` on both paths.
+Check `IsSuccess` to determine whether an operation succeeded. Checking `Value` for null
+does not work for every output type. A successful result has a usable `Value` and no error.
+A failed result has one `StructuredError` with `Message`, `Kind`, `IsTransient`, optional
+HTTP status and `RetryAfter`, and local validation `Issues`. Check `Metadata` and `Warnings`
+for either outcome.
 
 ```csharp
 var result = await client.ExecuteAsync(task, request, cancellationToken);
@@ -15,35 +16,40 @@ else
     RecordFailure(result.Error.Kind, result.Error.Issues, result.Metadata);
 ```
 
-These host functions are illustrative. The library does not schedule or send retries.
+`Save`, `ScheduleRetry` and `RecordFailure` are example application functions. The library
+does not schedule or send retries.
 
-| Kind | Handling |
+| Kind | What to do |
 | --- | --- |
-| InvalidRequest | Correct input/options; request was rejected locally. |
-| UnsupportedSchema | Correct the DTO or supplied vocabularies using issue paths/codes. |
-| Authentication / PermissionDenied | Fix the selected credential or access permissions; no credential fallback. |
-| RateLimited | Respect available RetryAfter and host/job budget before another attempt. |
-| ProviderUnavailable / TransportFailure | Inspect IsTransient and safe metadata; decide retry policy in the host. |
-| ProviderRejected | Correct the request for the selected provider/model. |
-| Refused | Treat as a provider refusal; no usable typed output. |
-| IncompleteOutput | Output did not complete, even if some text was parseable. |
-| InvalidResponse | Malformed envelope or feature-specific provider output. |
-| InvalidOutput | JSON failed schema or DTO deserialization. |
-| DeadlineExceeded | Total operation budget expired. |
-| InactivityExceeded | Streaming read stalled beyond the idle deadline. |
+| InvalidRequest | Correct the input or options. The library rejected the request before sending it. |
+| UnsupportedSchema | Correct the output type or vocabularies using the issue paths and codes. |
+| Authentication / PermissionDenied | Check credentials and access permissions. The library does not try another key. |
+| RateLimited | Check `RetryAfter` and your application's time limit before retrying. |
+| ProviderUnavailable / TransportFailure | Check `IsTransient` and metadata, then decide whether to retry. |
+| ProviderRejected | Correct the request for the chosen provider and model. |
+| Refused | The provider refused the request. There is no usable typed output. |
+| IncompleteOutput | The provider did not finish the output, even if some text can be parsed. |
+| InvalidResponse | The provider returned a malformed response or invalid data for the operation. |
+| InvalidOutput | The JSON failed schema validation or could not be deserialized. |
+| DeadlineExceeded | The total timeout expired. |
+| InactivityExceeded | The stream did not provide a complete SSE line within the inactivity timeout. |
 
-`IsTransient` is classification, not an instruction or retry guarantee. Available usage
-can accompany refusal, incomplete or invalid output. Provider response/request IDs,
-requested/resolved model and correlation help investigate failures. Raw bodies are
-excluded from safe errors; explicit capture options can contain sensitive data.
+`IsTransient` helps you decide whether to retry. It does not mean a retry will succeed
+or avoid another charge. Refused, incomplete and invalid output can include usage counts.
+Response and request IDs, model IDs and correlation IDs can help investigate failures.
+Error messages omit raw provider bodies. Explicit capture options may retain sensitive data.
 
-Null method arguments throw `ArgumentNullException`; invalid client/task settings throw
-`ArgumentException` (including `StructuredSchemaException`). Invalid per-call values
-produce categorized results before auth/HTTP. `EnsureSuccess()` returns the value or
-throws `StructuredOperationException`, retaining Error, Metadata and Warnings.
+## Results and exceptions
 
-Caller cancellation throws `StructuredOperationCanceledException` with the original
-token, Metadata and Warnings. Catch it as `OperationCanceledException` for standard host
-cancellation behavior or as the specialized type to account for billed work. Caller
-cancellation takes precedence over deadlines. Callback failures add warnings and do
-not replace the main outcome. See [execution](EXECUTION.md) and [usage](USAGE.md).
+Null method arguments throw `ArgumentNullException`. Invalid client or task settings
+throw `ArgumentException`, including `StructuredSchemaException`. Invalid per-call values
+return an error result before credentials are read or HTTP requests are sent.
+
+`EnsureSuccess()` returns the value on success. On failure, it throws
+`StructuredOperationException` with `Error`, `Metadata` and `Warnings`.
+
+Caller cancellation throws `StructuredOperationCanceledException` with the original token,
+metadata and warnings. Catch it as `OperationCanceledException` for normal cancellation
+handling, or use the specific type to read any available token counts. Caller cancellation
+takes precedence over timeouts. Callback failures add warnings without replacing the
+operation's outcome. See [execution](EXECUTION.md) and [usage](USAGE.md).

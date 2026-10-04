@@ -1,88 +1,89 @@
-# Release automation
+# Releases
 
-## Flow
+Update the version manually, merge the release PR, then push a version tag to publish.
+GitHub Actions uses `GITHUB_TOKEN`; publication does not need a release bot or personal
+access token.
 
-Releases use manual version updates and tag-triggered GitHub Actions. No release bot or
-personal access token is required for publication. The workflow uses GITHUB_TOKEN.
+## Prepare and publish
 
-1. Choose the next version and update `version.txt`, `Directory.Build.props` and
-   `CHANGELOG.md` in a normal PR. Changelog entries use an exact `## VERSION` heading.
-   Keep scoped Conventional Commits with a body; commit types no longer choose versions.
-2. Merge after both required CI checks pass. Use the chosen version in the tag commands below.
-3. Fetch main, create its release tag and push it:
+1. Update `version.txt`, `Directory.Build.props` and `CHANGELOG.md` in a PR. Add an exact
+   `## VERSION` heading to the changelog. Update installation examples to the new version.
+   Use scoped Conventional Commits with a body.
+2. Run the checks in [the development guide](README.md), then merge after the required
+   Linux and Windows CI checks pass.
+3. Fetch `main` and tag the release commit. For version `0.2.0`:
 
    ```sh
    git switch main
    git pull --ff-only
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag v0.2.0
+   git push origin v0.2.0
    ```
 
-4. The release workflow verifies the tag belongs to main, runs the offline suite and
-   package-consumer validation, creates a GitHub Release, attaches package/symbol artifacts,
-   publishes the runtime and hosting packages to GitHub Packages, and restores/runs a fresh consumer
-   solely from that authenticated feed.
-5. Verify the workflow succeeds, both release attachments download, and an authenticated
-   consumer can install and use the registry package.
+4. Check the release workflow. It verifies that the tag belongs to `main`, runs tests,
+   builds and validates both packages, creates the GitHub Release, attaches packages and
+   debug symbols, and publishes the packages to GitHub Packages. It then installs the
+   core package from that feed in a fresh test application and runs it.
+5. Confirm that the release files download and that your applications can install both
+   `Structly.AI` and `Structly.AI.Hosting` from the authenticated feed.
 
-Owner-approved decisions: Structly.AI, .NET 10, MIT license with copyright menk-dev,
-first version 0.1.0, GitHub Packages for personal projects, and manual releases. Manual
-versioning supersedes the earlier Release Please bootstrap and release PR policy.
+The packages target .NET 10, use the MIT license with copyright `menk-dev`, and publish to GitHub Packages.
+Version numbers are chosen manually; commit types do not set them.
 
-## One-time external setup
+## Repository setup
 
-1. Enable GitHub Actions in `menk-dev/structly-ai`.
-2. Require `validate (ubuntu-latest)` and `validate (windows-latest)` on main. Preserve
-   scoped Conventional Commit subjects when squash merging. Release PRs are ordinary PRs;
-   no release bot secret or RELEASE_AUTO_MERGE variable is needed.
-3. Create the `github-packages` environment. Leave reviewers unset for automatic publication
-   after an explicit tag push, or intentionally configure approval if desired.
-4. Set `PACKAGES_PUBLISH_ENABLED` to `true` once release readiness is verified.
-   The workflow publishes to the repository owner's feed, currently
-   `https://nuget.pkg.github.com/menk-dev/index.json`, using GITHUB_TOKEN with job-scoped
-   `packages: write`. No NuGet.org account or trusted publishing policy is needed.
-5. After first publication, verify package association with this repository and inspect
-   visibility/access. New packages default to private. Grant other consuming repositories
-   Actions access when using their GITHUB_TOKEN.
+The following settings are already configured:
 
-The main safeguards, environment and activation variable are configured. Version 0.1.0
-was published and consumed successfully on 2026-10-04.
+- GitHub Actions is enabled in `menk-dev/structly-ai`.
+- `main` requires `validate (ubuntu-latest)` and `validate (windows-latest)`.
+- The `github-packages` environment has no required reviewers.
+- `PACKAGES_PUBLISH_ENABLED` is `true`.
+- Merging a PR deletes its branch automatically.
 
-## Local release gates
+Version `0.1.0` was published and installed successfully on 2026-10-04. Manual versioning
+replaced the earlier Release Please setup; no release bot secret or `RELEASE_AUTO_MERGE`
+variable is needed. Preserve scoped Conventional Commit subjects when squash merging.
 
-CI and tag publication run the complete offline suite, pack the runtime package with its
-analyzer and the optional hosting package, and run `tools/Structly.AI.PackageValidation`. This validates version.txt against
-Directory.Build.props, the current changelog entry, package identity/framework/license,
-dependencies, file allowlist, README/XML, portable PDB/Source Link, and a fresh local-feed-only
-consumer. The consumer must also fail compilation for an unsupported DTO with STAI001.
-The publish job requires the release tag to equal v plus the packed version. Mismatches
-stop publication before release creation or upload. Symbol attachment and registry upload
-are separate steps.
+The workflow publishes to `https://nuget.pkg.github.com/menk-dev/index.json` with
+`packages: write`. It does not publish to NuGet.org. New GitHub packages are private
+by default. Check each package's access settings and grant consuming repositories
+Actions access if they use their own `GITHUB_TOKEN` to restore packages.
 
-## Recovery
+## Package checks
 
-For a transient failure, rerun the original failed publish job. Alternatively, dispatch
-`release.yml` from main with its required `tag` input set to the existing release tag.
-Dispatch retries the same tag: it never creates or moves tags or bumps versions. Release
-creation is skipped when the release already exists, package duplicates are skipped, and
-release assets can be replaced. Keep the activation variable enabled for retries.
-Treat published versions as immutable: use a new version for content corrections rather
-than replacing a version already consumed by your projects.
+CI and the release workflow build both packages and run `tools/Structly.AI.PackageValidation`.
+It checks version agreement, package IDs, target frameworks, licenses, dependencies,
+contents, README and XML documentation, debug symbols and Source Link metadata. It also
+installs the core package from a local feed in a separate application with a fresh cache.
+That application must run successfully, and an unsupported output type must fail compilation
+with `STAI001` from the packaged analyzer.
 
-Version 0.1.0 predates owner-authorized documentation history cleanup. Its published
-package and symbols retain their original source revision; do not rebuild or replace its
-release assets from the rewritten tag. Use a new version for subsequent content changes.
+The release tag must equal `v` plus the package version. A mismatch stops publication.
+Uploading release files and publishing to the package registry are separate steps.
 
-If attachments succeed but the registry upload fails, verify `packages: write`, package
-association/access and the repository owner's feed, then rerun the original job.
-If the upload succeeds but consumer restore fails, check consumer credentials, package
-source mapping and cross-repository Actions access before creating another release.
-Downloading symbols from release assets is independent of package restore.
+## Retry a failed release
 
-Official sources: [GitHub NuGet registry authentication, publication and installation](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-nuget-registry),
-[GitHub Packages access permissions](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility),
-[NuGet credential environment variables](https://learn.microsoft.com/en-us/nuget/consume-packages/consuming-packages-authenticated-feeds),
-[package source mapping](https://learn.microsoft.com/en-us/nuget/consume-packages/package-source-mapping),
-and [NuGet push options](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-nuget-push).
-The first publication validated the tag, registry upload, authenticated consumer and symbol
-downloads. Consumer feed and symbol setup is documented in [INSTALLATION.md](../docs/INSTALLATION.md).
+For a temporary failure, rerun the original failed publish job. You can also run
+`release.yml` manually from `main` with its `tag` input set to the existing release tag.
+This retries the same version. It does not create or move tags or change version numbers.
+
+The workflow skips release creation if the release already exists, skips packages already
+in the registry, and can replace attached release files. Keep `PACKAGES_PUBLISH_ENABLED`
+enabled while retrying. Publish a new version for content changes rather than replacing
+a version that applications may already use.
+
+Version `0.1.0` was published before the repository's documentation history was rewritten.
+Its packages and symbols refer to the original source commit. Do not rebuild or replace
+its release files from the rewritten tag.
+
+If release files upload but package publication fails, check `packages: write`, package
+access and the owner's feed, then retry the original job. If publication succeeds but
+the test application cannot restore, check credentials, source mapping and repository
+access before creating another release. Check symbol downloads separately from package restore.
+
+See [installation](../docs/INSTALLATION.md) for feed and symbol setup. GitHub documents
+[NuGet authentication and publication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-nuget-registry)
+and [package access](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility).
+NuGet documents [credential environment variables](https://learn.microsoft.com/en-us/nuget/consume-packages/consuming-packages-authenticated-feeds)
+and [source mapping](https://learn.microsoft.com/en-us/nuget/consume-packages/package-source-mapping).
+The .NET CLI documents [package push options](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-nuget-push).
