@@ -10,12 +10,7 @@ var packages = Path.GetFullPath(args.Length > 0 ? args[0] : "artifacts/packages"
 var version = File.ReadAllText(Path.Combine(root, "version.txt")).Trim();
 var properties = XDocument.Load(Path.Combine(root, "Directory.Build.props"));
 Require(properties.Descendants("Version").Single().Value == version, "Directory.Build.props and version.txt disagree.");
-using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, ".release-please-manifest.json")));
-using var releaseConfig = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "release-please-config.json")));
-if (manifest.RootElement.TryGetProperty(".", out var releasedVersion))
-    Require(releasedVersion.GetString() == version, "Release manifest and package version disagree.");
-else
-    Require(releaseConfig.RootElement.GetProperty("initial-version").GetString() == version, "Initial release version disagrees.");
+Require(File.ReadAllLines(Path.Combine(root, "CHANGELOG.md")).Contains("## " + version), "Missing changelog entry for the package version.");
 if (args.Length > 1) Require(args[1] == "v" + version, "Release tag and package version disagree.");
 
 using var package = ZipFile.OpenRead(Path.Combine(packages, $"Structly.AI.{version}.nupkg"));

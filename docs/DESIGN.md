@@ -811,3 +811,11 @@ and GITHUB_PACKAGES_PUBLISH_ENABLED gate. Consumers configure an authenticated G
 NuGet feed; other consuming repositories require package Actions access. Symbols remain
 GitHub Release downloads rather than an automatic symbol-server flow. See RELEASES for
 official sources, consumer setup and recovery, and PHASE-7 for pending external checks.
+
+## Manual release policy update (2026-10-04)
+
+The owner selected manual versioning and tag-triggered publication instead of Release
+Please. This supersedes earlier release bot, manifest and bootstrap policy. Version.txt,
+Directory.Build.props and a matching CHANGELOG heading are validated locally; a v-prefixed
+tag on main starts packaging and GitHub Packages publication using GITHUB_TOKEN. Manual
+workflow dispatch can retry an existing tag. No release bot credential is required.
