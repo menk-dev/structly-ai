@@ -1,0 +1,33 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+      - run: dotnet restore Structly.AI.slnx --locked-mode
+      - run: dotnet format Structly.AI.slnx --verify-no-changes --no-restore
+      - run: dotnet build Structly.AI.slnx -c Release --no-restore
+      - run: dotnet test --solution Structly.AI.slnx -c Release --no-build
+      - run: dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packages-${{ matrix.os }}
+          path: artifacts/packages/*
