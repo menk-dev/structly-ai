@@ -75,7 +75,7 @@ Before declaring a phase complete:
 | 4 | Reliable execution and observability | Phase 3 | Complete |
 | 5 | Approved advanced structured-output capabilities | Phase 4 | Complete |
 | 6 | Consumer usability and release readiness | Phase 5 | Complete |
-| 7 | Release automation activation and first publication | Phase 6 and external setup | Pending |
+| 7 | Release automation activation and first publication | Phase 6 and external setup | Partial — GitHub Packages preparation complete; external activation pending |
 
 ## Phase 1 — Establish scope and contracts
 
@@ -258,14 +258,15 @@ usable version. This phase needs external access and explicit authorization for 
 Work:
 
 - Follow `docs/RELEASES.md` and inspect existing remote settings before changing them.
-  Configure the release bot, required checks, auto-merge policy, NuGet identity, publishing
-  trust, and environment settings as authorized. Never store credentials in the repository.
+  Configure the release bot, required checks, auto-merge policy, GitHub Packages identity/access, and
+  environment settings as authorized. Never store credentials in the repository.
 - Enable publishing only after phase 6 readiness is confirmed. Align the bootstrap version
   and release history so the first generated release has the intended version.
 - Exercise the release PR flow and verify checks finish before unattended merging occurs.
   Confirm the released tag, built package version, changelog, and uploaded artifacts agree.
 - Publish the authorized release, verify package availability and consumption, and record
-  the outcome. Check the symbol publication result separately from package publication.
+  the outcome. Verify the symbol package is downloadable from the GitHub release separately from
+  package registry publication; automatic symbol-server indexing is outside this setup.
 - Document any recovery adjustments found during execution. Do not generate repeated
   releases to conceal a failed upload or replace immutable published package contents.
 
