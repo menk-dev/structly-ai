@@ -32,6 +32,10 @@ public sealed record StructuredTaskOptions
     public string? Description { get; init; }
     /// <summary>Gets supported immutable serialization settings.</summary>
     public SerializationProfile SerializationProfile { get; init; } = new();
+    /// <summary>Gets task-specific model selection.</summary>
+    public ModelSelection? ModelSelection { get; init; }
+    /// <summary>Gets task-specific credentials.</summary>
+    public Func<CancellationToken, ValueTask<string?>>? CredentialResolver { get; init; }
 }
 
 /// <summary>Creates reusable typed contracts without transport or credentials.</summary>
@@ -58,6 +62,9 @@ public sealed class StructuredTask<T>
         ArgumentNullException.ThrowIfNull(options.SerializationProfile);
         if (!Enum.IsDefined(options.SerializationProfile.Naming))
             throw new ArgumentException("Unsupported naming policy.", nameof(options));
+        options.ModelSelection?.Validate();
+        ModelSelection = options.ModelSelection;
+        CredentialResolver = options.CredentialResolver;
         Instructions = options.Instructions;
         SerializationProfile = options.SerializationProfile with { };
         var resolver = new DefaultJsonTypeInfoResolver();
@@ -93,6 +100,11 @@ public sealed class StructuredTask<T>
             throw new ArgumentException("Description must be nonblank when supplied.", nameof(options));
         SchemaWriter.Create(_contract, Description, null, allowMissingVocabularies: true);
     }
+
+    /// <summary>Gets task-specific model selection.</summary>
+    public ModelSelection? ModelSelection { get; }
+    /// <summary>Gets task-specific credentials.</summary>
+    public Func<CancellationToken, ValueTask<string?>>? CredentialResolver { get; }
 
     /// <summary>Gets immutable task instructions.</summary>
     public string Instructions { get; }
