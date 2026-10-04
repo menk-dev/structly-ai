@@ -8,11 +8,11 @@ the provider. Token counts can still be available when the output is invalid.
 Supports **.NET 10** and OpenAI. The runtime has no NuGet dependencies. The package also
 includes a C# Roslyn analyzer that checks supported output types during compilation.
 Version `0.2.0` adds the optional `Structly.AI.Hosting` package for ASP.NET Core and
-Generic Host. Install packages from GitHub Packages using the feed settings below.
+Generic Host. Install packages from nuget.org.
 
 ## Quick start
 
-For GitHub Packages, [configure the authenticated package feed](https://github.com/menk-dev/structly-ai/blob/main/docs/INSTALLATION.md#consuming-from-your-projects)
+See the [installation guide](https://github.com/menk-dev/structly-ai/blob/main/docs/INSTALLATION.md#consuming-from-your-projects)
 and install with `dotnet add package Structly.AI --version 0.2.0`. Configure a model ID
 supported by your account and supply credentials explicitly:
 

@@ -1,8 +1,8 @@
 # Releases
 
 Update the version manually, merge the release PR, then push a version tag to publish.
-GitHub Actions uses `GITHUB_TOKEN`; publication does not need a release bot or personal
-access token.
+GitHub Actions uses NuGet trusted publishing to obtain a temporary API key.
+GitHub Release creation uses `GITHUB_TOKEN`; no long-lived publishing token is needed.
 
 ## Prepare and publish
 
@@ -22,12 +22,12 @@ access token.
 
 4. Check the release workflow. It verifies that the tag belongs to `main`, runs tests,
    builds and validates both packages, creates the GitHub Release, attaches packages and
-   debug symbols, and publishes the packages to GitHub Packages. It then installs the
+   debug symbols, and publishes the packages to nuget.org. It then installs the
    core package from that feed in a fresh test application and runs it.
 5. Confirm that the release files download and that your applications can install both
-   `Structly.AI` and `Structly.AI.Hosting` from the authenticated feed.
+   `Structly.AI` and `Structly.AI.Hosting` from nuget.org.
 
-The packages target .NET 10, use the MIT license with copyright `menk-dev`, and publish to GitHub Packages.
+The packages target .NET 10, use the MIT license with copyright `menk-dev`, and publish to nuget.org.
 Version numbers are chosen manually; commit types do not set them.
 
 ## Repository setup
@@ -44,10 +44,14 @@ Version `0.1.0` was published and installed successfully on 2026-10-04. Manual v
 replaced the earlier Release Please setup; no release bot secret or `RELEASE_AUTO_MERGE`
 variable is needed. Preserve scoped Conventional Commit subjects when squash merging.
 
-The workflow publishes to `https://nuget.pkg.github.com/menk-dev/index.json` with
-`packages: write`. It does not publish to NuGet.org. New GitHub packages are private
-by default. Check each package's access settings and grant consuming repositories
-Actions access if they use their own `GITHUB_TOKEN` to restore packages.
+The workflow logs into NuGet.org as `menk-dev` (the profile name, not email).
+The policy must match repository owner `menk-dev`, repository `structly-ai`, workflow
+`release.yml`, and environment `github-packages`. Allow new packages and new versions
+matching `Structly.AI*`, under the NuGet owner that will own both packages.
+
+The workflow uses `id-token: write` and `NuGet/login@v1` to obtain a temporary API key,
+then publishes to `https://api.nuget.org/v3/index.json`. The environment name remains
+`github-packages` to match the trusted publishing policy.
 
 ## Package checks
 
@@ -76,14 +80,12 @@ Version `0.1.0` was published before the repository's documentation history was 
 Its packages and symbols refer to the original source commit. Do not rebuild or replace
 its release files from the rewritten tag.
 
-If release files upload but package publication fails, check `packages: write`, package
-access and the owner's feed, then retry the original job. If publication succeeds but
-the test application cannot restore, check credentials, source mapping and repository
-access before creating another release. Check symbol downloads separately from package restore.
+If release files upload but package publication fails, check the NuGet login username,
+`id-token: write`, the trusted publishing policy and its package scopes, then retry.
+If publication succeeds but the test application cannot restore, allow time for nuget.org
+indexing before retrying. The workflow makes 30 restore attempts, waiting 20 seconds between attempts.
+Check symbol downloads separately from package restore.
 
-See [installation](../docs/INSTALLATION.md) for feed and symbol setup. GitHub documents
-[NuGet authentication and publication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-nuget-registry)
-and [package access](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility).
-NuGet documents [credential environment variables](https://learn.microsoft.com/en-us/nuget/consume-packages/consuming-packages-authenticated-feeds)
-and [source mapping](https://learn.microsoft.com/en-us/nuget/consume-packages/package-source-mapping).
+See [installation](../docs/INSTALLATION.md) for package and symbol setup.
+NuGet documents [trusted publishing](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing).
 The .NET CLI documents [package push options](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-nuget-push).

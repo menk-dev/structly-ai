@@ -20,7 +20,7 @@ jobs:
     environment: github-packages
     permissions:
       contents: write
-      packages: write
+      id-token: write
     env:
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
@@ -55,15 +55,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$RELEASE_TAG" artifacts/packages/* --clobber
-      - name: Publish package to GitHub Packages
+      - name: NuGet login
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: menk-dev
+      - name: Publish packages to nuget.org
         env:
-          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
-          PACKAGE_OWNER: ${{ github.repository_owner }}
-        run: dotnet nuget push artifacts/packages/*.nupkg --api-key "$GITHUB_PACKAGES_TOKEN" --source "https://nuget.pkg.github.com/$PACKAGE_OWNER/index.json" --no-symbols --skip-duplicate
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push artifacts/packages/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --no-symbols --skip-duplicate
       - name: Verify published package with a fresh consumer
-        env:
-          PACKAGE_OWNER: ${{ github.repository_owner }}
-          NuGetPackageSourceCredentials_github: Username=${{ github.actor }};Password=${{ github.token }}
         run: |
           consumer_dir="$(mktemp -d)"
           trap 'rm -rf "$consumer_dir"' EXIT
@@ -75,17 +76,17 @@ jobs:
           <configuration>
             <packageSources>
               <clear />
-              <add key="github" value="https://nuget.pkg.github.com/$PACKAGE_OWNER/index.json" />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
             </packageSources>
           </configuration>
           EOF
           restored=false
-          for attempt in 1 2 3 4 5 6; do
+          for attempt in $(seq 1 30); do
             if dotnet restore "$consumer_dir" --configfile "$consumer_dir/NuGet.Config" --packages "$consumer_dir/packages" --no-http-cache; then
               restored=true
               break
             fi
-            if [ "$attempt" -lt 6 ]; then sleep 10; fi
+            if [ "$attempt" -lt 30 ]; then sleep 20; fi
           done
           [ "$restored" = true ]
           dotnet run --project "$consumer_dir" -c Release --no-restore
