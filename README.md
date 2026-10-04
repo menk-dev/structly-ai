@@ -10,7 +10,8 @@ as `Structly.AI` version `0.1.0`; until publication, use the local workflow belo
 
 ## Quick start
 
-After publication, install with `dotnet add package Structly.AI`. Configure a model ID
+After publication to GitHub Packages, [configure the authenticated package feed](https://github.com/menk-dev/structly-ai/blob/main/docs/RELEASES.md#consuming-from-your-projects)
+and install with `dotnet add package Structly.AI --version 0.1.0`. Configure a model ID
 supported by your account and supply credentials explicitly:
 
 ```csharp
