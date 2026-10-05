@@ -1,9 +1,8 @@
-using System.Collections.Immutable;
-using System.Reflection;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Structly.AI.Analyzers;
+using System.Collections.Immutable;
+using System.Reflection;
 
 namespace Structly.AI.Analyzers.Tests;
 
@@ -243,12 +242,16 @@ public sealed class AnalyzerTests
         Assert.True(emit.Success, String.Join("\n", emit.Diagnostics));
         var assembly = Assembly.Load(stream.ToArray());
         StructuredIssue? runtime = null;
-        try { assembly.GetType("Entry")!.GetMethod("Run")!.Invoke(null, null); }
-        catch (TargetInvocationException exception) when (exception.InnerException is StructuredSchemaException schema)
+        try
+        {
+            assembly.GetType("Entry")!.GetMethod("Run")!.Invoke(null, null);
+        }
+        catch(TargetInvocationException exception) when(exception.InnerException is StructuredSchemaException schema)
         {
             runtime = Assert.Single(schema.Issues);
         }
-        if (code is null)
+
+        if(code is null)
         {
             Assert.Null(runtime);
             Assert.Empty(diagnostics);

@@ -35,28 +35,13 @@ public static class OpenAiServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(section);
         var options = services.AddOptions<OpenAiHostingOptions>().Bind(section);
-        if (configure is not null) options.Configure(configure);
+        if(configure is not null)
+            options.Configure(configure);
+
         options.ValidateOnStart();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<OpenAiHostingOptions>, OpenAiHostingOptionsValidator>());
         return services.AddHttpClient(typeof(OpenAiClient).FullName!, http => http.Timeout = Timeout.InfiniteTimeSpan)
             .AddTypedClient<OpenAiClient>((http, provider) => new OpenAiClient(http,
                 provider.GetRequiredService<IOptionsMonitor<OpenAiHostingOptions>>().CurrentValue.ToClientOptions()));
-    }
-}
-
-sealed class OpenAiHostingOptionsValidator : IValidateOptions<OpenAiHostingOptions>
-{
-    public ValidateOptionsResult Validate(string? name, OpenAiHostingOptions options)
-    {
-        try
-        {
-            using var http = new HttpClient();
-            _ = new OpenAiClient(http, options.ToClientOptions());
-            return ValidateOptionsResult.Success;
-        }
-        catch (ArgumentException)
-        {
-            return ValidateOptionsResult.Fail("Invalid Structly OpenAI settings. Check model selections, profiles, cache compatibility, API directory URI, deadlines and response size limits.");
-        }
     }
 }

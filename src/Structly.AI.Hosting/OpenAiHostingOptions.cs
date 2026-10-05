@@ -51,6 +51,6 @@ public sealed class OpenAiHostingOptions
         MaxImageResponseBytes = MaxImageResponseBytes,
         TimeProvider = TimeProvider,
         UsageObserver = UsageObserver,
-        CredentialResolver = CredentialResolver ?? (String.IsNullOrWhiteSpace(ApiKey) ? UseEnvironmentApiKey ? Credentials.FromEnvironment("OPENAI_API_KEY") : null : Credentials.FromStatic(ApiKey))
+        CredentialResolver = CredentialResolver ?? (String.IsNullOrWhiteSpace(ApiKey) ? UseEnvironmentApiKey ? Credentials.FromEnvironment("OPENAI_API_KEY") : null : Credentials.FromStatic(ApiKey)),
     };
 }

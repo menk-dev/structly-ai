@@ -3,6 +3,7 @@
 User guides are in [docs/](../docs/). This directory covers development and releases:
 
 - [Design and tests](DESIGN.md)
+- [Source structure](STRUCTURE.md)
 - [Release setup, publication and recovery](RELEASES.md)
 
 Use the SDK in `global.json` and follow [AGENTS.md](../AGENTS.md). Package versions are
