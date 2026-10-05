@@ -35,7 +35,7 @@ public sealed class MessageTests
             return Response(Envelope("{\"renamed\":\"xxx\",\"choice\":\"a\",\"items\":[null,null],\"number\":-3,\"optional\":null}"));
         });
         using var http = new HttpClient(handler);
-        var result = await Client(http).ExecuteAsync(task, new()
+        var result = await Client(http).ExecuteAsync(task, new OpenAiRequest()
         {
             Messages = [new(MessageRole.System, [new TextPart("system")]), new(MessageRole.Developer, [new TextPart("developer")]),
                 new(MessageRole.User, [new TextPart("first")]), new(MessageRole.Assistant, [new TextPart("earlier")]),
@@ -73,7 +73,7 @@ public sealed class MessageTests
         var auth = 0;
         using var handler = new Handler(_ => throw new InvalidOperationException("Should not send"));
         using var http = new HttpClient(handler);
-        var request = new StructuredRequest
+        var request = new OpenAiRequest
         {
             Messages = [new(MessageRole.User, [new TextPart("prompt")])],
             CredentialResolver = _ =>
@@ -128,7 +128,7 @@ public sealed class MessageTests
         using var http = new HttpClient(handler);
         var pending = Client(http).GenerateTextAsync(new()
         {
-            Request = new()
+            Request = new OpenAiRequest()
             {
                 Messages = messages,
                 OpenAi = new() { Metadata = metadata },

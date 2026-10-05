@@ -25,7 +25,7 @@ public sealed class CacheTests
         using var handler = new Handler(_ => throw new InvalidOperationException("Should not send"));
         using var http = new HttpClient(handler);
         var options = new OpenAiResponseOptions { Cache = new() { Mode = OpenAiCacheMode.Implicit } };
-        var request = new StructuredRequest { Input = "prompt", OpenAi = options };
+        var request = new OpenAiRequest { Input = "prompt", OpenAi = options };
         request = scenario switch
         {
             "unknown" => request with { ModelSelection = new() { ModelId = "unknown" } },
@@ -64,7 +64,7 @@ public sealed class CacheTests
             return Response(Envelope());
         });
         using var http = new HttpClient(handler);
-        Assert.True((await Client(http, false).GenerateTextAsync(new() { Request = new() { Input = "prompt", OpenAi = new() { CacheRetention = retention } } }, TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.True((await Client(http, false).GenerateTextAsync(new() { Request = new OpenAiRequest() { Input = "prompt", OpenAi = new() { CacheRetention = retention } } }, TestContext.Current.CancellationToken)).IsSuccess);
     }
 
     [Theory]
@@ -97,7 +97,7 @@ public sealed class CacheTests
         using var http = new HttpClient(handler);
         var result = await Client(http).GenerateTextAsync(new()
         {
-            Request = new()
+            Request = new OpenAiRequest()
             {
                 Messages = [new(MessageRole.User, Enumerable.Range(0, count).Select(_ => (ContentPart)new TextPart("stable") { CacheBreakpoint = true }).ToArray())],
                 OpenAi = new() { Cache = new() { Mode = mode } },

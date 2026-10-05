@@ -22,14 +22,14 @@ public sealed class EnvironmentHostingTests
             Environment.SetEnvironmentVariable("OPENAI_API_KEY", "first");
             var builder = Host.CreateApplicationBuilder();
             var handler = new RecordingHandler();
-            builder.Services.AddStructlyOpenAi(options =>
+            builder.Services.AddStructlyAi(ai => ai.ConfigureOpenAiProvider(options =>
             {
                 options.DefaultModel = new() { ModelId = "gpt-6-sol" };
                 options.UseEnvironmentApiKey = enabled;
                 options.ApiKey = configured;
                 if(custom)
                     options.CredentialResolver = Credentials.FromStatic("custom");
-            }).ConfigurePrimaryHttpMessageHandler(() => handler);
+            })).ConfigurePrimaryHttpMessageHandler(() => handler);
             using var host = builder.Build();
             await host.StartAsync(TestContext.Current.CancellationToken);
             var client = host.Services.GetRequiredService<OpenAiClient>();

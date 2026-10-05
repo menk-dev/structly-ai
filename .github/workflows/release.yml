@@ -43,6 +43,8 @@ jobs:
       - run: dotnet run --project examples/Structly.AI.HostingConsumer -c Release --no-build
       - run: dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages
       - run: dotnet pack src/Structly.AI.Hosting/Structly.AI.Hosting.csproj -c Release --no-build -o artifacts/packages
+      - run: dotnet pack src/Structly.AI.OpenAI/Structly.AI.OpenAI.csproj -c Release --no-build -o artifacts/packages
+      - run: dotnet pack src/Structly.AI.Mistral/Structly.AI.Mistral.csproj -c Release --no-build -o artifacts/packages
       - run: dotnet pack src/Structly.AI.Testing/Structly.AI.Testing.csproj -c Release --no-build -o artifacts/packages
       - name: Validate packed consumer and release version
         run: dotnet run --project tools/Structly.AI.PackageValidation -c Release --no-build -- artifacts/packages "$RELEASE_TAG"
@@ -75,6 +77,8 @@ jobs:
           rsync -a --exclude bin --exclude obj --include '*/' --include '*.cs' --exclude '*' examples/Structly.AI.Consumer/ "$consumer_dir/"
           dotnet add "$consumer_dir" package Structly.AI --version "$version" --no-restore
           dotnet add "$consumer_dir" package Structly.AI.Testing --version "$version" --no-restore
+          dotnet add "$consumer_dir" package Structly.AI.OpenAI --version "$version" --no-restore
+          dotnet add "$consumer_dir" package Structly.AI.Mistral --version "$version" --no-restore
           dotnet add "$consumer_dir" package Structly.AI.Hosting --version "$version" --no-restore
           cat > "$consumer_dir/NuGet.Config" <<EOF
           <configuration>

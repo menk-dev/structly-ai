@@ -46,7 +46,7 @@ public sealed class OpenAiClientTests
         StructuredUsageEvent? usage = null;
         var result = await client.PrewarmAsync(TaskContract(), new()
         {
-            Request = new()
+            Request = new OpenAiRequest()
             {
                 Input = "input",
                 Instructions = "Source instructions",
@@ -76,7 +76,7 @@ public sealed class OpenAiClientTests
         using var http = new HttpClient(handler);
         StructuredUsageEvent? usage = null;
         var task = TaskContract();
-        var result = await Client(http).ExecuteAsync(task, new()
+        var result = await Client(http).ExecuteAsync(task, new OpenAiRequest()
         {
             Input = "input",
             OpenAi = null,
@@ -129,7 +129,7 @@ public sealed class OpenAiClientTests
         using var http = new HttpClient(handler) { BaseAddress = new("https://unused.test/"), Timeout = TimeSpan.FromSeconds(7) };
         http.DefaultRequestHeaders.Authorization = new("Bearer", "shared");
         var client = Client(http, new() { DefaultModel = new() { ModelId = "default" }, BaseAddress = new("https://example.test/api/") });
-        var request = new StructuredRequest
+        var request = new OpenAiRequest
         {
             Input = "input",
             CorrelationId = "local",
@@ -283,8 +283,8 @@ public sealed class OpenAiClientTests
         StructuredRequest[] invalid = [new() { Input = " " }, new() { Input = "input", MaxOutputTokens = 0 },
             new() { Input = "input", ModelSelection = new() { ProfileName = "unknown" } },
             new() { Input = "input", ModelSelection = new() { ModelId = "a", ProfileName = "b" } },
-            new() { Input = "input", OpenAi = new() { IdempotencyKey = "bad\r\nheader" } },
-            new() { Input = "input", OpenAi = new() { Metadata = new Dictionary<string, string> { ["k"] = new string('x', 513) } } }];
+            new OpenAiRequest(){ Input = "input", OpenAi = new() { IdempotencyKey = "bad\r\nheader" } },
+            new OpenAiRequest(){ Input = "input", OpenAi = new() { Metadata = new Dictionary<string, string> { ["k"] = new string('x', 513) } } }];
         foreach(var request in invalid)
             Assert.Equal(StructuredErrorKind.InvalidRequest, (await client.ExecuteAsync(TaskContract(), request, TestContext.Current.CancellationToken)).Error!.Kind);
 
@@ -483,7 +483,7 @@ public sealed class OpenAiClientTests
     {
         using var handler = new Handler(_ => System.Threading.Tasks.Task.FromResult(Response(Envelope("incomplete", text: "partial"))));
         using var http = new HttpClient(handler);
-        var result = await Client(http).ExecuteAsync(TaskContract(), new() { Input = "input", OpenAi = new() { CaptureRawResponse = true, CaptureOutputText = true } }, TestContext.Current.CancellationToken);
+        var result = await Client(http).ExecuteAsync(TaskContract(), new OpenAiRequest() { Input = "input", OpenAi = new() { CaptureRawResponse = true, CaptureOutputText = true } }, TestContext.Current.CancellationToken);
         Assert.Equal(StructuredErrorKind.IncompleteOutput, result.Error!.Kind);
         Assert.Equal("partial", result.Metadata.OutputText);
         Assert.Equal("incomplete", result.Metadata.RawResponse!.Value.GetProperty("status").GetString());

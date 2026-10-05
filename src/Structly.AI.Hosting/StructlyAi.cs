@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Structly.AI.OpenAI;
 using System.Collections.Frozen;
 using System.Runtime.CompilerServices;
 
@@ -49,7 +48,7 @@ public sealed class StructlyAi
             throw new InvalidOperationException("The registered AI task has a different output type.");
 
         await using var scope = _scopeFactory.CreateAsyncScope();
-        var client = scope.ServiceProvider.GetRequiredService<OpenAiClient>();
+        var client = scope.ServiceProvider.GetRequiredService<IStructuredClient>();
         return await task.ExecuteAsync(client, request, cancellationToken).ConfigureAwait(false);
     }
 }

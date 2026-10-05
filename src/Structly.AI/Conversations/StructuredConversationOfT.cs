@@ -8,8 +8,12 @@ public sealed class StructuredConversation<T>
     readonly ConversationBackend _backend;
     int _active;
 
-    internal StructuredConversation(BoundOutput<T> output, ConversationConfiguration configuration, ConversationBackend backend)
+    /// <summary>Creates a conversation backed by a provider.</summary>
+    public StructuredConversation(BoundOutput<T> output, ConversationConfiguration configuration, ConversationBackend backend)
     {
+        ArgumentNullException.ThrowIfNull(output);
+        ArgumentNullException.ThrowIfNull(configuration);
+        ArgumentNullException.ThrowIfNull(backend);
         Output = output;
         Configuration = configuration;
         _backend = backend;

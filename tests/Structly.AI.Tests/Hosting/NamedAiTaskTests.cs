@@ -20,17 +20,16 @@ public sealed class NamedAiTaskTests
         var simple = new AiTaskReference<Answer>("simple");
         var bodies = new List<JsonElement>();
         var services = new ServiceCollection();
-        services.AddStructlyOpenAi(options =>
-        {
-            options.DefaultModel = new() { ModelId = "offline" };
-            options.CredentialResolver = Credentials.FromStatic("offline");
-        }).ConfigurePrimaryHttpMessageHandler(() => new Handler(async (request, token) =>
-        {
-            bodies.Add(JsonSerializer.Deserialize<JsonElement>(await request.Content!.ReadAsStringAsync(token)));
-            return ResponseEnvelopes.ToHttpResponse(ResponseEnvelopes.CompletedText("{\"value\":\"answer\"}"));
-        }));
+
         var task = StructuredTask.Create<Answer>("Extract");
-        services.AddStructlyAi(ai => ai
+        services.AddStructlyAi(ai =>
+        {
+            ai.ConfigureOpenAiProvider(options =>
+            {
+                options.DefaultModel = new() { ModelId = "offline" };
+                options.CredentialResolver = Credentials.FromStatic("offline");
+            });
+            ai
             .AddTask(reference, new()
             {
                 Instructions = "Extract",
@@ -38,7 +37,12 @@ public sealed class NamedAiTaskTests
             })
             .AddTask(existing, task)
             .AddTask(bound, task.BindOutput())
-            .AddTask(simple, "Extract"));
+            .AddTask(simple, "Extract");
+        }).ConfigurePrimaryHttpMessageHandler(() => new Handler(async (request, token) =>
+        {
+            bodies.Add(JsonSerializer.Deserialize<JsonElement>(await request.Content!.ReadAsStringAsync(token)));
+            return ResponseEnvelopes.ToHttpResponse(ResponseEnvelopes.CompletedText("{\"value\":\"answer\"}"));
+        }));
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
         var ai = provider.GetRequiredService<StructlyAi>();
         StructuredResult<Answer> result = await ai.ExecuteAsync(new AiTaskReference<Answer>("typed"), "input", TestContext.Current.CancellationToken);
@@ -64,22 +68,26 @@ public sealed class NamedAiTaskTests
         var bodies = new List<JsonElement>();
         var observed = 0;
         var services = new ServiceCollection();
-        services.AddStructlyOpenAi(options =>
+
+        var existing = StructuredTask.Create<Answer>(new() { Instructions = "Existing instructions" });
+        services.AddStructlyAi(ai =>
         {
-            options.DefaultModel = new() { ModelId = "default-model" };
-            options.Profiles.Add("alternate", new() { ModelId = "alternate-model" });
-            options.CredentialResolver = Credentials.FromStatic("offline");
+            ai.ConfigureOpenAiProvider(options =>
+            {
+                options.DefaultModel = new() { ModelId = "default-model" };
+                options.Profiles.Add("alternate", new() { ModelId = "alternate-model" });
+                options.CredentialResolver = Credentials.FromStatic("offline");
+            });
+            ai
+            .AddTask<Answer>("simple", "Simple instructions")
+            .AddTask<Answer>("options", new() { Instructions = "Options instructions", ModelSelection = new() { ProfileName = "alternate" } })
+            .AddTask("existing", existing)
+            .AddTask("bound", existing.BindOutput());
         }).ConfigurePrimaryHttpMessageHandler(() => new Handler(async (request, token) =>
         {
             bodies.Add(JsonSerializer.Deserialize<JsonElement>(await request.Content!.ReadAsStringAsync(token)));
             return ResponseEnvelopes.ToHttpResponse(ResponseEnvelopes.CompletedText("{\"value\":\"answer\"}", usage: new() { TotalTokens = 9 }));
         }));
-        var existing = StructuredTask.Create<Answer>(new() { Instructions = "Existing instructions" });
-        services.AddStructlyAi(ai => ai
-            .AddTask<Answer>("simple", "Simple instructions")
-            .AddTask<Answer>("options", new() { Instructions = "Options instructions", ModelSelection = new() { ProfileName = "alternate" } })
-            .AddTask("existing", existing)
-            .AddTask("bound", existing.BindOutput()));
         using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
         var ai = provider.GetRequiredService<StructlyAi>();
         Assert.Same(ai, provider.GetRequiredService<StructlyAi>());
@@ -113,15 +121,19 @@ public sealed class NamedAiTaskTests
     public async Task Lookup_errors_precede_client_resolution_and_names_are_case_sensitive()
     {
         var services = new ServiceCollection();
-        services.AddStructlyAi(ai => ai.AddTask<Answer>("extract", "Extract").AddTask<OtherAnswer>("other", "Other"));
+        services.AddStructlyAi(ai =>
+        {
+            ai.ConfigureOpenAiProvider();
+            ai.AddTask<Answer>("extract", "Extract").AddTask<OtherAnswer>("other", "Other");
+        });
         using var provider = services.BuildServiceProvider();
         var ai = provider.GetRequiredService<StructlyAi>();
         await Assert.ThrowsAsync<KeyNotFoundException>(() => ai.ExecuteTaskAsync<Answer>("Extract", "input", TestContext.Current.CancellationToken));
         await Assert.ThrowsAsync<KeyNotFoundException>(() => ai.ExecuteTaskAsync<Answer>("missing", "input", TestContext.Current.CancellationToken));
         await Assert.ThrowsAsync<InvalidOperationException>(() => ai.ExecuteTaskAsync<OtherAnswer>("extract", "input", TestContext.Current.CancellationToken));
         await Assert.ThrowsAsync<InvalidOperationException>(() => ai.ExecuteTaskAsync<Answer>("other", "input", TestContext.Current.CancellationToken));
-        // No provider is registered: a valid lookup must reach client resolution.
-        await Assert.ThrowsAsync<InvalidOperationException>(() => ai.ExecuteTaskAsync<Answer>("extract", "input", TestContext.Current.CancellationToken));
+        // Invalid provider options fail only after a valid task lookup.
+        await Assert.ThrowsAsync<Microsoft.Extensions.Options.OptionsValidationException>(() => ai.ExecuteTaskAsync<Answer>("extract", "input", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -136,6 +148,7 @@ public sealed class NamedAiTaskTests
         services.AddStructlyAi(ai =>
         {
             retained = ai;
+            ai.ConfigureOpenAiProvider(options => options.DefaultModel = new() { ModelId = "offline" });
             ai.AddTask<Answer>("extract", "Extract");
             ai.AddTask<Answer>("Extract", "Separate task");
         });
@@ -164,13 +177,17 @@ public sealed class NamedAiTaskTests
         var vocabularies = new Dictionary<string, IReadOnlyList<string>> { ["choices"] = values };
         var task = StructuredTask.Create<Choice>(new() { Instructions = "Choose" });
         var services = new ServiceCollection();
-        services.AddStructlyOpenAi(options =>
+
+        services.AddStructlyAi(ai =>
         {
-            options.DefaultModel = new() { ModelId = "offline" };
-            options.CredentialResolver = Credentials.FromStatic("offline");
+            ai.ConfigureOpenAiProvider(options =>
+            {
+                options.DefaultModel = new() { ModelId = "offline" };
+                options.CredentialResolver = Credentials.FromStatic("offline");
+            });
+            ai.AddTask("bound", task.BindOutput(new() { Vocabularies = vocabularies })).AddTask("unbound", task);
         }).ConfigurePrimaryHttpMessageHandler(() => new Handler((request, token) =>
             Task.FromResult(ResponseEnvelopes.ToHttpResponse(ResponseEnvelopes.CompletedText("{\"value\":\"first\"}")))));
-        services.AddStructlyAi(ai => ai.AddTask("bound", task.BindOutput(new() { Vocabularies = vocabularies })).AddTask("unbound", task));
         values[0] = "changed";
         using var provider = services.BuildServiceProvider();
         var ai = provider.GetRequiredService<StructlyAi>();
@@ -199,12 +216,17 @@ public sealed class NamedAiTaskTests
         var scopes = new ConcurrentBag<ScopeProbe>();
         var services = new ServiceCollection();
         services.AddScoped(provider => new ScopeProbe());
+        services.AddStructlyAi(ai =>
+        {
+            ai.ConfigureOpenAiProvider(options => options.DefaultModel = new() { ModelId = "offline" });
+            ai.AddTask<Answer>("extract", "Extract");
+        });
+        services.AddTransient<IStructuredClient>(provider => provider.GetRequiredService<OpenAiClient>());
         services.AddTransient(provider =>
         {
             scopes.Add(provider.GetRequiredService<ScopeProbe>());
             return new OpenAiClient(http, new() { DefaultModel = new() { ModelId = "offline" }, CredentialResolver = Credentials.FromStatic("offline") });
         });
-        services.AddStructlyAi(ai => ai.AddTask<Answer>("extract", "Extract"));
         services.AddSingleton<Worker>();
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
         var worker = provider.GetRequiredService<Worker>();
@@ -236,13 +258,17 @@ public sealed class NamedAiTaskTests
         });
         var models = new List<string?>();
         var keys = new List<string?>();
-        builder.Services.AddStructlyOpenAi(builder.Configuration).ConfigurePrimaryHttpMessageHandler(() => new Handler(async (request, token) =>
+
+        builder.Services.AddStructlyAi(builder.Configuration, ai =>
+        {
+            ai.ConfigureOpenAiProvider();
+            ai.AddTask<Answer>("extract", "Extract");
+        }).ConfigurePrimaryHttpMessageHandler(() => new Handler(async (request, token) =>
         {
             models.Add(JsonSerializer.Deserialize<JsonElement>(await request.Content!.ReadAsStringAsync(token)).GetProperty("model").GetString());
             keys.Add(request.Headers.Authorization?.Parameter);
             return ResponseEnvelopes.ToHttpResponse(ResponseEnvelopes.CompletedText("{\"value\":\"answer\"}"));
         }));
-        builder.Services.AddStructlyAi(ai => ai.AddTask<Answer>("extract", "Extract"));
         using var host = builder.Build();
         var ai = host.Services.GetRequiredService<StructlyAi>();
         (await ai.ExecuteTaskAsync<Answer>("extract", "input", TestContext.Current.CancellationToken)).EnsureSuccess();
@@ -261,14 +287,19 @@ public sealed class NamedAiTaskTests
         var credentials = 0;
         var progress = 0;
         var services = new ServiceCollection();
-        services.AddStructlyOpenAi(options =>
+
+        services.AddStructlyAi(ai =>
         {
-            options.DefaultModel = new() { ModelId = "offline" };
-            options.CredentialResolver = token =>
+            ai.ConfigureOpenAiProvider(options =>
             {
-                credentials++;
-                return ValueTask.FromResult<string?>("offline");
-            };
+                options.DefaultModel = new() { ModelId = "offline" };
+                options.CredentialResolver = token =>
+                {
+                    credentials++;
+                    return ValueTask.FromResult<string?>("offline");
+                };
+            });
+            ai.AddTask<Answer>("extract", "Extract");
         }).ConfigurePrimaryHttpMessageHandler(() => new Handler((request, token) =>
         {
             sent++;
@@ -278,7 +309,6 @@ public sealed class NamedAiTaskTests
                 Content = new StringContent("event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"{broken\",\"output_index\":0}\n\nevent: response.completed\ndata: " + terminal + "\n\n", System.Text.Encoding.UTF8, "text/event-stream"),
             });
         }));
-        services.AddStructlyAi(ai => ai.AddTask<Answer>("extract", "Extract"));
         using var provider = services.BuildServiceProvider();
         var ai = provider.GetRequiredService<StructlyAi>();
         var invalid = await ai.ExecuteTaskAsync<Answer>("extract", " ", TestContext.Current.CancellationToken);

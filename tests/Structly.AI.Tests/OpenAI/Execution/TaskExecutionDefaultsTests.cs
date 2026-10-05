@@ -20,7 +20,7 @@ public sealed class TaskExecutionDefaultsTests
             Instructions = "Other",
             ExecutionDefaults = new() { MaxOutputTokens = 400 },
         });
-        var request = new StructuredRequest { Input = "input" };
+        var request = new OpenAiRequest { Input = "input" };
         for(var i = 0; i < 5; i++)
             fixture.Enqueue(ResponseEnvelopes.CompletedText("{\"value\":42}"));
 
@@ -105,9 +105,9 @@ public sealed class TaskExecutionDefaultsTests
         });
         foreach(var request in new[]
         {
-            new StructuredRequest { Input = "input", MaxOutputTokens = 0 },
-            new StructuredRequest { Input = "input", TotalTimeout = TimeSpan.Zero },
-            new StructuredRequest { Input = "input", InactivityTimeout = TimeSpan.FromSeconds(1) },
+            new OpenAiRequest { Input = "input", MaxOutputTokens = 0 },
+            new OpenAiRequest { Input = "input", TotalTimeout = TimeSpan.Zero },
+            new OpenAiRequest { Input = "input", InactivityTimeout = TimeSpan.FromSeconds(1) },
         })
             Assert.Equal(StructuredErrorKind.InvalidRequest, (await fixture.Client.ExecuteAsync(task, request, TestToken)).Error!.Kind);
 

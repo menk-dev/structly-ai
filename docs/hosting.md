@@ -1,10 +1,13 @@
 # .NET Hosting
 
-`Structly.AI.Hosting` registers `OpenAiClient` with dependency injection in ASP.NET Core,
+`Structly.AI.Hosting` registers a selected `IStructuredClient` provider
+with dependency injection in ASP.NET Core,
 worker services and Generic Host applications. It requires .NET 10. The core `Structly.AI`
-package has no NuGet dependencies and can be used without hosting integration.
+package has no NuGet dependencies. Reference `Structly.AI.OpenAI` to use OpenAI;
+it depends only on core and can be used without hosting integration.
 
-Install with `dotnet add package Structly.AI.Hosting --version 0.6.0` from
+Install `Structly.AI.OpenAI` and `Structly.AI.Hosting` with matching versions.
+Use `dotnet add package Structly.AI.Hosting --version 0.7.0` from
 [nuget.org](installation.md). You can also reference the project locally.
 
 ## Settings
@@ -50,11 +53,16 @@ JSON if the file is stored securely. Registration does not read `OPENAI_API_KEY`
 ```csharp
 using Structly.AI;
 using Structly.AI.Hosting;
+using Structly.AI.OpenAI;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddStructlyOpenAi(builder.Configuration);
-builder.Services.AddStructlyAi(ai => ai.AddTask<Ticket>(
-    "extract-ticket", "Extract the reported support issue."));
+
+builder.Services.AddStructlyAi(builder.Configuration, ai =>
+{
+    ai.ConfigureOpenAiProvider();
+    ai.AddTask<Ticket>(
+        "extract-ticket", "Extract the reported support issue.");
+});
 
 var app = builder.Build();
 app.MapPost("/extract", async (TicketInput input, StructlyAi ai,
@@ -82,15 +90,17 @@ public sealed record Ticket(string Summary);
 registers one singleton `StructlyAi` service. Register it once per service collection.
 Names must be nonblank, unique across output types, and case-sensitive. Multiple names
 can return the same output type. The builder cannot be modified after its callback returns,
-and definitions remain fixed for the service lifetime. Register the provider separately
-with `AddStructlyOpenAi`; the task registration does not configure clients or credentials.
+and definitions remain fixed for the service lifetime. Select exactly one provider inside
+the registration callback with `ConfigureOpenAiProvider`. Missing or duplicate provider
+selection throws. Provider option callbacks run after configuration binding.
 
 Use an options object to configure a task, or register an existing task or bound output.
 For example, replace the earlier `AddStructlyAi` registration with:
 
 ```csharp
-builder.Services.AddStructlyAi(ai =>
+builder.Services.AddStructlyAi(builder.Configuration, ai =>
 {
+    ai.ConfigureOpenAiProvider();
     ai.AddTask<Ticket>("extract-ticket", new()
     {
         Instructions = "Extract the reported support issue.",
@@ -121,7 +131,7 @@ higher overload-resolution priority so target-typed `new()` calls remain unambig
 this behavior requires C# 13 or later (the default compiler for .NET 10 supports it).
 
 For locally constructed tasks and operations other than named structured calls, inject
-`OpenAiClient` directly and use the core APIs. Named tasks do not cache provider responses
+`OpenAiClient` directly and use the provider APIs. Named tasks do not cache provider responses
 or provide automatic task-definition caching.
 
 ## Optional typed task references
@@ -139,16 +149,20 @@ public static class TicketTasks
 Register the definition with the reference, including reusable execution settings:
 
 ```csharp
-builder.Services.AddStructlyAi(ai => ai.AddTask(TicketTasks.Extract, new()
+builder.Services.AddStructlyAi(builder.Configuration, ai =>
 {
-    Instructions = "Extract the reported support issue.",
-    ModelSelection = new() { ProfileName = "extract" },
-    ExecutionDefaults = new()
+    ai.ConfigureOpenAiProvider();
+    ai.AddTask(TicketTasks.Extract, new()
     {
-        MaxOutputTokens = 800,
-        TotalTimeout = TimeSpan.FromSeconds(30)
-    }
-}));
+        Instructions = "Extract the reported support issue.",
+        ModelSelection = new() { ProfileName = "extract" },
+        ExecutionDefaults = new()
+        {
+            MaxOutputTokens = 800,
+            TotalTimeout = TimeSpan.FromSeconds(30)
+        }
+    });
+});
 
 var result = await ai.ExecuteAsync(TicketTasks.Extract, text, cancellationToken);
 var detailed = await ai.ExecuteAsync(TicketTasks.Extract, new()
@@ -178,11 +192,15 @@ To select a profile for a reusable task, set `ModelSelection` during registratio
 Use this in place of the earlier task registration:
 
 ```csharp
-builder.Services.AddStructlyAi(ai => ai.AddTask<Ticket>("extract-ticket", new()
+builder.Services.AddStructlyAi(builder.Configuration, ai =>
 {
-    Instructions = "Extract the reported support issue.",
-    ModelSelection = new() { ProfileName = "extract" }
-}));
+    ai.ConfigureOpenAiProvider();
+    ai.AddTask<Ticket>("extract-ticket", new()
+    {
+        Instructions = "Extract the reported support issue.",
+        ModelSelection = new() { ProfileName = "extract" }
+    });
+});
 ```
 
 To select a profile for one call, set it on the request passed to `StructlyAi`:
@@ -229,11 +247,16 @@ These profiles and requests do not support reasoning effort settings.
 ```csharp
 using Microsoft.Extensions.Hosting;
 using Structly.AI.Hosting;
+using Structly.AI.OpenAI;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddStructlyOpenAi(builder.Configuration);
-builder.Services.AddStructlyAi(ai => ai.AddTask<Ticket>(
-    "extract-ticket", "Extract the reported support issue."));
+
+builder.Services.AddStructlyAi(builder.Configuration, ai =>
+{
+    ai.ConfigureOpenAiProvider();
+    ai.AddTask<Ticket>(
+        "extract-ticket", "Extract the reported support issue.");
+});
 builder.Services.AddHostedService<Worker>();
 await builder.Build().RunAsync();
 ```
@@ -244,24 +267,24 @@ The service creates an async DI scope, resolves a fresh client, awaits execution
 disposes the scope for each call. Concurrent calls have independent scopes and execution
 state. Subsequent calls observe reloaded provider settings without replacing `StructlyAi`.
 
-For direct core API usage, `OpenAiClient` is registered as a transient typed HTTP client.
+For direct provider API usage, `OpenAiClient` is registered as a transient typed HTTP client.
 In a singleton `BackgroundService`, inject `IServiceScopeFactory`, call `CreateScope()` for each job,
 and resolve the client from that scope. Do not keep one client for the worker's entire
 lifetime. Tasks can be singletons and reused across concurrent calls.
 
 ## Customization and lifetime
 
-`AddStructlyOpenAi` returns `IHttpClientBuilder`, which you can use to configure handlers,
+`AddStructlyAi` returns `IHttpClientBuilder`, which you can use to configure handlers,
 proxies and connection pooling. It sets `HttpClient.Timeout` to infinite so Structly.AI's
 timeouts control execution. The library sends one attempt per operation. Adding an HTTP
 retry handler can send more attempts and may cause additional provider charges.
 
 ```csharp
-builder.Services.AddStructlyOpenAi(builder.Configuration, options =>
+builder.Services.AddStructlyAi(builder.Configuration, ai => ai.ConfigureOpenAiProvider(options =>
 {
     options.CredentialResolver = Credentials.FromEnvironment("OPENAI_API_KEY");
     options.UsageObserver = async (usage, token) => await RecordUsageAsync(usage, token);
-}).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+})).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
 {
     PooledConnectionLifetime = TimeSpan.FromMinutes(5)
 });
@@ -273,9 +296,9 @@ take precedence over the client resolver. Startup allows missing credentials so 
 requests can supply their own. Execution returns `CredentialsMissing` if no selected resolver
 provides a key.
 
-To change the section use `sectionName: "MyProvider"`, or pass
-`builder.Configuration.GetSection("MyProvider")` directly. Register one default client
-per service collection. Read validated settings through `IOptionsMonitor<OpenAiHostingOptions>`.
+To change the root section use `sectionName: "MyProvider"`; OpenAI binds
+`MyProvider:OpenAI`. Register one provider
+per service collection. Read validated settings through `IOptionsMonitor<OpenAiOptions>`.
 Invalid model or profile selection, timeouts, endpoint URIs or size limits cause startup
 to fail without contacting a provider. Resolving a client with invalid settings also fails
 when there is no running host. Validation messages omit configuration values and credentials.
@@ -292,11 +315,11 @@ the `HttpClient` passed to it. Follow Microsoft's
 ## Callback-only registration and environment fallback
 
 ```csharp
-services.AddStructlyOpenAi(options =>
+services.AddStructlyAi(ai => ai.ConfigureOpenAiProvider(options =>
 {
     options.DefaultModel = new() { ModelId = "gpt-6-sol" };
     options.UseEnvironmentApiKey = true;
-});
+}));
 ```
 
 This overload uses the same startup validation and HTTP registration as section binding.
@@ -305,7 +328,12 @@ then a nonblank configured `ApiKey`, then an environment resolver when enabled.
 The environment resolver reads `OPENAI_API_KEY` on each execution, so existing clients
 observe changes. A selected resolver returning blank does not fall back.
 
-For an explicit section, use `services.AddStructlyOpenAi(configuration.GetSection("MyProvider"))`.
+For an explicit root section, use `services.AddStructlyAi(configuration, ai => ai.ConfigureOpenAiProvider(), sectionName: "MyProvider")`.
+
+Use `OpenAiRequest` for provider response controls; plain `StructuredRequest` uses defaults.
+Custom providers implement `IStructuredClient` and `IStructuredClientFactory<TClient, TOptions>`
+and select a typed `AiProviderDescriptor<TClient, TOptions>` through `ConfigureProvider`.
+Validation must not send HTTP or resolve credentials. See [migration](migration-provider-split.md).
 
 The runnable [offline hosted consumer](../examples/Structly.AI.HostingConsumer/Program.cs)
 uses callback registration with a fake HTTP handler and no provider connection.
@@ -315,7 +343,9 @@ uses callback registration with a fake HTTP handler and no provider connection.
 Implement `IStructuredUsageObserver` to record usage using DI dependencies:
 
 ```csharp
-builder.Services.AddStructlyOpenAi(builder.Configuration)
+builder.Services.AddStructlyAi(builder.Configuration, ai =>
+    ai.ConfigureOpenAiProvider(options =>
+        options.DefaultModel = new() { ModelId = "your-model" }))
     .AddUsageObserver<LlmUsageRecorder>();
 
 sealed class LlmUsageRecorder(UsageLedger ledger) : IStructuredUsageObserver
@@ -333,5 +363,5 @@ client; a second registration throws.
 Every notification creates a separate async scope, resolves the observer, awaits its method
 and disposes the scope. It does not share the caller's request scope. Existing singleton
 observer registrations must support concurrent callbacks. Request and batch-import observers
-override the DI observer, which overrides `OpenAiHostingOptions.UsageObserver`; only the
+override the DI observer, which overrides `OpenAiOptions.UsageObserver`; only the
 selected observer runs. The existing best-effort callback timeout and warning behavior applies.

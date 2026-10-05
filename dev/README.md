@@ -36,6 +36,8 @@ rtk dotnet test --solution Structly.AI.slnx -c Release --no-build
 rtk dotnet run --project examples/Structly.AI.HostingConsumer -c Release --no-build
 rtk dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages
 rtk dotnet pack src/Structly.AI.Hosting/Structly.AI.Hosting.csproj -c Release --no-build -o artifacts/packages
+rtk dotnet pack src/Structly.AI.OpenAI/Structly.AI.OpenAI.csproj -c Release --no-build -o artifacts/packages
+rtk dotnet pack src/Structly.AI.Mistral/Structly.AI.Mistral.csproj -c Release --no-build -o artifacts/packages
 rtk dotnet pack src/Structly.AI.Testing/Structly.AI.Testing.csproj -c Release --no-build -o artifacts/packages
 rtk dotnet run --project tools/Structly.AI.PackageValidation -c Release --no-build -- artifacts/packages
 rtk git diff --check

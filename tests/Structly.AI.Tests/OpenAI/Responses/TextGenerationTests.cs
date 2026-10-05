@@ -30,7 +30,7 @@ public sealed class TextGenerationTests
         var result = await Client(http).GenerateTextAsync(new()
         {
             Instructions = "new instructions",
-            Request = new()
+            Request = new OpenAiRequest()
             {
                 Input = "prompt",
                 Stream = stream,

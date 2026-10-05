@@ -41,7 +41,7 @@ public sealed class StreamingTests
             return Response(stream);
         });
         using var http = new HttpClient(handler);
-        var result = await Client(http, new()).ExecuteAsync(Contract(), new()
+        var result = await Client(http, new()).ExecuteAsync(Contract(), new OpenAiRequest()
         {
             Input = "input",
             Stream = true,

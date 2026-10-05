@@ -1,23 +1,27 @@
 using Microsoft.Extensions.DependencyInjection;
 using Structly.AI;
 using Structly.AI.Hosting;
+using Structly.AI.OpenAI;
 
 // Offline hosting configuration: the handler supplies the provider envelope locally.
 var services = new ServiceCollection();
 services.AddSingleton<UsageCounter>();
-services.AddStructlyOpenAi(options =>
-{
-    options.DefaultModel = new() { ModelId = "offline-model" };
-    options.CredentialResolver = Credentials.FromStatic("offline-fixture");
-}).AddUsageObserver<HostedUsageRecorder>().ConfigurePrimaryHttpMessageHandler(() => new OfflineHandler());
 
-// Register the reusable task separately from provider configuration.
+// Select the provider and register the reusable task in one callback.
 var extract = new AiTaskReference<Answer>("extract");
-services.AddStructlyAi(ai => ai.AddTask(extract, new()
+services.AddStructlyAi(ai =>
 {
-    Instructions = "Extract",
-    ExecutionDefaults = new() { MaxOutputTokens = 800, TotalTimeout = TimeSpan.FromSeconds(30) },
-}));
+    ai.ConfigureOpenAiProvider(options =>
+    {
+        options.DefaultModel = new() { ModelId = "offline-model" };
+        options.CredentialResolver = Credentials.FromStatic("offline-fixture");
+    });
+    ai.AddTask(extract, new()
+    {
+        Instructions = "Extract",
+        ExecutionDefaults = new() { MaxOutputTokens = 800, TotalTimeout = TimeSpan.FromSeconds(30) },
+    });
+}).AddUsageObserver<HostedUsageRecorder>().ConfigurePrimaryHttpMessageHandler(() => new OfflineHandler());
 
 using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
 var ai = provider.GetRequiredService<StructlyAi>();
