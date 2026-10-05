@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Structly.AI;
 using Structly.AI.Hosting;
-using Structly.AI.OpenAI;
 
 // Offline hosting configuration: the handler supplies the provider envelope locally.
 var services = new ServiceCollection();
@@ -10,10 +9,14 @@ services.AddStructlyOpenAi(options =>
     options.DefaultModel = new() { ModelId = "offline-model" };
     options.CredentialResolver = Credentials.FromStatic("offline-fixture");
 }).ConfigurePrimaryHttpMessageHandler(() => new OfflineHandler());
-using var provider = services.BuildServiceProvider();
-var client = provider.GetRequiredService<OpenAiClient>();
-var task = StructuredTask.Create<Answer>(new());
-var result = await client.ExecuteAsync(task, new() { Input = "input", Instructions = "Extract" });
+services.AddStructlyAi(ai => ai.AddTask<Answer>("extract", new() { Instructions = "Extract" }));
+using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+var ai = provider.GetRequiredService<StructlyAi>();
+var result = await ai.ExecuteTaskAsync<Answer>("extract", "input");
 if(result.EnsureSuccess().Value != "hosted")
     throw new InvalidOperationException("Hosted consumer failed.");
+
+var detailed = await ai.ExecuteTaskAsync<Answer>("extract", new() { Input = "input", CorrelationId = "offline-job" });
+if(detailed.EnsureSuccess().Value != "hosted" || detailed.Metadata.CorrelationId != "offline-job")
+    throw new InvalidOperationException("Hosted request settings were not retained.");
 Console.WriteLine("Offline hosted consumer passed.");

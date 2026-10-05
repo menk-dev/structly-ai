@@ -50,21 +50,17 @@ JSON if the file is stored securely. Registration does not read `OPENAI_API_KEY`
 ```csharp
 using Structly.AI;
 using Structly.AI.Hosting;
-using Structly.AI.OpenAI;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddStructlyOpenAi(builder.Configuration);
-builder.Services.AddSingleton(StructuredTask.Create<Ticket>(new()
-{
-    Instructions = "Extract the reported support issue.",
-    SchemaName = "ticket"
-}));
+builder.Services.AddStructlyAi(ai => ai.AddTask<Ticket>(
+    "extract-ticket", "Extract the reported support issue."));
 
 var app = builder.Build();
-app.MapPost("/extract", async (TicketInput input, OpenAiClient client,
-    StructuredTask<Ticket> task, CancellationToken cancellationToken) =>
+app.MapPost("/extract", async (TicketInput input, StructlyAi ai,
+    CancellationToken cancellationToken) =>
 {
-    var result = await client.ExecuteAsync(task, new() { Input = input.Text }, cancellationToken);
+    var result = await ai.ExecuteTaskAsync<Ticket>("extract-ticket", input.Text, cancellationToken);
     return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(statusCode: 502,
         title: result.Error!.Kind.ToString(), detail: result.Error.Message);
 });
@@ -74,28 +70,75 @@ public sealed record TicketInput(string Text);
 public sealed record Ticket(string Summary);
 ```
 
+## Named AI tasks
+
+`AddStructlyAi` constructs and validates task definitions during registration, then
+registers one singleton `StructlyAi` service. Register it once per service collection.
+Names must be nonblank, unique across output types, and case-sensitive. Multiple names
+can return the same output type. The builder cannot be modified after its callback returns,
+and definitions remain fixed for the service lifetime. Register the provider separately
+with `AddStructlyOpenAi`; the task registration does not configure clients or credentials.
+
+Use an options object to configure a task, or register an existing task or bound output.
+For example, replace the earlier `AddStructlyAi` registration with:
+
+```csharp
+builder.Services.AddStructlyAi(ai =>
+{
+    ai.AddTask<Ticket>("extract-ticket", new()
+    {
+        Instructions = "Extract the reported support issue.",
+        ModelSelection = new() { ProfileName = "extract" }
+    });
+    ai.AddTask("review-ticket", reviewTask);
+    ai.AddTask("classify-ticket", classifierTask.BindOutput(new()
+    {
+        Vocabularies = vocabularies
+    }));
+});
+```
+
+Here `reviewTask`, `classifierTask`, and `vocabularies` are application-defined contracts
+and vocabulary values. Unbound tasks accept per-call vocabularies and output specifications.
+Bound outputs use their captured values and reject those per-call overrides.
+
+`ExecuteTaskAsync<T>` returns the existing `StructuredResult<T>`, retaining usage,
+warnings, and cancellation metadata. The requested `T` must match the registered type
+exactly. Unknown names throw `KeyNotFoundException`; mismatched types throw
+`InvalidOperationException`, before resolving a client or accessing credentials or HTTP.
+Registration and lookup errors are programming errors, rather than provider error results.
+
+The string overload supplies only input. Use a `StructuredRequest` for correlation IDs,
+streaming, callbacks, deadlines, instructions, model selection, and other per-call settings.
+Existing override precedence and failure behavior apply. Options/request overloads have
+higher overload-resolution priority so target-typed `new()` calls remain unambiguous;
+this behavior requires C# 13 or later (the default compiler for .NET 10 supports it).
+
+For locally constructed tasks and operations other than named structured calls, inject
+`OpenAiClient` directly and use the core APIs. Named tasks do not cache provider responses
+or provide automatic task-definition caching.
+
 ## Using configured profiles
 
 The `/extract` endpoint above uses the `extract` profile because neither the task nor
 the request sets `ModelSelection`. The configured `DefaultModel.ProfileName` selects
 that entry from `Profiles`, including its model ID and reasoning effort.
 
-To select a profile for a reusable task, set `ModelSelection` when creating it:
+To select a profile for a reusable task, set `ModelSelection` during registration.
+Use this in place of the earlier task registration:
 
 ```csharp
-var task = StructuredTask.Create<Ticket>(new()
+builder.Services.AddStructlyAi(ai => ai.AddTask<Ticket>("extract-ticket", new()
 {
     Instructions = "Extract the reported support issue.",
-    SchemaName = "ticket",
     ModelSelection = new() { ProfileName = "extract" }
-});
+}));
 ```
 
-To select a profile for one call, set it on the request passed to the injected
-`OpenAiClient`:
+To select a profile for one call, set it on the request passed to `StructlyAi`:
 
 ```csharp
-var result = await client.ExecuteAsync(task, new()
+var result = await ai.ExecuteTaskAsync<Ticket>("extract-ticket", new()
 {
     Input = "The application crashes when I open settings.",
     ModelSelection = new() { ProfileName = "extract" }
@@ -112,7 +155,9 @@ Embeddings and images require their own request selection; they do not use
 ```csharp
 using Structly.AI.Embeddings;
 using Structly.AI.Imaging;
+using Structly.AI.OpenAI;
 
+// Inject OpenAiClient as client for embedding and image operations.
 var embedded = await client.EmbedAsync(new EmbeddingRequest
 {
     Inputs = ["The application crashes when I open settings."],
@@ -137,12 +182,20 @@ using Structly.AI.Hosting;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddStructlyOpenAi(builder.Configuration);
+builder.Services.AddStructlyAi(ai => ai.AddTask<Ticket>(
+    "extract-ticket", "Extract the reported support issue."));
 builder.Services.AddHostedService<Worker>();
 await builder.Build().RunAsync();
 ```
 
-`OpenAiClient` is registered as a transient typed HTTP client. In a singleton
-`BackgroundService`, inject `IServiceScopeFactory`, call `CreateScope()` for each job,
+Inject `StructlyAi` into a singleton `BackgroundService` and call
+`ExecuteTaskAsync<Ticket>("extract-ticket", input, cancellationToken)` for each job.
+The service creates an async DI scope, resolves a fresh client, awaits execution, and
+disposes the scope for each call. Concurrent calls have independent scopes and execution
+state. Subsequent calls observe reloaded provider settings without replacing `StructlyAi`.
+
+For direct core API usage, `OpenAiClient` is registered as a transient typed HTTP client.
+In a singleton `BackgroundService`, inject `IServiceScopeFactory`, call `CreateScope()` for each job,
 and resolve the client from that scope. Do not keep one client for the worker's entire
 lifetime. Tasks can be singletons and reused across concurrent calls.
 

@@ -78,6 +78,21 @@ Install it with `dotnet add package Structly.AI.Hosting --version 0.4.0`.
 See the [hosting guide](https://github.com/menk-dev/structly-ai/blob/main/docs/hosting.md)
 for configuration and ASP.NET Core and worker examples.
 
+For reusable named calls, register the task definitions and inject `StructlyAi`:
+
+```csharp
+builder.Services.AddStructlyAi(ai => ai.AddTask<Ticket>(
+    "extract-ticket", "Extract the reported support issue."));
+
+// In an endpoint or application service with an injected StructlyAi ai:
+var result = await ai.ExecuteTaskAsync<Ticket>(
+    "extract-ticket", text, cancellationToken);
+```
+
+Definitions are validated once during registration. Each execution resolves a fresh
+client in its own DI scope, including when called from a singleton worker. Provider
+settings and HTTP handlers remain configured through `AddStructlyOpenAi`.
+
 ## Guides
 
 - [ASP.NET Core and Generic Host integration](https://github.com/menk-dev/structly-ai/blob/main/docs/hosting.md)
