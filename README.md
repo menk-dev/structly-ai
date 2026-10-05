@@ -13,15 +13,15 @@ a C# Roslyn analyzer that checks supported output types during compilation.
 Install the core package from nuget.org:
 
 ```sh
-dotnet add package Structly.AI --version 0.5.0
+dotnet add package Structly.AI --version 0.6.0
 ```
 
 Optional packages add [ASP.NET Core and Generic Host integration](https://github.com/menk-dev/structly-ai/blob/main/docs/hosting.md)
 and [offline testing utilities](https://github.com/menk-dev/structly-ai/blob/main/docs/testing.md):
 
 ```sh
-dotnet add package Structly.AI.Hosting --version 0.5.0
-dotnet add package Structly.AI.Testing --version 0.5.0
+dotnet add package Structly.AI.Hosting --version 0.6.0
+dotnet add package Structly.AI.Testing --version 0.6.0
 ```
 
 See [installation and debug symbols](https://github.com/menk-dev/structly-ai/blob/main/docs/installation.md) for details.
