@@ -4,11 +4,12 @@ using Structly.AI.Hosting;
 
 // Offline hosting configuration: the handler supplies the provider envelope locally.
 var services = new ServiceCollection();
+services.AddSingleton<UsageCounter>();
 services.AddStructlyOpenAi(options =>
 {
     options.DefaultModel = new() { ModelId = "offline-model" };
     options.CredentialResolver = Credentials.FromStatic("offline-fixture");
-}).ConfigurePrimaryHttpMessageHandler(() => new OfflineHandler());
+}).AddUsageObserver<HostedUsageRecorder>().ConfigurePrimaryHttpMessageHandler(() => new OfflineHandler());
 
 // Register the reusable task separately from provider configuration.
 var extract = new AiTaskReference<Answer>("extract");
@@ -35,5 +36,8 @@ var detailed = await ai.ExecuteAsync(extract, new()
 });
 if(detailed.EnsureSuccess().Value != "hosted" || detailed.Metadata.CorrelationId != "offline-job")
     throw new InvalidOperationException("Hosted request settings were not retained.");
+
+if(provider.GetRequiredService<UsageCounter>().Count != 2)
+    throw new InvalidOperationException("Hosted usage observer failed.");
 
 Console.WriteLine("Offline hosted consumer passed.");

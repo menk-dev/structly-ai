@@ -66,3 +66,7 @@ Batch imports notify once for each item with reported usage on each import, incl
 output validation. Re-importing can repeat notifications. Persist ledger entries with a unique
 execution-ID constraint and record usage transactionally. Do not add aggregate batch counts to
 item counts or infer usage for missing results. See [batches](batches.md).
+
+Successful batch imports also expose per-model reported sums and per-field coverage through
+`BatchImportResult<T>.UsageByModel`. See [batch summaries](batches.md#usage-summaries).
+For DI dependencies, Hosting provides [scoped usage observers](hosting.md#di-usage-observers).
