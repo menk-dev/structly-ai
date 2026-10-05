@@ -88,8 +88,18 @@ public sealed class CoreFeedbackTests
     [InlineData("gpt-6-luna", true)]
     [InlineData("gpt-6-sol", true)]
     [InlineData("gpt-6-astra", true)]
-    [InlineData("gpt-6-sol-new", false)]
-    public async Task CacheDefaultsUseExactIds(string model, bool supported)
+    [InlineData("gpt-6.1-sol", true)]
+    [InlineData("gpt-6-sol-new", true)]
+    [InlineData("gpt-6.1-sol-2026-10-01", true)]
+    [InlineData("gpt-7", true)]
+    [InlineData("gpt-10.2-mini", true)]
+    [InlineData("gpt-5.6-sol", false)]
+    [InlineData("gpt-60-sol", true)]
+    [InlineData("gpt-6x-sol", false)]
+    [InlineData("gpt-6.-sol", false)]
+    [InlineData("gpt-6-sol\n", false)]
+    [InlineData("other-gpt-6-sol", false)]
+    public async Task CacheDefaultsSupportGptSixAndLaterWithExactOverrides(string model, bool supported)
     {
         using var handler = new Handler(_ => new(HttpStatusCode.OK) { Content = new StringContent("{\"id\":\"warm\",\"model\":\"resolved\",\"status\":\"completed\",\"output\":[]}") });
         using var http = new HttpClient(handler);

@@ -290,9 +290,12 @@ Omitting `OpenAiRequest.OpenAi` or explicitly assigning null both use default pr
 settings. For example, `OpenAi = useCache ? new() { PromptCacheKey = "source" } : null`
 is supported.
 
-Exact cache defaults classify `gpt-6-luna`, `gpt-6-sol` and `gpt-6-astra` as `Modern`.
-Application `CacheCompatibility` entries override these defaults. Unknown IDs, including
-suffix variants, require explicit configuration; model prefixes do not determine compatibility.
+Cache defaults classify GPT model IDs with a numeric major version of 6 or later as
+`Modern`, including minor versions and hyphenated lowercase alphanumeric suffixes
+(for example, `gpt-6.1-sol`, `gpt-7-mini` and dated snapshots).
+This assumes later GPT versions retain modern cache controls.
+Application `CacheCompatibility` entries for exact model IDs override these defaults.
+Other IDs require explicit configuration.
 Modern controls apply to GPT-5.6 and later. See the
 [provider prompt-caching guide](https://developers.openai.com/api/docs/guides/prompt-caching).
 
