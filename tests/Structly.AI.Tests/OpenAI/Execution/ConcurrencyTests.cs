@@ -1,3 +1,4 @@
+using Structly.AI.OpenAI;
 using System.Text.Json;
 using System.Threading.Channels;
 using static Structly.AI.Tests.ReliabilityTestSupport;
@@ -30,7 +31,7 @@ public sealed class ConcurrencyTests
         var wordsB = new List<string> { "pear" };
         StructuredUsageEvent? eventA = null;
         StructuredUsageEvent? eventB = null;
-        var first = client.ExecuteAsync(task, new()
+        var first = client.ExecuteAsync(task, new OpenAiRequest()
         {
             Input = "apple",
             CredentialResolver = Credentials.FromStatic("apple-key"),

@@ -1,7 +1,7 @@
 namespace Structly.AI;
 
 /// <summary>Per-call settings for typed provider execution.</summary>
-public sealed record StructuredRequest
+public record StructuredRequest
 {
     /// <summary>Gets the total execution budget, overriding task and client defaults (positive, at most 24 hours).</summary>
     public TimeSpan? TotalTimeout { get; init; }
@@ -31,10 +31,6 @@ public sealed record StructuredRequest
     public int? MaxOutputTokens { get; init; }
     /// <summary>Gets a local correlation identifier.</summary>
     public string? CorrelationId { get; init; }
-    readonly OpenAI.OpenAiResponseOptions _openAi = new();
-    /// <summary>Gets provider-specific settings. Assigning null uses default settings.</summary>
-    [System.Diagnostics.CodeAnalysis.AllowNull]
-    public OpenAI.OpenAiResponseOptions OpenAi { get => _openAi; init => _openAi = value ?? new(); }
     /// <summary>Gets optional nonblank instructions replacing task instructions for this call.</summary>
     public string? Instructions { get; init; }
 }

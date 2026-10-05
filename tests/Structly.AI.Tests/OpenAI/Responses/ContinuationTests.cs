@@ -1,3 +1,4 @@
+using Structly.AI.OpenAI;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using static Structly.AI.Tests.ResponseTestSupport;
@@ -34,9 +35,9 @@ public sealed class ContinuationTests
         });
         using var http = new HttpClient(handler);
         var client = Client(http);
-        var first = await client.ExecuteAsync(Contract<Patterned>(), new() { Input = "first", OpenAi = new() { Store = true } }, TestContext.Current.CancellationToken);
+        var first = await client.ExecuteAsync(Contract<Patterned>(), new OpenAiRequest() { Input = "first", OpenAi = new() { Store = true } }, TestContext.Current.CancellationToken);
         Assert.True(first.IsSuccess);
-        var second = await client.ExecuteAsync(Contract<Guided>(), new()
+        var second = await client.ExecuteAsync(Contract<Guided>(), new OpenAiRequest()
         {
             Input = "followup",
             Vocabularies = Vocabulary("new"),

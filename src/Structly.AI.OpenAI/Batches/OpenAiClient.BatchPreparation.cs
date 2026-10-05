@@ -56,7 +56,7 @@ public sealed partial class OpenAiClient
         {
             var request = item.Request;
             ValidateResponseRequest(request);
-            if(request.Stream || request.Progress is not null || request.CredentialResolver is not null || request.TotalTimeout is not null || request.UsageObserver is not null || request.OpenAi.IdempotencyKey is not null)
+            if(request.Stream || request.Progress is not null || request.CredentialResolver is not null || request.TotalTimeout is not null || request.UsageObserver is not null || ResponseOptions(request).IdempotencyKey is not null)
                 throw new ArgumentException("Batch items cannot specify streaming or transport controls.");
 
             request = request with { MaxOutputTokens = request.MaxOutputTokens ?? task.ExecutionDefaults.MaxOutputTokens };
@@ -76,7 +76,7 @@ public sealed partial class OpenAiClient
             body["text"] = new { format };
             CheckPreparedItem(manifest, ids, item.CustomId, model.ModelId!);
             WriteBatchLine(lines, new { custom_id = item.CustomId, method = "POST", url = "/v1/responses", body });
-            manifest.Add(new() { CustomId = item.CustomId, Position = manifest.Count, ExecutionId = Guid.NewGuid(), CorrelationId = request.CorrelationId, RequestedModel = model.ModelId!, Vocabularies = vocabularies, SchemaFingerprint = Fingerprint(schema), CaptureRawResponse = request.OpenAi.CaptureRawResponse, CaptureOutputText = request.OpenAi.CaptureOutputText });
+            manifest.Add(new() { CustomId = item.CustomId, Position = manifest.Count, ExecutionId = Guid.NewGuid(), CorrelationId = request.CorrelationId, RequestedModel = model.ModelId!, Vocabularies = vocabularies, SchemaFingerprint = Fingerprint(schema), CaptureRawResponse = ResponseOptions(request).CaptureRawResponse, CaptureOutputText = ResponseOptions(request).CaptureOutputText });
         }
 
         return Prepare(lines, manifest, "/v1/responses");

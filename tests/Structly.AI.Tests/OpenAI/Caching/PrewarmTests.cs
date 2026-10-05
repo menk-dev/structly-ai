@@ -50,7 +50,7 @@ public sealed class PrewarmTests
     {
         using var handler = new Handler(_ => throw new InvalidOperationException("Should not send"));
         using var http = new HttpClient(handler);
-        var request = new StructuredRequest { Input = "prefix" };
+        var request = new OpenAiRequest { Input = "prefix" };
         request = scenario switch
         {
             "stream" => request with { Stream = true },

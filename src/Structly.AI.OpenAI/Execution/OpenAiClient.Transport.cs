@@ -47,7 +47,7 @@ public sealed partial class OpenAiClient
 
         using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(_options.BaseAddress, endpoint));
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
-        if(request.OpenAi.IdempotencyKey is { } idempotency)
+        if(ResponseOptions(request).IdempotencyKey is { } idempotency)
             message.Headers.Add("Idempotency-Key", idempotency);
 
         message.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
@@ -98,7 +98,7 @@ public sealed partial class OpenAiClient
                 {
                     ResponseId = Text(root, "id") ?? execution.Metadata.ResponseId,
                     ResolvedModel = Text(root, "model") ?? execution.Metadata.ResolvedModel,
-                    RawResponse = request.OpenAi.CaptureRawResponse ? root : null,
+                    RawResponse = ResponseOptions(request).CaptureRawResponse ? root : null,
                     Usage = ParseUsage(root, warnings),
                     CacheDiagnostics = ParseCacheDiagnostics(root, warnings),
                 };

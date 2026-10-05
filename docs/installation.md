@@ -7,6 +7,7 @@ Install the core package, or install the hosting package for ASP.NET Core and Ge
 
 ```sh
 dotnet add package Structly.AI --version 0.6.0
+dotnet add package Structly.AI.OpenAI --version 0.6.0
 ```
 
 For ASP.NET Core and Generic Host, install the hosting package, which also installs the core:

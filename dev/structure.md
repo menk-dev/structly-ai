@@ -64,3 +64,5 @@ Shared test data and fixtures live in `Support/`. Keep test-specific fixtures ne
 they help explain the test and are not reused. A shared fixture may contain small nested
 models and handlers to keep their names scoped to its tests. Tests remain offline and use
 controlled time and fake HTTP transports.
+
+`Structly.AI.OpenAI` contains the OpenAI implementation and provider options. Core contains provider contracts and schema implementation; hosting dispatches typed registrations without a provider dependency.

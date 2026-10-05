@@ -6,7 +6,7 @@ namespace Structly.AI.OpenAI;
 
 public sealed partial class OpenAiClient
 {
-    static StructuredRequest BatchControls(BatchOperationOptions? options) => new()
+    static OpenAiRequest BatchControls(BatchOperationOptions? options) => new()
     {
         TotalTimeout = options?.TotalTimeout,
         CredentialResolver = options?.CredentialResolver,

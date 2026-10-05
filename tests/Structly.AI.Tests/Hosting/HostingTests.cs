@@ -31,11 +31,11 @@ public sealed class HostingTests
         var builder = Host.CreateApplicationBuilder();
         builder.Configuration.AddJsonStream(json);
         var handler = new RecordingHandler();
-        var registration = builder.Services.AddStructlyOpenAi(builder.Configuration)
+        var registration = builder.Services.AddStructlyAi(builder.Configuration, ai => ai.ConfigureOpenAiProvider())
             .ConfigurePrimaryHttpMessageHandler(() => handler);
         using var host = builder.Build();
         await host.StartAsync(TestContext.Current.CancellationToken);
-        var settings = host.Services.GetRequiredService<IOptions<OpenAiHostingOptions>>().Value;
+        var settings = host.Services.GetRequiredService<IOptions<OpenAiOptions>>().Value;
         Assert.Equal(TimeSpan.FromMinutes(3), settings.TotalTimeout);
         Assert.Equal(TimeSpan.FromSeconds(30), settings.InactivityTimeout);
         Assert.Equal(4096, settings.MaxResponseBytes);
@@ -70,7 +70,7 @@ public sealed class HostingTests
             ["Structly:OpenAI:ApiKey"] = "secret-test-key",
             [$"Structly:OpenAI:{key}"] = value,
         });
-        builder.Services.AddStructlyOpenAi(builder.Configuration);
+        builder.Services.AddStructlyAi(builder.Configuration, ai => ai.ConfigureOpenAiProvider());
         using var host = builder.Build();
         var error = await Assert.ThrowsAsync<OptionsValidationException>(() => host.StartAsync(TestContext.Current.CancellationToken));
         Assert.DoesNotContain("secret-test-key", error.Message);
@@ -82,12 +82,11 @@ public sealed class HostingTests
         var builder = Host.CreateApplicationBuilder();
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["Custom:DefaultModel:ModelId"] = "test-model",
-            ["Custom:ApiKey"] = "configured-key",
+            ["Custom:OpenAI:DefaultModel:ModelId"] = "test-model",
+            ["Custom:OpenAI:ApiKey"] = "configured-key",
         });
         var handler = new RecordingHandler();
-        builder.Services.AddStructlyOpenAi(builder.Configuration.GetSection("Custom"),
-            options => options.CredentialResolver = Credentials.FromStatic("runtime-key"))
+        builder.Services.AddStructlyAi(builder.Configuration, ai => ai.ConfigureOpenAiProvider(options => options.CredentialResolver = Credentials.FromStatic("runtime-key")), sectionName: "Custom")
             .ConfigurePrimaryHttpMessageHandler(() => handler);
         using var host = builder.Build();
         await host.StartAsync(TestContext.Current.CancellationToken);
@@ -106,7 +105,7 @@ public sealed class HostingTests
             ["Structly:OpenAI:ApiKey"] = "original-key",
         });
         var handler = new RecordingHandler();
-        builder.Services.AddStructlyOpenAi(builder.Configuration)
+        builder.Services.AddStructlyAi(builder.Configuration, ai => ai.ConfigureOpenAiProvider())
             .ConfigurePrimaryHttpMessageHandler(() => handler);
         using var host = builder.Build();
         var original = host.Services.GetRequiredService<OpenAiClient>();

@@ -10,11 +10,11 @@ public sealed partial class OpenAiClient
             throw new ArgumentException("Invalid response controls.");
 
         if(prewarm && (request.Stream || request.Progress is not null || request.IncludeReasoningSummary || request.MaxOutputTokens is not null ||
-            request.OpenAi.PreviousResponseId is not null || request.OutputSpecification is not null || request.OpenAi.CaptureOutputText || request.OpenAi.Store))
+            ResponseOptions(request).PreviousResponseId is not null || request.OutputSpecification is not null || ResponseOptions(request).CaptureOutputText || ResponseOptions(request).Store))
             throw new ArgumentException("Prewarm does not generate output or continue/store a conversation.");
 
-        if(request.OpenAi.PreviousResponseId is { } previous && String.IsNullOrWhiteSpace(previous) ||
-            request.OpenAi.PromptCacheKey is { } cacheKey && String.IsNullOrWhiteSpace(cacheKey))
+        if(ResponseOptions(request).PreviousResponseId is { } previous && String.IsNullOrWhiteSpace(previous) ||
+            ResponseOptions(request).PromptCacheKey is { } cacheKey && String.IsNullOrWhiteSpace(cacheKey))
             throw new ArgumentException("Response/cache IDs must be nonblank.");
     }
 
@@ -29,7 +29,7 @@ public sealed partial class OpenAiClient
         {
             ["model"] = model.ModelId,
             ["input"] = input,
-            ["store"] = request.OpenAi.Store,
+            ["store"] = ResponseOptions(request).Store,
             ["stream"] = request.Stream,
         };
         if(instructions is not null)
@@ -50,16 +50,16 @@ public sealed partial class OpenAiClient
             payload["reasoning"] = reasoning;
         }
 
-        if(request.OpenAi.Metadata is { } metadata)
+        if(ResponseOptions(request).Metadata is { } metadata)
             payload["metadata"] = metadata.ToDictionary(x => x.Key, x => x.Value, StringComparer.Ordinal);
 
-        if(request.OpenAi.PreviousResponseId is { } previous)
+        if(ResponseOptions(request).PreviousResponseId is { } previous)
             payload["previous_response_id"] = previous;
 
-        if(request.OpenAi.PromptCacheKey is { } key)
+        if(ResponseOptions(request).PromptCacheKey is { } key)
             payload["prompt_cache_key"] = key;
 
-        ApplyCache(payload, request.OpenAi, model.ModelId!, breakpoints, prewarm);
+        ApplyCache(payload, ResponseOptions(request), model.ModelId!, breakpoints, prewarm);
         return payload;
     }
 

@@ -1,7 +1,11 @@
 namespace Structly.AI.OpenAI;
 
-public sealed partial class OpenAiClient
+public sealed partial class OpenAiClient : IStructuredClient
 {
+    static readonly OpenAiResponseOptions _defaultResponseOptions = new();
+
+    static OpenAiResponseOptions ResponseOptions(StructuredRequest request) => (request as OpenAiRequest)?.OpenAi ?? _defaultResponseOptions;
+
     readonly HttpClient _http;
     readonly OpenAiClientOptions _options;
     readonly Dictionary<string, ModelSelection> _profiles;
@@ -13,6 +17,7 @@ public sealed partial class OpenAiClient
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(options.DefaultModel);
         ArgumentNullException.ThrowIfNull(options.Profiles);
+        ArgumentNullException.ThrowIfNull(options.CacheCompatibility);
         options.DefaultModel.Validate();
         if(options.TimeProvider is null || !OpenAiExecution.ValidTimeout(options.TotalTimeout) ||
             options.InactivityTimeout is { } idle && idle <= TimeSpan.Zero)

@@ -65,7 +65,7 @@ public sealed partial class OpenAiClient
             }
         }
 
-        execution.Metadata = execution.Metadata with { OutputText = request.OpenAi.CaptureOutputText ? text.ToString() : null };
+        execution.Metadata = execution.Metadata with { OutputText = ResponseOptions(request).CaptureOutputText ? text.ToString() : null };
         if(ProviderStatusFailure() is { } statusFailure)
             return statusFailure;
 

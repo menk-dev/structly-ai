@@ -120,13 +120,19 @@
         "dependencies": {
           "Microsoft.Extensions.Http": "[10.0.0, )",
           "Microsoft.Extensions.Options.ConfigurationExtensions": "[10.0.0, )",
-          "Structly.AI": "[0.4.0, )"
+          "Structly.AI": "[0.5.0, )"
+        }
+      },
+      "structly.ai.openai": {
+        "type": "Project",
+        "dependencies": {
+          "Structly.AI": "[0.5.0, )"
         }
       },
       "structly.ai.testing": {
         "type": "Project",
         "dependencies": {
-          "Structly.AI": "[0.4.0, )"
+          "Structly.AI.OpenAI": "[0.5.0, )"
         }
       },
       "Microsoft.Extensions.Http": {

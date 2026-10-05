@@ -1,4 +1,4 @@
-namespace Structly.AI.OpenAI;
+namespace Structly.AI;
 
 /// <summary>Provider diagnostics independent of actual usage; unknown strings are retained.</summary>
 public sealed record CacheDiagnostics

@@ -10,7 +10,7 @@ public sealed partial class OpenAiClient
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var controls = new StructuredRequest
+        var controls = new OpenAiRequest
         {
             TotalTimeout = request.TotalTimeout,
             CredentialResolver = request.CredentialResolver,

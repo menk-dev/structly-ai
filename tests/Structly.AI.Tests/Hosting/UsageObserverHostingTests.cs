@@ -16,12 +16,12 @@ public sealed class UsageObserverHostingTests
         var state = new RecorderState();
         services.AddSingleton(state);
         services.AddScoped<ScopeDependency>();
-        var registration = services.AddStructlyOpenAi(options =>
+        var registration = services.AddStructlyAi(builder => builder.ConfigureOpenAiProvider(options =>
         {
             options.DefaultModel = new() { ModelId = "embedding" };
             options.ApiKey = "offline";
             options.UsageObserver = (_, _) => throw new InvalidOperationException("Options observer must be overridden.");
-        }).AddUsageObserver<Recorder>()
+        })).AddUsageObserver<Recorder>()
             .ConfigurePrimaryHttpMessageHandler(() => new Handler(_ => Response(ResponseEnvelopes.Embeddings([new float[] { 1, 2 }], "embedding", new() { InputTokens = 7 }))));
         Assert.Throws<InvalidOperationException>(() => registration.AddUsageObserver<Recorder>());
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
@@ -54,11 +54,11 @@ public sealed class UsageObserverHostingTests
         var services = new ServiceCollection();
         var recorder = new FailingRecorder();
         services.AddSingleton(recorder);
-        services.AddStructlyOpenAi(options =>
+        services.AddStructlyAi(builder => builder.ConfigureOpenAiProvider(options =>
         {
             options.DefaultModel = new() { ModelId = "embedding" };
             options.ApiKey = "offline";
-        }).AddUsageObserver<FailingRecorder>()
+        })).AddUsageObserver<FailingRecorder>()
             .ConfigurePrimaryHttpMessageHandler(() => new Handler(request => request.RequestUri!.AbsolutePath.EndsWith("batch", StringComparison.Ordinal) ? Response(Job()) :
                 new(System.Net.HttpStatusCode.OK) { Content = new StringContent(request.RequestUri.AbsolutePath.Contains("errors", StringComparison.Ordinal) ? "" : Line("a", Vectors())) }));
         await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });

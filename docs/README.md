@@ -33,3 +33,5 @@ for a typed request, then choose a guide for your application.
 - [Migrating to 0.4.0](migration-0.4.md): changes for existing applications.
 
 For repository builds, package validation and releases, see the [development guide](../dev/README.md).
+
+- [Provider package migration](migration-provider-split.md)

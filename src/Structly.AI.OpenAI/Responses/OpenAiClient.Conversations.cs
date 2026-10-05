@@ -27,7 +27,7 @@ public sealed partial class OpenAiClient
     {
         string? _previousResponseId;
 
-        internal override ConversationConfiguration Resolve(ConversationConfiguration configuration)
+        public override ConversationConfiguration Resolve(ConversationConfiguration configuration)
         {
             if(String.IsNullOrWhiteSpace(configuration.Instructions) || configuration.ModelSelection is null)
                 throw new ArgumentException("Conversation instructions and model selection are required.");
@@ -35,13 +35,13 @@ public sealed partial class OpenAiClient
             return configuration with { ModelSelection = client.SelectModel(configuration.ModelSelection) };
         }
 
-        internal override ConversationBackend Branch() => new OpenAiConversationBackend(client, credentials, defaults) { _previousResponseId = _previousResponseId };
+        public override ConversationBackend Branch() => new OpenAiConversationBackend(client, credentials, defaults) { _previousResponseId = _previousResponseId };
 
-        internal override async Task<StructuredResult<T>> Execute<T>(BoundOutput<T> output, ConversationConfiguration configuration,
+        public override async Task<StructuredResult<T>> Execute<T>(BoundOutput<T> output, ConversationConfiguration configuration,
             ConversationRequest request, CancellationToken cancellationToken)
         {
             var messages = request.Messages?.Select(message => message is null ? null! : message with { Content = message.Content?.ToArray()! }).ToArray();
-            var advanced = new StructuredRequest
+            var advanced = new OpenAiRequest
             {
                 Input = request.Input,
                 Messages = messages,
@@ -58,7 +58,7 @@ public sealed partial class OpenAiClient
                 IncludeReasoningSummary = configuration.IncludeReasoningSummary,
                 OpenAi = new() { Store = true, PreviousResponseId = _previousResponseId },
             };
-            advanced = defaults.Apply(advanced);
+            advanced = (OpenAiRequest)defaults.Apply(advanced);
             var result = await client.RunOperation(advanced, "Structured", execution =>
             {
                 if(messages is not null && messages.Any(message => message is null || message.Role != MessageRole.User ||

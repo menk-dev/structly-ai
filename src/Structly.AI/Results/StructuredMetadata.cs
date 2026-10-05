@@ -35,7 +35,7 @@ public sealed record StructuredMetadata
     /// <summary>Gets reported usage without inferred counts.</summary>
     public StructuredUsage? Usage { get; init; }
     /// <summary>Gets provider cache comparison diagnostics without inferring reuse.</summary>
-    public OpenAI.CacheDiagnostics? CacheDiagnostics { get; init; }
+    public CacheDiagnostics? CacheDiagnostics { get; init; }
     /// <summary>Gets output text only when explicitly captured.</summary>
     public string? OutputText { get; init; }
     /// <summary>Gets a detached raw envelope only when explicitly captured.</summary>

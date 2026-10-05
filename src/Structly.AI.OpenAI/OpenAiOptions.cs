@@ -1,12 +1,10 @@
-using Structly.AI.OpenAI;
-
-namespace Structly.AI.Hosting;
+namespace Structly.AI.OpenAI;
 
 /// <summary>Bindable settings for a hosted OpenAI client. Runtime callbacks can be configured in code.</summary>
-public sealed class OpenAiHostingOptions
+public sealed class OpenAiOptions : IStructuredUsageOptions
 {
     /// <summary>The default configuration section.</summary>
-    public const string SectionName = "Structly:OpenAI";
+    public const string SectionName = "OpenAI";
     /// <summary>Gets or sets the API key supplied by configuration. A custom resolver takes precedence.</summary>
     public string? ApiKey { get; set; }
     /// <summary>Gets whether OPENAI_API_KEY is read per execution when no configured credentials exist.</summary>

@@ -1,3 +1,4 @@
+using Structly.AI.OpenAI;
 using System.Net;
 using static Structly.AI.Tests.ReliabilityTestSupport;
 
@@ -89,7 +90,7 @@ public sealed class DeadlineTests
             : Response(new FragmentStream(streaming ? Event("response.completed", Envelope()) : Envelope()), streaming)));
         using var http = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
         var client = Client(http, clock);
-        var request = new StructuredRequest { Input = "input", Stream = streaming, TotalTimeout = TimeSpan.FromSeconds(2) };
+        var request = new OpenAiRequest { Input = "input", Stream = streaming, TotalTimeout = TimeSpan.FromSeconds(2) };
         var pending = client.ExecuteAsync(Contract(), request, TestToken);
         await stalled.NextRead();
         clock.Advance(TimeSpan.FromSeconds(2));

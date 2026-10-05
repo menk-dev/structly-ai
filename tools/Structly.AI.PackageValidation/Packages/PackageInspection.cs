@@ -61,6 +61,14 @@ static class PackageInspection
         Require(reader.Documents.All(x => !reader.GetString(reader.GetDocument(x).Name).Contains("/ref", StringComparison.Ordinal)), "Reference source in symbols.");
         Console.WriteLine($"Package metadata, contents, XML, symbols and source information passed ({version}).");
 
+        using var openAiPackage = ZipFile.OpenRead(Path.Combine(packages, $"Structly.AI.OpenAI.{version}.nupkg"));
+        using var openAiSymbols = ZipFile.OpenRead(Path.Combine(packages, $"Structly.AI.OpenAI.{version}.snupkg"));
+        ValidateCompanionPackage(openAiPackage, openAiSymbols, "Structly.AI.OpenAI", version, root);
+        var openAiMetadata = ReadXml(openAiPackage, "Structly.AI.OpenAI.nuspec");
+        var openAiNs = openAiMetadata.Root!.Name.Namespace;
+        var openAiDependency = openAiMetadata.Descendants(openAiNs + "dependency").Single();
+        Require(openAiDependency.Attribute("id")?.Value == "Structly.AI" && openAiDependency.Attribute("version")?.Value.Trim('[', ']') == version, "OpenAI must depend only on matching core.");
+
         using var hostingPackage = ZipFile.OpenRead(Path.Combine(packages, $"Structly.AI.Hosting.{version}.nupkg"));
         var hostingMetadata = ReadXml(hostingPackage, "Structly.AI.Hosting.nuspec");
         var hostingNs = hostingMetadata.Root!.Name.Namespace;
@@ -77,7 +85,7 @@ static class PackageInspection
         Require(hostingDependencies["Structly.AI"].Trim('[', ']') == version, "Hosting and core package versions disagree.");
         ValidateAssemblyVersion(hostingPackage, "lib/net10.0/Structly.AI.Hosting.dll", version);
         Require(ReadXml(hostingPackage, "lib/net10.0/Structly.AI.Hosting.xml").Descendants("member")
-            .Any(x => x.Attribute("name")?.Value == "T:Structly.AI.Hosting.OpenAiHostingOptions"), "Missing hosting XML documentation.");
+            .Any(x => x.Attribute("name")?.Value == "T:Structly.AI.Hosting.StructlyAiBuilder"), "Missing hosting XML documentation.");
         Require(ReadText(hostingPackage, "README.md") == File.ReadAllText(Path.Combine(root, "README.md")), "Packed hosting README is stale.");
         using var hostingSymbols = ZipFile.OpenRead(Path.Combine(packages, $"Structly.AI.Hosting.{version}.snupkg"));
         Require(hostingSymbols.GetEntry("lib/net10.0/Structly.AI.Hosting.pdb") is { Length: > 0 }, "Missing hosting symbols.");
@@ -92,7 +100,7 @@ static class PackageInspection
         Require(testingDetails.Element(testingNs + "license")?.Value == "MIT", "Unexpected testing license.");
         Require(testingDetails.Descendants(testingNs + "group").Single().Attribute("targetFramework")?.Value == "net10.0", "Unexpected testing framework.");
         var testingDependency = testingDetails.Descendants(testingNs + "dependency").Single();
-        Require(testingDependency.Attribute("id")?.Value == "Structly.AI" && testingDependency.Attribute("version")?.Value.Trim('[', ']') == version, "Testing must depend only on matching core.");
+        Require(testingDependency.Attribute("id")?.Value == "Structly.AI.OpenAI" && testingDependency.Attribute("version")?.Value.Trim('[', ']') == version, "Testing must depend only on matching OpenAI.");
         ValidateAssemblyVersion(testingPackage, "lib/net10.0/Structly.AI.Testing.dll", version);
         Require(ReadXml(testingPackage, "lib/net10.0/Structly.AI.Testing.xml").Descendants("member").Any(), "Missing testing XML.");
         Require(ReadText(testingPackage, "README.md") == File.ReadAllText(Path.Combine(root, "README.md")), "Stale testing README.");
@@ -108,6 +116,10 @@ static class PackageInspection
         var metadata = ReadXml(package, id + ".nuspec");
         var ns = metadata.Root!.Name.Namespace;
         var details = metadata.Root.Element(ns + "metadata")!;
+        Require(details.Element(ns + "id")?.Value == id && details.Element(ns + "version")?.Value == version, "Unexpected companion package identity.");
+        Require(details.Descendants(ns + "group").Single().Attribute("targetFramework")?.Value == "net10.0", "Unexpected companion target framework.");
+        Require(ReadXml(package, $"lib/net10.0/{id}.xml").Descendants("member").Any(), "Missing companion XML documentation.");
+        Require(ReadText(package, "README.md") == File.ReadAllText(Path.Combine(root, "README.md")), "Stale companion README.");
         Require(details.Element(ns + "authors")?.Value == "menk-dev", "Unexpected companion package authors.");
         Require(details.Element(ns + "license")?.Attribute("type")?.Value == "expression", "Missing companion SPDX license.");
         Require(details.Element(ns + "readme")?.Value == "README.md", "Missing companion README metadata.");

@@ -10,14 +10,16 @@ public sealed record TaskExecutionDefaults
     /// <summary>Gets a positive output token cap.</summary>
     public int? MaxOutputTokens { get; init; }
 
-    internal void Validate()
+    /// <summary>Validates settings without executing a provider request.</summary>
+    public void Validate()
     {
         if(TotalTimeout is { } total && (total <= TimeSpan.Zero || total > TimeSpan.FromHours(24)) ||
             InactivityTimeout is { } idle && idle <= TimeSpan.Zero || MaxOutputTokens is <= 0)
             throw new ArgumentException("Invalid task execution defaults.");
     }
 
-    internal StructuredRequest Apply(StructuredRequest request) => request with
+    /// <summary>Applies defaults while preserving the request runtime type.</summary>
+    public StructuredRequest Apply(StructuredRequest request) => request with
     {
         TotalTimeout = request.TotalTimeout ?? TotalTimeout,
         InactivityTimeout = request.InactivityTimeout ?? (request.Stream ? InactivityTimeout : null),

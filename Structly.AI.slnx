@@ -4,6 +4,7 @@
     <Project Path="examples/Structly.AI.Consumer/Structly.AI.Consumer.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/Structly.AI.OpenAI/Structly.AI.OpenAI.csproj" />
     <Project Path="src/Structly.AI.Testing/Structly.AI.Testing.csproj" />
     <Project Path="src/Structly.AI.Hosting/Structly.AI.Hosting.csproj" />
     <Project Path="src/Structly.AI.Analyzers/Structly.AI.Analyzers.csproj" />

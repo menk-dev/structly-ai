@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace Structly.AI.Hosting;
 
 /// <summary>Registers reusable, named structured AI tasks.</summary>
-public sealed class StructlyAiBuilder
+public sealed class StructlyAiBuilder : AiProviderBuilder
 {
     readonly Dictionary<string, object> _tasks = new(StringComparer.Ordinal);
     bool _frozen;
@@ -81,6 +81,7 @@ public sealed class StructlyAiBuilder
     internal FrozenDictionary<string, object> Freeze()
     {
         _frozen = true;
+        FreezeProvider();
         return _tasks.ToFrozenDictionary(StringComparer.Ordinal);
     }
 }

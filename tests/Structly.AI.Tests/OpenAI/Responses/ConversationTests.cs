@@ -1,3 +1,4 @@
+using Structly.AI.OpenAI;
 using System.Text.Json;
 using static Structly.AI.Tests.ResponseTestSupport;
 
@@ -31,7 +32,7 @@ public sealed class ConversationTests
         using var handler = new Handler(_ => throw new InvalidOperationException());
         using var http = new HttpClient(handler);
         var task = StructuredTask.Create<Patterned>(new() { Instructions = "Read", CredentialResolver = _ => throw new InvalidOperationException() });
-        foreach(var request in new StructuredRequest[] { new() { Input = "read", Vocabularies = new Dictionary<string, IReadOnlyList<string>>() }, new() { Input = "read", OutputSpecification = new() } })
+        foreach(var request in new OpenAiRequest[] { new() { Input = "read", Vocabularies = new Dictionary<string, IReadOnlyList<string>>() }, new() { Input = "read", OutputSpecification = new() } })
             Assert.Equal(StructuredErrorKind.InvalidRequest, (await Client(http).ExecuteAsync(task.BindOutput(), request, TestContext.Current.CancellationToken)).Error!.Kind);
 
         Assert.Equal(0, handler.Calls);

@@ -54,7 +54,7 @@ public sealed partial class OpenAiClient
             var model = SelectModel(request.ModelSelection ?? task.ModelSelection ?? _options.DefaultModel);
             execution.Metadata = execution.Metadata with { RequestedModel = model.ModelId };
             payload = ResponsePayload(request, model, request.Instructions ?? task.Instructions, output.Guidance);
-            payload["text"] = new { format = output.Format };
+            payload["text"] = new { format = CreateFormat(output) };
         }
         catch(StructuredSchemaException exception)
         {
@@ -69,4 +69,12 @@ public sealed partial class OpenAiClient
             root => ProcessResponse(root, request, execution, (text, metadata) => output.ReadOutput(text, metadata))).ConfigureAwait(false);
     }
 
+    static object CreateFormat<T>(BoundOutput<T> output)
+    {
+        var format = new Dictionary<string, object?> { ["type"] = "json_schema", ["name"] = output.SchemaName, ["schema"] = output.CreateSchema(), ["strict"] = true };
+        if(output.Task.Description is { } description)
+            format["description"] = description;
+
+        return format;
+    }
 }

@@ -14,6 +14,7 @@ Install the core package from nuget.org:
 
 ```sh
 dotnet add package Structly.AI --version 0.6.0
+dotnet add package Structly.AI.OpenAI --version 0.6.0
 ```
 
 Optional packages add [ASP.NET Core and Generic Host integration](https://github.com/menk-dev/structly-ai/blob/main/docs/hosting.md)
@@ -100,12 +101,14 @@ validation, and `IHttpClientFactory`. Register the provider and a named task:
 
 ```csharp
 using Structly.AI.Hosting;
+using Structly.AI.OpenAI;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddStructlyOpenAi(builder.Configuration);
-
-builder.Services.AddStructlyAi(ai => ai.AddTask<Ticket>(
-    "extract-ticket", "Extract the reported support issue."));
+builder.Services.AddStructlyAi(builder.Configuration, ai =>
+{
+    ai.ConfigureOpenAiProvider();
+    ai.AddTask<Ticket>("extract-ticket", "Extract the reported support issue.");
+});
 ```
 
 In an endpoint or service with an injected `StructlyAi ai`, execute the task:
@@ -149,7 +152,7 @@ The library does not switch models automatically or guarantee cache reuse, store
 availability, or protection from duplicate charges.
 
 Arbitrary JSON converters, recursive output types, dictionaries and polymorphic schemas
-are unsupported. This release does not support other providers, automatic retries,
+are unsupported. The OpenAI package implements one provider. This release does not include automatic retries,
 Native AOT, tool calling, image editing, or audio, video and file input.
 
 ## Run the offline examples

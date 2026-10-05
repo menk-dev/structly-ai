@@ -41,7 +41,7 @@ public sealed partial class OpenAiClient
         => ImportBatch<T>(batchId, manifest, "/v1/responses", options, (item, root, execution) =>
         {
             execution.Metadata = execution.Metadata with { SchemaName = task.SchemaName };
-            var request = new StructuredRequest { OpenAi = new() { CaptureOutputText = item.CaptureOutputText } };
+            var request = new OpenAiRequest { OpenAi = new() { CaptureOutputText = item.CaptureOutputText } };
             return ProcessResponse(root, request, execution, (text, metadata) => task.ReadOutput(text, item.Vocabularies?.ToDictionary(x => x.Key, x => (IReadOnlyList<string>)x.Value), metadata));
         }, item =>
         {

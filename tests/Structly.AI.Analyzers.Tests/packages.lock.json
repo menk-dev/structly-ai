@@ -169,6 +169,12 @@
       },
       "structly.ai.analyzers": {
         "type": "Project"
+      },
+      "structly.ai.openai": {
+        "type": "Project",
+        "dependencies": {
+          "Structly.AI": "[0.5.0, )"
+        }
       }
     }
   }

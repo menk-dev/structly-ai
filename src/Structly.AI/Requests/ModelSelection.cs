@@ -10,7 +10,8 @@ public sealed record ModelSelection
     /// <summary>Gets optional reasoning effort.</summary>
     public ReasoningEffort? ReasoningEffort { get; init; }
 
-    internal void Validate()
+    /// <summary>Validates settings without executing a provider request.</summary>
+    public void Validate()
     {
         if((ModelId is null) == (ProfileName is null) ||
             ModelId is not null && String.IsNullOrWhiteSpace(ModelId) ||

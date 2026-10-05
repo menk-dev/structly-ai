@@ -19,7 +19,7 @@ data URL. `Detail` accepts `Auto`, `Low` or `High`. The library checks URL and b
 syntax but does not download images. The provider checks image content and model support.
 
 ```csharp
-var request = new StructuredRequest
+var request = new OpenAiRequest
 {
     Messages =
     [
@@ -70,7 +70,7 @@ The following example manages response IDs explicitly.
 Set `OpenAi.PreviousResponseId` to continue from an earlier response:
 
 ```csharp
-var followUp = await client.ExecuteAsync(task, new StructuredRequest
+var followUp = await client.ExecuteAsync(task, new OpenAiRequest
 {
     Input = "Here is the missing invoice detail.",
     Vocabularies = revisedQueues,
@@ -127,7 +127,7 @@ var options = new OpenAiClientOptions
     }
 };
 
-var cachedRequest = new StructuredRequest
+var cachedRequest = new OpenAiRequest
 {
     Messages = [new(MessageRole.User,
     [
@@ -286,7 +286,7 @@ Typed results and usage events include the task's resolved `StructuredMetadata.S
 `CorrelationId` remains available for the application's individual call identifier.
 Local `ReadOutput` results also include the schema name.
 
-Omitting `StructuredRequest.OpenAi` or explicitly assigning null both use default provider
+Omitting `OpenAiRequest.OpenAi` or explicitly assigning null both use default provider
 settings. For example, `OpenAi = useCache ? new() { PromptCacheKey = "source" } : null`
 is supported.
 

@@ -4,6 +4,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../../src/Structly.AI.OpenAI/Structly.AI.OpenAI.csproj" />
     <ProjectReference Include="../../src/Structly.AI.Testing/Structly.AI.Testing.csproj" />
     <ProjectReference Include="../../src/Structly.AI/Structly.AI.csproj" />
   </ItemGroup>

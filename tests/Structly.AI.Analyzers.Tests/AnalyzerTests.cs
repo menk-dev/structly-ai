@@ -9,7 +9,7 @@ namespace Structly.AI.Analyzers.Tests;
 public sealed class AnalyzerTests
 {
     static readonly ImmutableArray<MetadataReference> _references = ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
-        .Split(Path.PathSeparator).Append(typeof(StructuredTask).Assembly.Location).Distinct()
+        .Split(Path.PathSeparator).Append(typeof(StructuredTask).Assembly.Location).Append(typeof(OpenAI.OpenAiClient).Assembly.Location).Distinct()
         .Select(x => MetadataReference.CreateFromFile(x)).ToImmutableArray<MetadataReference>();
 
     [Theory]

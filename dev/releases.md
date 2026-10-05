@@ -21,11 +21,11 @@ GitHub Release creation uses `GITHUB_TOKEN`; no long-lived publishing token is n
    ```
 
 4. Check the release workflow. It verifies that the tag belongs to `main`, runs tests,
-   builds and validates all three packages, creates the GitHub Release, attaches packages and
+   builds and validates all four packages, creates the GitHub Release, attaches packages and
    debug symbols, and publishes the packages to nuget.org. It then installs the
    core package from that feed in a fresh test application and runs it.
-5. Confirm that the release files download and that your applications can install all three
-   `Structly.AI`, `Structly.AI.Hosting` and `Structly.AI.Testing` from nuget.org.
+5. Confirm that the release files download and that your applications can install all four
+   `Structly.AI`, `Structly.AI.OpenAI`, `Structly.AI.Hosting` and `Structly.AI.Testing` from nuget.org.
 
 The packages target .NET 10, use the MIT license with copyright `menk-dev`, and publish to nuget.org.
 Version numbers are chosen manually; commit types do not set them.
@@ -47,7 +47,7 @@ variable is needed. Preserve scoped Conventional Commit subjects when squash mer
 The workflow logs into NuGet.org as `menk-dev` (the profile name, not email).
 The policy must match repository owner `menk-dev`, repository `structly-ai`, workflow
 `release.yml`, and environment `github-packages`. Allow new packages and new versions
-matching `Structly.AI*`, under the NuGet owner that will own all three packages.
+matching `Structly.AI*`, under the NuGet owner that will own all four packages.
 
 The workflow uses `id-token: write` and `NuGet/login@v1` to obtain a temporary API key,
 then publishes to `https://api.nuget.org/v3/index.json`. The environment name remains
@@ -55,7 +55,7 @@ then publishes to `https://api.nuget.org/v3/index.json`. The environment name re
 
 ## Package checks
 
-CI and the release workflow build all three packages and run `tools/Structly.AI.PackageValidation`.
+CI and the release workflow build all four packages and run `tools/Structly.AI.PackageValidation`.
 It checks version agreement, package IDs, target frameworks, licenses, dependencies,
 contents, README and XML documentation, debug symbols and Source Link metadata. It also
 installs the core package from a local feed in a separate application with a fresh cache.
