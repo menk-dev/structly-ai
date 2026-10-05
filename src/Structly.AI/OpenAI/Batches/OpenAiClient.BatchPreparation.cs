@@ -59,6 +59,7 @@ public sealed partial class OpenAiClient
             if(request.Stream || request.Progress is not null || request.CredentialResolver is not null || request.TotalTimeout is not null || request.UsageObserver is not null || request.OpenAi.IdempotencyKey is not null)
                 throw new ArgumentException("Batch items cannot specify streaming or transport controls.");
 
+            request = request with { MaxOutputTokens = request.MaxOutputTokens ?? task.ExecutionDefaults.MaxOutputTokens };
             var instructions = request.Instructions ?? task.Instructions;
             if(String.IsNullOrWhiteSpace(instructions))
                 throw new ArgumentException("Typed execution requires instructions.");

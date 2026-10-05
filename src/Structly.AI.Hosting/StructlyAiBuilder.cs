@@ -37,6 +37,35 @@ public sealed class StructlyAiBuilder
         return Add(name, new NamedAiTask<T>(null, output));
     }
 
+    /// <summary>Registers a typed reference with instructions.</summary>
+    public StructlyAiBuilder AddTask<T>(AiTaskReference<T> reference, string instructions)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        return AddTask<T>(reference.Name, instructions);
+    }
+
+    /// <summary>Registers a typed reference with options.</summary>
+    [OverloadResolutionPriority(1)]
+    public StructlyAiBuilder AddTask<T>(AiTaskReference<T> reference, StructuredTaskOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        return AddTask<T>(reference.Name, options);
+    }
+
+    /// <summary>Registers a typed reference with an existing task.</summary>
+    public StructlyAiBuilder AddTask<T>(AiTaskReference<T> reference, StructuredTask<T> task)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        return AddTask(reference.Name, task);
+    }
+
+    /// <summary>Registers a typed reference with bound output.</summary>
+    public StructlyAiBuilder AddTask<T>(AiTaskReference<T> reference, BoundOutput<T> output)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        return AddTask(reference.Name, output);
+    }
+
     StructlyAiBuilder Add(string name, object task)
     {
         if(_frozen)

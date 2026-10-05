@@ -19,6 +19,7 @@ public sealed partial class OpenAiClient
     {
         ArgumentNullException.ThrowIfNull(task);
         ArgumentNullException.ThrowIfNull(request);
+        request = task.ExecutionDefaults.Apply(request);
         return RunOperation(request, "Structured", execution => ExecuteCore(task, request, execution), cancellationToken, task.SchemaName);
     }
 
@@ -29,6 +30,7 @@ public sealed partial class OpenAiClient
     {
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(request);
+        request = output.Task.ExecutionDefaults.Apply(request);
         return RunOperation(request, "Structured", execution => ExecuteCore(output.Task, request, execution, output), cancellationToken, output.SchemaName);
     }
 

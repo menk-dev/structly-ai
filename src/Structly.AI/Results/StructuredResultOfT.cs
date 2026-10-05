@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Structly.AI;
 
 /// <summary>A typed success or categorized failure with retained metadata.</summary>
@@ -14,6 +16,8 @@ public sealed class StructuredResult<T>
     }
 
     /// <summary>Gets success independently of the value's default value.</summary>
+    [MemberNotNullWhen(true, nameof(Value))]
+    [MemberNotNullWhen(false, nameof(Error))]
     public bool IsSuccess { get; }
     /// <summary>Gets the successful value, or default on failure.</summary>
     public T? Value { get; }
@@ -40,6 +44,15 @@ public sealed class StructuredResult<T>
         ArgumentNullException.ThrowIfNull(error);
         ArgumentNullException.ThrowIfNull(metadata);
         return new(false, default, error, metadata, warnings);
+    }
+
+    /// <summary>Returns whether a successful value is available, retaining metadata on this result.</summary>
+    [MemberNotNullWhen(true, nameof(Value))]
+    [MemberNotNullWhen(false, nameof(Error))]
+    public bool TryGetValue([NotNullWhen(true), MaybeNullWhen(false)] out T value)
+    {
+        value = Value!;
+        return IsSuccess;
     }
 
     /// <summary>Returns the successful value or throws with the retained failure metadata.</summary>

@@ -10,8 +10,8 @@ for either outcome.
 var result = await client.ExecuteAsync(task, request, cancellationToken);
 
 if (result.IsSuccess)
-    Save(result.Value!);
-else if (result.Error!.Kind == StructuredErrorKind.RateLimited)
+    Save(result.Value);
+else if (result.Error.Kind == StructuredErrorKind.RateLimited)
     ScheduleRetry(result.Error.RetryAfter);
 else
     RecordFailure(result.Error.Kind, result.Error.Issues, result.Metadata);
@@ -62,3 +62,16 @@ Deadline failures include the effective `TotalTimeout`; inactivity failures incl
 `InactivityTimeout`. Their messages identify the expired budget. Invalid-output messages include
 at most five escaped path/code pairs, capped at 512 characters, with an omitted-issue indicator.
 They exclude issue messages and output values. `Issues` retains every diagnostic.
+
+`IsSuccess` includes nullable flow annotations: `Value` is nonnull in a successful branch,
+and `Error` is nonnull in a failed branch. You can also extract a value without exceptions:
+
+```csharp
+if (result.TryGetValue(out var value))
+    Save(value);
+else
+    RecordFailure(result.Error.Kind, result.Error.Issues, result.Metadata);
+```
+
+`TryGetValue` returns false and the default value on failure. Its boolean return distinguishes
+failure from a successful value such as zero. Metadata and warnings remain on the result.

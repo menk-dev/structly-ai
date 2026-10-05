@@ -3,7 +3,7 @@ namespace Structly.AI;
 /// <summary>Input and execution controls for a conversation turn.</summary>
 public sealed record ConversationRequest
 {
-    /// <summary>Gets the total execution budget, overriding the client default (positive, at most 24 hours).</summary>
+    /// <summary>Gets the total execution budget, overriding task and client defaults (positive, at most 24 hours).</summary>
     public TimeSpan? TotalTimeout { get; init; }
     /// <summary>Gets the SSE inactivity budget; valid only with streaming.</summary>
     public TimeSpan? InactivityTimeout { get; init; }

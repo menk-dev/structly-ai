@@ -124,6 +124,50 @@ For locally constructed tasks and operations other than named structured calls, 
 `OpenAiClient` directly and use the core APIs. Named tasks do not cache provider responses
 or provide automatic task-definition caching.
 
+## Optional typed task references
+
+Use `AiTaskReference<T>` to carry the name and output type together. The string APIs
+remain available, and both forms use the same registered definitions.
+
+```csharp
+public static class TicketTasks
+{
+    public static readonly AiTaskReference<Ticket> Extract = new("extract-ticket");
+}
+```
+
+Register the definition with the reference, including reusable execution settings:
+
+```csharp
+builder.Services.AddStructlyAi(ai => ai.AddTask(TicketTasks.Extract, new()
+{
+    Instructions = "Extract the reported support issue.",
+    ModelSelection = new() { ProfileName = "extract" },
+    ExecutionDefaults = new()
+    {
+        MaxOutputTokens = 800,
+        TotalTimeout = TimeSpan.FromSeconds(30)
+    }
+}));
+
+var result = await ai.ExecuteAsync(TicketTasks.Extract, text, cancellationToken);
+var detailed = await ai.ExecuteAsync(TicketTasks.Extract, new()
+{
+    Input = text,
+    MaxOutputTokens = 1600,
+    CorrelationId = ticketId
+}, cancellationToken);
+```
+
+`T` is inferred from the reference. References can also register instruction strings,
+existing tasks, or bound output. Names remain case-sensitive and unique across output
+types, including when mixing typed and string registration. A reference is an identity,
+not a definition or a client: a new reference with the same name and type resolves the
+same task. Unknown names and conflicting output types still throw before client resolution.
+The constructor rejects blank names. The immutable name cannot be changed after construction.
+
+See [task execution defaults](execution.md#task-execution-defaults) for precedence and limits.
+
 ## Using configured profiles
 
 The `/extract` endpoint above uses the `extract` profile because neither the task nor
