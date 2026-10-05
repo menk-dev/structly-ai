@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0
+
+- Breaking: batch imports return `BatchImportResult<T>` with ordered item wrappers exposing nonblank custom IDs and each item result.
+- Add per-model reported batch usage sums with per-field coverage, including usage from failed output processing and nonfatal overflow warnings.
+- Add `.AddUsageObserver<TObserver>()` in Hosting with a separate async DI scope per notification and request/import observer overrides.
+- Add request-schema completion and asynchronous offline responders to the testing fixture, with construction-time client options and queued-response precedence.
+- Add coarse error categories, safe error summaries and exception mapping to simplify consumer failure handling.
+- Add image parts constructed from supported byte signatures.
+
 ## 0.5.0
 
 - Add optional typed task references for hosting registration and execution; named string APIs remain available.
