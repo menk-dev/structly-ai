@@ -38,6 +38,8 @@ public sealed record StructuredMetadata
     public CacheDiagnostics? CacheDiagnostics { get; init; }
     /// <summary>Gets output text only when explicitly captured.</summary>
     public string? OutputText { get; init; }
+    /// <summary>Gets explicitly requested reasoning summary text, with parts joined by newlines; null when absent.</summary>
+    public string? ReasoningSummary { get; init; }
     /// <summary>Gets a detached raw envelope only when explicitly captured.</summary>
     public JsonElement? RawResponse
     {

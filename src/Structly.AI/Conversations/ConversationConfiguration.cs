@@ -7,6 +7,6 @@ public sealed record ConversationConfiguration
     public required string Instructions { get; init; }
     /// <summary>Gets the resolved explicit model and reasoning selection.</summary>
     public required ModelSelection ModelSelection { get; init; }
-    /// <summary>Gets whether turns request reasoning summaries; turns must stream.</summary>
+    /// <summary>Gets whether turns request reasoning summaries in metadata and streaming progress.</summary>
     public bool IncludeReasoningSummary { get; init; }
 }

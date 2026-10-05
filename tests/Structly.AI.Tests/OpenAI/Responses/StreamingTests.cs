@@ -13,7 +13,7 @@ public sealed class StreamingTests
         using var http = new HttpClient(handler);
         var client = Client(http, new());
         StructuredRequest[] requests = [new() { Input = "input", Progress = (_, _) => ValueTask.CompletedTask },
-            new() { Input = "input", InactivityTimeout = TimeSpan.FromSeconds(1) }, new() { Input = "input", IncludeReasoningSummary = true }];
+            new() { Input = "input", InactivityTimeout = TimeSpan.FromSeconds(1) }];
         foreach(var request in requests)
         {
             var result = await client.ExecuteAsync(Contract(), request with { CredentialResolver = _ => throw new InvalidOperationException() }, TestToken);

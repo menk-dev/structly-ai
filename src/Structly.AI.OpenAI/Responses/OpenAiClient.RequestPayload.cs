@@ -6,7 +6,7 @@ public sealed partial class OpenAiClient
     {
         ValidateCommonRequest(request);
         if(request.MaxOutputTokens is <= 0 || request.InactivityTimeout is { } idle && idle <= TimeSpan.Zero ||
-            !request.Stream && (request.InactivityTimeout is not null || request.Progress is not null || request.IncludeReasoningSummary))
+            !request.Stream && (request.InactivityTimeout is not null || request.Progress is not null))
             throw new ArgumentException("Invalid response controls.");
 
         if(prewarm && (request.Stream || request.Progress is not null || request.IncludeReasoningSummary || request.MaxOutputTokens is not null ||
