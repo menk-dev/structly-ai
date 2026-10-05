@@ -9,7 +9,7 @@ for your application.
 - [Installation and debug symbols](installation.md): core, provider, hosting and testing packages.
 - [Schemas and analyzer diagnostics](schemas.md): output types, constraints and vocabularies.
 - [Client configuration](configuration.md): HTTP lifetime, models, credentials and defaults.
-- [Mistral provider](mistral.md): structured output, configuration and provider limitations.
+- [Mistral provider](mistral.md): feature comparison with official sources, streaming, vision, conversations, embeddings, images, files and batches.
 - [.NET Hosting](hosting.md): ASP.NET Core endpoints, named tasks and singleton workers.
 
 ## Execution and results

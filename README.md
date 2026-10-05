@@ -164,7 +164,7 @@ Start with the [documentation index](https://github.com/menk-dev/structly-ai/blo
 | --- | --- |
 | Define output types and constraints | [Schemas and analyzer diagnostics](https://github.com/menk-dev/structly-ai/blob/main/docs/schemas.md) |
 | Configure HTTP, models and credentials | [Client configuration](https://github.com/menk-dev/structly-ai/blob/main/docs/configuration.md) |
-| Use Mistral structured output | [Mistral provider](https://github.com/menk-dev/structly-ai/blob/main/docs/mistral.md) |
+| Use Mistral streaming, vision, conversations, embeddings, images and batches | [Mistral provider](https://github.com/menk-dev/structly-ai/blob/main/docs/mistral.md) |
 | Bind output settings and continue typed conversations | [Bound output and conversations](https://github.com/menk-dev/structly-ai/blob/main/docs/conversations.md) |
 | Handle errors and cancellation | [Failure handling](https://github.com/menk-dev/structly-ai/blob/main/docs/failures.md) and [execution](https://github.com/menk-dev/structly-ai/blob/main/docs/execution.md) |
 | Record token counts | [Usage callbacks](https://github.com/menk-dev/structly-ai/blob/main/docs/usage.md) |
