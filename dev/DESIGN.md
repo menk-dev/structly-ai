@@ -18,7 +18,7 @@ it is not a plan to implement those features.
 ## Schema handling
 
 `SchemaResolver` builds an immutable description of the task's serialization rules.
-`SchemaWriter`, `OutputValidator` and `OutputSpecification` use it to generate the JSON
+`SchemaWriter`, `OutputValidator` and the output specification partial of `StructuredTask<T>` use it to generate the JSON
 schema, validate output and generate output instructions. Keep supported types consistent
 with [SCHEMAS.md](../docs/SCHEMAS.md). Finding a type through reflection does not prove
 that `System.Text.Json` can deserialize it.
@@ -74,9 +74,11 @@ See [ADVANCED.md](../docs/ADVANCED.md).
 | Area | Tests and behavior checked |
 | --- | --- |
 | Schema and output | `SchemaTests`, `SchemaLimitTests`, `OutputTests`, `VocabularyTests`: serialization rules, supported types, limits, constraints and separate request vocabularies |
-| Responses | `OpenAiClientTests`, `AdvancedResponseTests`: request JSON, validation before credentials and HTTP, errors, metadata, text and image messages, follow-up schemas, output instructions and caching |
-| Execution | `ReliabilityTests`: cancellation and timeout precedence, callback limits, slow progress, stalled reads, cleanup, usage on invalid output and concurrent calls |
-| Embeddings and images | `AuxiliaryOperationTests`: complete embedding indexes, ordering and finite vectors; image count, base64, format, transparent JPEG rejection and response limits |
+| Responses | `OpenAI/Responses/`: request JSON, validation before credentials and HTTP, errors, metadata, text and image messages and follow-up schemas; `Output/OutputSpecificationTests` checks output instructions |
+| Execution | `OpenAI/Execution/`: cancellation and timeout precedence, callback limits, slow progress, stalled reads, cleanup, usage on invalid output and concurrent calls |
+| Caching | `OpenAI/Caching/`: cache controls, compatibility, diagnostics and prewarming |
+| Embeddings and images | `OpenAI/Embeddings/`, `OpenAI/Images/`: complete embedding indexes, ordering and finite vectors; image count, base64, format, transparent JPEG rejection and response limits |
+| Batches and test envelopes | `OpenAI/Batches/`, `Testing/`: preparation, lifecycle, ordered import, retained accounting and envelope builders |
 | Hosting | `HostingTests`: configuration binding, dependency injection, settings validation, credentials, HTTP client settings and configuration reloads |
 | Analyzer | `AnalyzerTests`: agreement with runtime checks, valid output types, unsupported types and migration diagnostics |
 | Packages | `Structly.AI.PackageValidation`: package contents and versions, symbols, a separate test application and rejection of an unsupported output type by the packaged analyzer |

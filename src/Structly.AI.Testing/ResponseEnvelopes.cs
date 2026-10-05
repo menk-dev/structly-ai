@@ -37,7 +37,7 @@ public static class ResponseEnvelopes
         output_tokens = usage.OutputTokens,
         total_tokens = usage.TotalTokens,
         input_tokens_details = new { cached_tokens = usage.CachedInputTokens, cache_write_tokens = usage.CacheWriteTokens, text_tokens = usage.InputTextTokens, image_tokens = usage.InputImageTokens },
-        output_tokens_details = new { reasoning_tokens = usage.ReasoningTokens, text_tokens = usage.OutputTextTokens, image_tokens = usage.OutputImageTokens }
+        output_tokens_details = new { reasoning_tokens = usage.ReasoningTokens, text_tokens = usage.OutputTextTokens, image_tokens = usage.OutputImageTokens },
     };
 
     /// <summary>Creates a fresh HTTP response; the client may dispose it independently.</summary>
@@ -55,6 +55,7 @@ public static class ResponseEnvelopes
         var json = supplied?.ToJsonString() ?? "null";
         if(!task.ReadOutput(json, vocabularies).IsSuccess)
             throw new ArgumentException("Completed example does not satisfy the contract.", nameof(partialJson));
+
         return JsonSerializer.Deserialize<JsonElement>(json);
     }
 
@@ -62,6 +63,7 @@ public static class ResponseEnvelopes
     {
         if(supplied is not JsonObject target || example is not JsonObject source)
             return;
+
         foreach(var property in source)
             if(!target.ContainsKey(property.Key))
                 target[property.Key] = property.Value?.DeepClone();

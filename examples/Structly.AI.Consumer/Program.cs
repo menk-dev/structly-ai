@@ -1,19 +1,17 @@
 using Structly.AI;
 using Structly.AI.OpenAI;
 using Structly.AI.Testing;
-using System.ComponentModel;
-using System.Text.Json;
 
 // Runnable offline: no provider connection or real credentials. For production configuration
 // use a normal HttpClient and Credentials.FromEnvironment as shown in the README.
 var task = StructuredTask.Create<Ticket>(new()
 {
     SchemaName = "ticket",
-    Instructions = "Extract a support ticket and select the matching queue."
+    Instructions = "Extract a support ticket and select the matching queue.",
 });
 IReadOnlyDictionary<string, IReadOnlyList<string>> vocabularies = new Dictionary<string, IReadOnlyList<string>>
 {
-    ["queues"] = ["billing", "technical"]
+    ["queues"] = ["billing", "technical"],
 };
 if(task.CreateSchema(vocabularies).GetProperty("type").GetString() != "object")
     throw new InvalidOperationException("Expected an object schema.");
@@ -27,7 +25,7 @@ using var http = new HttpClient(new OfflineResponsesHandler()) { Timeout = Timeo
 var client = new OpenAiClient(http, new()
 {
     DefaultModel = new() { ModelId = "offline-fixture-model" },
-    CredentialResolver = Credentials.FromStatic("offline-fixture-credential")
+    CredentialResolver = Credentials.FromStatic("offline-fixture-credential"),
 });
 var observed = 0;
 var result = await client.ExecuteAsync(task, new()
@@ -39,7 +37,7 @@ var result = await client.ExecuteAsync(task, new()
         observed++;
         Console.WriteLine($"Usage {usage.Metadata.ExecutionId}: {usage.Metadata.Usage?.TotalTokens} tokens");
         return ValueTask.CompletedTask;
-    }
+    },
 });
 var ticket = result.EnsureSuccess();
 if(ticket.Queue != "billing" || result.Metadata.ResponseId != "resp_offline" || observed != 1)
@@ -62,26 +60,3 @@ catch(StructuredOperationCanceledException exception) when(exception.Cancellatio
 }
 await BatchExamples.Run();
 Console.WriteLine("Offline consumer passed.");
-
-public sealed record Ticket
-{
-    [Description("Short description of the reported issue.")]
-    public required string Summary { get; init; }
-    [DynamicVocabulary("queues")]
-    public required string Queue { get; init; }
-    public string? Reference { get; init; }
-}
-
-sealed class OfflineResponsesHandler : HttpMessageHandler
-{
-    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-    {
-        if(request.RequestUri?.AbsolutePath != "/v1/responses")
-            throw new InvalidOperationException("Unexpected endpoint.");
-        using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
-        if(body.RootElement.GetProperty("text").GetProperty("format").GetProperty("strict").GetBoolean() != true)
-            throw new InvalidOperationException("The consumer must send a strict schema.");
-        var output = JsonSerializer.Serialize(new { summary = "Duplicate charge", queue = "billing", reference = "INV-42" });
-        return ResponseEnvelopes.ToHttpResponse(ResponseEnvelopes.CompletedText(output, "offline-fixture-model", "resp_offline", new() { InputTokens = 12, OutputTokens = 8, TotalTokens = 20 }));
-    }
-}

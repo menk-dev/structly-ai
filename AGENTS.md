@@ -6,6 +6,12 @@ Class fields should use readonly-first declarations with underscore-prefixed cam
 
 Organize code by feature: keep endpoint behavior, request models, validators, and feature-specific helpers together.
 
+Give each top-level public type its own file named after the type, including enums and attributes. Use `OfT` in filenames to distinguish generic and nongeneric types with the same name. Name partial implementation files after the type and responsibility, for example `OpenAiClient.BatchImport.cs`.
+
+Keep substantial internal types in separate files. Small nested types used only by their containing implementation or test may stay there. Put shared test fixtures in `Support/` and group tests by the feature they exercise. Avoid catch-all folders and filenames such as `Helpers` or `AdvancedContracts`.
+
+Folders describe source responsibilities; existing public namespaces do not need to match folders. Preserve public namespaces when moving files so consumers keep their existing imports. See [dev/STRUCTURE.md](dev/STRUCTURE.md) for the project layout.
+
 Add an abstraction when it removes meaningful duplication or supports multiple existing implementations. Otherwise, use direct feature code rather than interfaces or service layers for possible future uses.
 
 Extract a method when its name explains what the code does and its implementation contains details the caller does not need to follow. Keep straightforward construction and one-line delegation at the call site rather than wrapping them just to shorten the caller. A helper that sanitizes provider errors or applies a business rule is useful. A helper that only forwards a call or replaces a clear constructor or object initializer is not.

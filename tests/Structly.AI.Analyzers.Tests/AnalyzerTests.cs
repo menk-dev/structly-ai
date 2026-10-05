@@ -1,7 +1,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Structly.AI.Analyzers;
 using System.Collections.Immutable;
 using System.Reflection;
 
@@ -251,6 +250,7 @@ public sealed class AnalyzerTests
         {
             runtime = Assert.Single(schema.Issues);
         }
+
         if(code is null)
         {
             Assert.Null(runtime);

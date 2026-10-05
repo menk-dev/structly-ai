@@ -1,5 +1,7 @@
 <Project>
   <ItemGroup>
+    <PackageVersion Include="StyleCop.Analyzers" Version="1.2.0-beta.556" />
+    <PackageVersion Include="Roslynator.Formatting.Analyzers" Version="5.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
