@@ -74,6 +74,61 @@ public sealed record TicketInput(string Text);
 public sealed record Ticket(string Summary);
 ```
 
+## Using configured profiles
+
+The `/extract` endpoint above uses the `extract` profile because neither the task nor
+the request sets `ModelSelection`. The configured `DefaultModel.ProfileName` selects
+that entry from `Profiles`, including its model ID and reasoning effort.
+
+To select a profile for a reusable task, set `ModelSelection` when creating it:
+
+```csharp
+var task = StructuredTask.Create<Ticket>(new()
+{
+    Instructions = "Extract the reported support issue.",
+    SchemaName = "ticket",
+    ModelSelection = new() { ProfileName = "extract" }
+});
+```
+
+To select a profile for one call, set it on the request passed to the injected
+`OpenAiClient`:
+
+```csharp
+var result = await client.ExecuteAsync(task, new()
+{
+    Input = "The application crashes when I open settings.",
+    ModelSelection = new() { ProfileName = "extract" }
+}, cancellationToken);
+```
+
+Request selection overrides task selection, which overrides `DefaultModel`. Select
+exactly one `ProfileName` or `ModelId`. Profile names are case-sensitive and must match
+a configured entry. Structured output, free text and prewarming use `Profiles`.
+
+Embeddings and images require their own request selection; they do not use
+`DefaultModel`. The `search` and `draw` entries in the settings above are used as follows:
+
+```csharp
+using Structly.AI.Embeddings;
+using Structly.AI.Imaging;
+
+var embedded = await client.EmbedAsync(new EmbeddingRequest
+{
+    Inputs = ["The application crashes when I open settings."],
+    ModelSelection = new() { ProfileName = "search" }
+}, cancellationToken);
+
+var images = await client.GenerateImagesAsync(new ImageGenerationRequest
+{
+    Prompt = "A simple illustration of a support ticket.",
+    ModelSelection = new() { ProfileName = "draw" }
+}, cancellationToken);
+```
+
+`search` is resolved from `EmbeddingProfiles`, and `draw` from `ImageProfiles`.
+These profiles and requests do not support reasoning effort settings.
+
 ## Generic Host and workers
 
 ```csharp
