@@ -11,6 +11,9 @@
 
 ## Unreleased
 
+- Add instruction-only task creation and text-input execution overloads for tasks and bound output.
+- Add a disposable OpenAiTestFixture with queued envelopes, request snapshots and unused-response counts.
+
 ## 0.3.0
 
 - Supports default built-in string-enum converter attributes on enum types and properties.

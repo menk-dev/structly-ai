@@ -113,7 +113,7 @@ public sealed class SchemaLimitTests
     }
 
     static void CreateDynamic(Type type)
-        => typeof(StructuredTask).GetMethod(nameof(StructuredTask.Create))!.MakeGenericMethod(type).Invoke(null, [new StructuredTaskOptions { Instructions = "x" }]);
+        => typeof(StructuredTask).GetMethod(nameof(StructuredTask.Create), [typeof(StructuredTaskOptions)])!.MakeGenericMethod(type).Invoke(null, [new StructuredTaskOptions { Instructions = "x" }]);
 
     static StructuredSchemaException InvalidDynamic(Type type)
         => Assert.IsType<StructuredSchemaException>(Assert.Throws<TargetInvocationException>(() => CreateDynamic(type)).InnerException);
