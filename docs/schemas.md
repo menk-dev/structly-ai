@@ -36,10 +36,13 @@ public sealed record Ticket
 {
     [StringConstraint(MinLength = 1, MaxLength = 120)]
     public required string Summary { get; init; }
+
     [DynamicVocabulary("queues")]
     public required string Queue { get; init; }
+
     [NumberConstraint(Minimum = 0, Maximum = 1)]
     public double Confidence { get; init; }
+
     [CollectionConstraint(MaxItems = 5)]
     public string?[]? References { get; init; }
 }

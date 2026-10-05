@@ -1,6 +1,7 @@
 # Development
 
-User guides are in [docs/](../docs/). This directory covers development and releases:
+User guides are in the [documentation index](../docs/README.md). Runnable offline consumers
+are described in the [examples guide](../examples/README.md). This directory covers development and releases:
 
 - [Design and tests](design.md)
 - [Source structure](structure.md)

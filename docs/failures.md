@@ -8,6 +8,7 @@ for either outcome.
 
 ```csharp
 var result = await client.ExecuteAsync(task, request, cancellationToken);
+
 if (result.IsSuccess)
     Save(result.Value!);
 else if (result.Error!.Kind == StructuredErrorKind.RateLimited)

@@ -8,6 +8,8 @@ The provider uses a `24h` completion window. See the
 
 ## Prepare and submit
 
+### 1. Prepare the requests
+
 ```csharp
 var prepared = client.PrepareEmbeddingBatch([
     new("document-1", new()
@@ -18,12 +20,24 @@ var prepared = client.PrepareEmbeddingBatch([
         CorrelationId = "tenant-1"
     })
 ]);
+```
+
+### 2. Save the JSONL and manifest
+
+```csharp
 await using (var jsonl = File.Create("embedding-batch.jsonl"))
     await prepared.WriteJsonlAsync(jsonl, cancellationToken);
+
 await File.WriteAllTextAsync("manifest.json", prepared.Manifest.ToJson(), cancellationToken);
+```
+
+### 3. Submit and retain recovery IDs
+
+```csharp
 var submission = await client.SubmitBatchAsync(prepared, cancellationToken: cancellationToken);
 if (!submission.IsSuccess && submission.Metadata.UploadedFileId is { } uploadedFile)
     SaveFileForRecovery(uploadedFile);
+
 var job = submission.EnsureSuccess();
 SaveJobId(job.Id);
 ```
@@ -49,6 +63,7 @@ Async operations return `StructuredResult<T>` and preserve caller cancellation e
 var manifest = BatchManifest.FromJson(await File.ReadAllTextAsync("manifest.json", cancellationToken));
 var imported = await client.ImportEmbeddingBatchResultsAsync(batchId, manifest,
     new() { UsageObserver = RecordUsageAsync }, cancellationToken);
+
 foreach (var item in imported.EnsureSuccess())
     SaveEmbeddingOrFailure(item.Metadata.BatchCustomId!, item);
 ```
