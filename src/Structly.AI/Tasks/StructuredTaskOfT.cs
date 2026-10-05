@@ -24,6 +24,9 @@ public sealed partial class StructuredTask<T>
         if(!Enum.IsDefined(options.SerializationProfile.Naming))
             throw new ArgumentException("Unsupported naming policy.", nameof(options));
 
+        ArgumentNullException.ThrowIfNull(options.ExecutionDefaults);
+        options.ExecutionDefaults.Validate();
+        ExecutionDefaults = options.ExecutionDefaults with { };
         options.ModelSelection?.Validate();
         if(!Enum.IsDefined(options.VocabularyOrder))
             throw new ArgumentException("Invalid vocabulary order.", nameof(options));
@@ -71,6 +74,8 @@ public sealed partial class StructuredTask<T>
         SchemaWriter.Create(_contract, Description, null, allowMissingVocabularies: true);
     }
 
+    /// <summary>Gets immutable reusable execution defaults.</summary>
+    public TaskExecutionDefaults ExecutionDefaults { get; }
     /// <summary>Gets vocabulary ordering.</summary>
     public VocabularyOrder VocabularyOrder { get; }
     /// <summary>Gets task-specific model selection.</summary>

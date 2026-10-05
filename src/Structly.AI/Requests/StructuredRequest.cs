@@ -3,7 +3,7 @@ namespace Structly.AI;
 /// <summary>Per-call settings for typed provider execution.</summary>
 public sealed record StructuredRequest
 {
-    /// <summary>Gets the total execution budget, overriding the client default (positive, at most 24 hours).</summary>
+    /// <summary>Gets the total execution budget, overriding task and client defaults (positive, at most 24 hours).</summary>
     public TimeSpan? TotalTimeout { get; init; }
     /// <summary>Gets the SSE inactivity budget; valid only with streaming.</summary>
     public TimeSpan? InactivityTimeout { get; init; }

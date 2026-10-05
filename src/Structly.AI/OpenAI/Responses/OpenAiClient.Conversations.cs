@@ -13,7 +13,7 @@ public sealed partial class OpenAiClient
     public StructuredConversation<T> CreateConversation<T>(BoundOutput<T> output, ConversationOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(output);
-        var backend = new OpenAiConversationBackend(this, output.Task.CredentialResolver);
+        var backend = new OpenAiConversationBackend(this, output.Task.CredentialResolver, output.Task.ExecutionDefaults);
         var configuration = backend.Resolve(new()
         {
             Instructions = options?.Instructions ?? output.Task.Instructions!,
@@ -23,7 +23,7 @@ public sealed partial class OpenAiClient
         return new(output, configuration, backend);
     }
 
-    sealed class OpenAiConversationBackend(OpenAiClient client, Func<CancellationToken, ValueTask<string?>>? credentials) : ConversationBackend
+    sealed class OpenAiConversationBackend(OpenAiClient client, Func<CancellationToken, ValueTask<string?>>? credentials, TaskExecutionDefaults defaults) : ConversationBackend
     {
         string? _previousResponseId;
 
@@ -35,7 +35,7 @@ public sealed partial class OpenAiClient
             return configuration with { ModelSelection = client.SelectModel(configuration.ModelSelection) };
         }
 
-        internal override ConversationBackend Branch() => new OpenAiConversationBackend(client, credentials) { _previousResponseId = _previousResponseId };
+        internal override ConversationBackend Branch() => new OpenAiConversationBackend(client, credentials, defaults) { _previousResponseId = _previousResponseId };
 
         internal override async Task<StructuredResult<T>> Execute<T>(BoundOutput<T> output, ConversationConfiguration configuration,
             ConversationRequest request, CancellationToken cancellationToken)
@@ -58,6 +58,7 @@ public sealed partial class OpenAiClient
                 IncludeReasoningSummary = configuration.IncludeReasoningSummary,
                 OpenAi = new() { Store = true, PreviousResponseId = _previousResponseId },
             };
+            advanced = defaults.Apply(advanced);
             var result = await client.RunOperation(advanced, "Structured", execution =>
             {
                 if(messages is not null && messages.Any(message => message is null || message.Role != MessageRole.User ||

@@ -12,6 +12,53 @@ namespace Structly.AI.Tests;
 public sealed class NamedAiTaskTests
 {
     [Fact]
+    public async Task Typed_references_share_named_registration_and_infer_output_types()
+    {
+        var reference = new AiTaskReference<Answer>("typed");
+        var existing = new AiTaskReference<Answer>("existing");
+        var bound = new AiTaskReference<Answer>("bound");
+        var simple = new AiTaskReference<Answer>("simple");
+        var bodies = new List<JsonElement>();
+        var services = new ServiceCollection();
+        services.AddStructlyOpenAi(options =>
+        {
+            options.DefaultModel = new() { ModelId = "offline" };
+            options.CredentialResolver = Credentials.FromStatic("offline");
+        }).ConfigurePrimaryHttpMessageHandler(() => new Handler(async (request, token) =>
+        {
+            bodies.Add(JsonSerializer.Deserialize<JsonElement>(await request.Content!.ReadAsStringAsync(token)));
+            return ResponseEnvelopes.ToHttpResponse(ResponseEnvelopes.CompletedText("{\"value\":\"answer\"}"));
+        }));
+        var task = StructuredTask.Create<Answer>("Extract");
+        services.AddStructlyAi(ai => ai
+            .AddTask(reference, new()
+            {
+                Instructions = "Extract",
+                ExecutionDefaults = new() { MaxOutputTokens = 800, TotalTimeout = TimeSpan.FromSeconds(30) },
+            })
+            .AddTask(existing, task)
+            .AddTask(bound, task.BindOutput())
+            .AddTask(simple, "Extract"));
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        var ai = provider.GetRequiredService<StructlyAi>();
+        StructuredResult<Answer> result = await ai.ExecuteAsync(new AiTaskReference<Answer>("typed"), "input", TestContext.Current.CancellationToken);
+        Assert.Equal("answer", result.EnsureSuccess().Value);
+        await ai.ExecuteAsync(reference, new() { Input = "input", MaxOutputTokens = 1600 }, TestContext.Current.CancellationToken);
+        await ai.ExecuteTaskAsync<Answer>(reference.Name, "input", TestContext.Current.CancellationToken);
+        foreach(var other in new[] { existing, bound, simple })
+            Assert.True((await ai.ExecuteAsync(other, "input", TestContext.Current.CancellationToken)).IsSuccess);
+
+        Assert.Equal(800, bodies[0].GetProperty("max_output_tokens").GetInt32());
+        Assert.Equal(1600, bodies[1].GetProperty("max_output_tokens").GetInt32());
+        Assert.Equal(800, bodies[2].GetProperty("max_output_tokens").GetInt32());
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => ai.ExecuteAsync(new AiTaskReference<Answer>("missing"), "input", TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => ai.ExecuteAsync(new AiTaskReference<OtherAnswer>("typed"), "input", TestContext.Current.CancellationToken));
+        Assert.Throws<ArgumentException>(() => new AiTaskReference<Answer>(" "));
+        Assert.Throws<ArgumentException>(() => new ServiceCollection().AddStructlyAi(builder => builder
+            .AddTask(reference, "Extract").AddTask<OtherAnswer>(reference.Name, "Other")));
+    }
+
+    [Fact]
     public async Task Registration_forms_execute_independent_definitions_and_preserve_request_settings()
     {
         var bodies = new List<JsonElement>();

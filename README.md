@@ -66,9 +66,9 @@ var result = await client.ExecuteAsync(task, new()
 });
 
 if (result.IsSuccess)
-    Console.WriteLine(result.Value!.Summary);
+    Console.WriteLine(result.Value.Summary);
 else
-    Console.WriteLine($"{result.Error!.Kind}: {result.Error.Message}");
+    Console.WriteLine($"{result.Error.Kind}: {result.Error.Message}");
 ```
 
 ### 4. Declare the output type
@@ -114,6 +114,10 @@ In an endpoint or service with an injected `StructlyAi ai`, execute the task:
 var result = await ai.ExecuteTaskAsync<Ticket>(
     "extract-ticket", text, cancellationToken);
 ```
+
+Optionally use `AiTaskReference<T>` to keep task names and output types together and let
+execution infer the result type. Tasks can also carry timeout and output-token defaults;
+per-call settings override them. See the [typed reference example](https://github.com/menk-dev/structly-ai/blob/main/docs/hosting.md#optional-typed-task-references).
 
 Configure `Structly:OpenAI:DefaultModel` and supply `Structly__OpenAI__ApiKey` through
 environment configuration or user secrets. Definitions are validated during registration;

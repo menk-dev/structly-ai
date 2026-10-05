@@ -17,6 +17,21 @@ public sealed class StructlyAi
         _tasks = tasks;
     }
 
+    /// <summary>Executes a typed task reference with text input.</summary>
+    public Task<StructuredResult<T>> ExecuteAsync<T>(AiTaskReference<T> reference, string input, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        return ExecuteTaskAsync<T>(reference.Name, input, cancellationToken);
+    }
+
+    /// <summary>Executes a typed task reference with per-call settings.</summary>
+    [OverloadResolutionPriority(1)]
+    public Task<StructuredResult<T>> ExecuteAsync<T>(AiTaskReference<T> reference, StructuredRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+        return ExecuteTaskAsync<T>(reference.Name, request, cancellationToken);
+    }
+
     /// <summary>Executes a named task with text input.</summary>
     public Task<StructuredResult<T>> ExecuteTaskAsync<T>(string name, string input, CancellationToken cancellationToken = default)
         => ExecuteTaskAsync<T>(name, new StructuredRequest { Input = input }, cancellationToken);

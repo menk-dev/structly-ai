@@ -11,6 +11,10 @@
 
 ## Unreleased
 
+- Add optional typed task references for hosting registration and execution; named string APIs remain available.
+- Add validated task execution defaults for total timeout, streaming inactivity timeout and output-token limits, with per-call overrides.
+- Add nullable flow annotations and `TryGetValue` to structured results.
+
 - Add instruction-only task creation and text-input execution overloads for tasks and bound output.
 - Add a disposable OpenAiTestFixture with queued envelopes, request snapshots and unused-response counts.
 

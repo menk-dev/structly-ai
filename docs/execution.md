@@ -153,3 +153,38 @@ and invalid output can be billed.
 requests or guarantee that the provider prevents duplicate processing. `CorrelationId`
 stays local; `OpenAiResponseOptions.Metadata` is sent to the provider. A timeout or network
 failure can happen after the provider accepts the request. Consider that before retrying.
+
+## Task execution defaults
+
+Set `StructuredTaskOptions.ExecutionDefaults` when creating or registering a task to
+avoid repeating execution settings in every request:
+
+```csharp
+var task = StructuredTask.Create<Ticket>(new()
+{
+    Instructions = "Extract the reported support issue.",
+    ExecutionDefaults = new()
+    {
+        TotalTimeout = TimeSpan.FromSeconds(30),
+        InactivityTimeout = TimeSpan.FromSeconds(5),
+        MaxOutputTokens = 800
+    }
+});
+var result = await client.ExecuteAsync(task, text, cancellationToken);
+```
+
+Each setting uses the per-call value first, then the task default, then the client default
+where available. Clients have no default output-token cap. Null means inherit; to change
+a task cap for one call, supply another positive cap. Invalid explicit overrides fail
+validation rather than falling back. Requests are not modified.
+
+Total timeouts must be positive and at most 24 hours. Inactivity timeouts and token caps
+must be positive. Defaults are validated during task creation and apply to hosted calls,
+direct task calls and bound-output calls, including the string overloads. A task's inactivity
+default applies only when the call streams; an explicit inactivity setting on a non-streaming
+request remains invalid.
+
+Conversations capture the original task defaults at creation. Output and configuration
+branches preserve those defaults, and each turn can override them. Responses batches inherit
+only the output-token cap; configure batch transport deadlines with `BatchOperationOptions`.
+Prewarming does not inherit these generation settings.

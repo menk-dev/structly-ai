@@ -13,6 +13,8 @@ public sealed record StructuredTaskOptions
     public string? Description { get; init; }
     /// <summary>Gets supported immutable serialization settings.</summary>
     public SerializationProfile SerializationProfile { get; init; } = new();
+    /// <summary>Gets reusable execution defaults, overridden by per-call settings.</summary>
+    public TaskExecutionDefaults ExecutionDefaults { get; init; } = new();
     /// <summary>Gets task-specific model selection.</summary>
     public ModelSelection? ModelSelection { get; init; }
     /// <summary>Gets task-specific credentials.</summary>
