@@ -1,15 +1,6 @@
 # Changelog
 
-## 0.4.0
-
-- Add validated examples, optional task instructions, vocabulary ordering, timeout budgets, missing-credential classification and direct usage-event accounting fields.
-- Add callback hosting configuration and opt-in environment credentials; supply exact GPT-6 cache defaults.
-- Add batch files, lifecycle operations, prepared embedding/typed Responses batches and manifest-based streaming result imports.
-- Add Structly.AI.Testing envelope builders and explicit example completion.
-- Breaking: missing credentials now return CredentialsMissing; typed execution still requires effective instructions.
-
-
-## Unreleased
+## 0.5.0
 
 - Add optional typed task references for hosting registration and execution; named string APIs remain available.
 - Add validated task execution defaults for total timeout, streaming inactivity timeout and output-token limits, with per-call overrides.
@@ -17,6 +8,17 @@
 
 - Add instruction-only task creation and text-input execution overloads for tasks and bound output.
 - Add a disposable OpenAiTestFixture with queued envelopes, request snapshots and unused-response counts.
+- Add reusable named AI tasks through `StructlyAi` in the hosting package.
+- Add bound output contracts and typed conversations with independent output and configuration branches.
+- Reorganize user guides and clarify runnable examples.
+
+## 0.4.0
+
+- Add validated examples, optional task instructions, vocabulary ordering, timeout budgets, missing-credential classification and direct usage-event accounting fields.
+- Add callback hosting configuration and opt-in environment credentials; supply exact GPT-6 cache defaults.
+- Add batch files, lifecycle operations, prepared embedding/typed Responses batches and manifest-based streaming result imports.
+- Add Structly.AI.Testing envelope builders and explicit example completion.
+- Breaking: missing credentials now return CredentialsMissing; typed execution still requires effective instructions.
 
 ## 0.3.0
 

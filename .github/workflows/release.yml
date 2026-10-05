@@ -72,9 +72,10 @@ jobs:
           trap 'rm -rf "$consumer_dir"' EXIT
           version="$(cat version.txt)"
           dotnet new console --framework net10.0 --no-restore --output "$consumer_dir"
-          cp examples/Structly.AI.Consumer/*.cs "$consumer_dir/"
+          rsync -a --exclude bin --exclude obj --include '*/' --include '*.cs' --exclude '*' examples/Structly.AI.Consumer/ "$consumer_dir/"
           dotnet add "$consumer_dir" package Structly.AI --version "$version" --no-restore
           dotnet add "$consumer_dir" package Structly.AI.Testing --version "$version" --no-restore
+          dotnet add "$consumer_dir" package Structly.AI.Hosting --version "$version" --no-restore
           cat > "$consumer_dir/NuGet.Config" <<EOF
           <configuration>
             <packageSources>
