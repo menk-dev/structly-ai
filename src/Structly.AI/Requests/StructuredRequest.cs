@@ -9,7 +9,7 @@ public record StructuredRequest
     public TimeSpan? InactivityTimeout { get; init; }
     /// <summary>Gets whether to use SSE, independently of progress observation.</summary>
     public bool Stream { get; init; }
-    /// <summary>Gets whether to request and expose reasoning summaries; requires streaming.</summary>
+    /// <summary>Gets whether to request and expose reasoning summaries in metadata and streaming progress.</summary>
     public bool IncludeReasoningSummary { get; init; }
     /// <summary>Gets an ordered, best-effort streaming progress callback.</summary>
     public Func<StructuredProgress, CancellationToken, ValueTask>? Progress { get; init; }

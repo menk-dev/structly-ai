@@ -32,13 +32,22 @@ public sealed partial class OpenAiClient
             return ProviderStatusFailure() ?? Fail(StructuredErrorKind.InvalidResponse);
 
         var text = new StringBuilder();
+        var summaries = new List<string>();
         var answers = 0;
         var refused = false;
         var invalid = false;
         foreach(var item in output.EnumerateArray())
         {
             if(Text(item, "type") == "reasoning")
+            {
+                var summary = Property(item, "summary");
+                if(request.IncludeReasoningSummary && summary.ValueKind == JsonValueKind.Array)
+                    foreach(var part in summary.EnumerateArray())
+                        if(Text(part, "type") == "summary_text" && Text(part, "text") is { Length: > 0 } summaryText)
+                            summaries.Add(summaryText);
+
                 continue;
+            }
 
             if(Text(item, "type") != "message" || Text(item, "role") != "assistant" || Text(item, "status") != "completed")
             {
@@ -65,7 +74,11 @@ public sealed partial class OpenAiClient
             }
         }
 
-        execution.Metadata = execution.Metadata with { OutputText = ResponseOptions(request).CaptureOutputText ? text.ToString() : null };
+        execution.Metadata = execution.Metadata with
+        {
+            OutputText = ResponseOptions(request).CaptureOutputText ? text.ToString() : null,
+            ReasoningSummary = summaries.Count > 0 ? String.Join("\n", summaries) : null,
+        };
         if(ProviderStatusFailure() is { } statusFailure)
             return statusFailure;
 

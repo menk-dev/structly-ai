@@ -168,7 +168,6 @@ public sealed class ConversationTests
         var client = Client(http);
         Assert.Throws<ArgumentException>(() => client.CreateConversation(StructuredTask.Create<Patterned>(new())));
         var conversation = client.CreateConversation(Contract<Patterned>(), new() { IncludeReasoningSummary = true });
-        Assert.Equal(StructuredErrorKind.InvalidRequest, (await conversation.ExecuteAsync(new() { Input = "read" }, TestContext.Current.CancellationToken)).Error!.Kind);
         foreach(var role in new[] { MessageRole.Developer, MessageRole.Assistant })
             Assert.Equal(StructuredErrorKind.InvalidRequest, (await conversation.ExecuteAsync(new() { Stream = true, Messages = [new(role, [new TextPart("read")])] }, TestContext.Current.CancellationToken)).Error!.Kind);
 

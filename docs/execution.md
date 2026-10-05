@@ -74,9 +74,25 @@ var result = await client.ExecuteAsync(task, request, cancellationToken);
 `DisplayProgressAsync` and `RecordUsageAsync` are application callbacks. Progress arrives
 in order: `Started`, then `OutputTextDelta` or `ReasoningSummaryDelta`, then `Completed`
 after output validation. `IncludeReasoningSummary` requests `reasoning.summary=auto` and
-requires streaming. Check that the model supports it. `OutputIndex` and `SummaryIndex`
+works with or without streaming. Check that the model supports it. `OutputIndex` and `SummaryIndex`
 identify summary parts. Raw reasoning events are ignored. Progress text and summaries may
 contain sensitive data and have not passed final output validation.
+
+When `IncludeReasoningSummary=true`, `result.Metadata.ReasoningSummary` contains summary
+text from the final response in both modes. Summary parts across reasoning items are joined
+with newlines in provider order. It is null when no summary text is returned or summaries
+were not requested. It remains available on output validation and provider status failures
+when the final response includes it. Streaming deltas are separate from this final value;
+raw reasoning text is never copied into it.
+
+```csharp
+var result = await client.ExecuteAsync(task, new StructuredRequest
+{
+    Input = "Extract the ticket from this message.",
+    IncludeReasoningSummary = true
+}, cancellationToken);
+var summary = result.Metadata.ReasoningSummary;
+```
 
 The SSE reader supports fragmented UTF-8, multiline data, CR, LF and CRLF line endings,
 an initial byte-order mark, and comments. It ignores unknown and unrelated event types.
