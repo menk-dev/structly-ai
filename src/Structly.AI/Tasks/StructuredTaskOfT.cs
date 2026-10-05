@@ -9,6 +9,10 @@ namespace Structly.AI;
 public sealed partial class StructuredTask<T>
 {
     readonly SchemaNode _contract;
+    internal SchemaNode Contract => _contract;
+
+    /// <summary>Snapshots and validates runtime output settings without resolving credentials.</summary>
+    public BoundOutput<T> BindOutput(OutputBindingOptions? options = null) => new(this, options);
     readonly JsonSerializerOptions _serializer;
 
     internal StructuredTask(StructuredTaskOptions options)
