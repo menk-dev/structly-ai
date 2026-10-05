@@ -5,22 +5,45 @@ Define an output type, create a reusable task, and execute it. Each result inclu
 either a value or an error, along with any response IDs and token counts reported by
 the provider. Token counts can still be available when the output is invalid.
 
-Supports **.NET 10** and OpenAI. The runtime has no NuGet dependencies. The package also
-includes a C# Roslyn analyzer that checks supported output types during compilation.
-Version `0.2.0` adds the optional `Structly.AI.Hosting` package for ASP.NET Core and
-Generic Host. Install packages from nuget.org.
+Supports **.NET 10** and OpenAI. The core runtime has no NuGet dependencies and includes
+a C# Roslyn analyzer that checks supported output types during compilation.
+
+## Install
+
+Install the core package from nuget.org:
+
+```sh
+dotnet add package Structly.AI --version 0.4.0
+```
+
+Optional packages add [ASP.NET Core and Generic Host integration](https://github.com/menk-dev/structly-ai/blob/main/docs/hosting.md)
+and [offline testing utilities](https://github.com/menk-dev/structly-ai/blob/main/docs/testing.md):
+
+```sh
+dotnet add package Structly.AI.Hosting --version 0.4.0
+dotnet add package Structly.AI.Testing --version 0.4.0
+```
+
+See [installation and debug symbols](https://github.com/menk-dev/structly-ai/blob/main/docs/installation.md) for details.
 
 ## Quick start
 
-See the [installation guide](https://github.com/menk-dev/structly-ai/blob/main/docs/installation.md#consuming-from-your-projects)
-and install with `dotnet add package Structly.AI --version 0.4.0`. Configure a model ID
-supported by your account and supply credentials explicitly:
+The following snippets belong in the same console application's `Program.cs`, in the
+order shown. Configure a model ID supported by your account in `STRUCTLY_MODEL` and
+supply credentials through `OPENAI_API_KEY`.
+
+### 1. Define a reusable task
 
 ```csharp
 using Structly.AI;
 using Structly.AI.OpenAI;
 
 var task = StructuredTask.Create<Ticket>("Extract the reported support issue.");
+```
+
+### 2. Configure the client
+
+```csharp
 using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
 var client = new OpenAiClient(http, new()
 {
@@ -31,77 +54,90 @@ var client = new OpenAiClient(http, new()
     },
     CredentialResolver = Credentials.FromEnvironment("OPENAI_API_KEY")
 });
+```
+
+### 3. Execute and inspect the result
+
+```csharp
 var result = await client.ExecuteAsync(task, new()
 {
     Input = "Invoice INV-42 was charged twice.",
     TotalTimeout = TimeSpan.FromSeconds(60)
 });
+
 if (result.IsSuccess)
     Console.WriteLine(result.Value!.Summary);
 else
     Console.WriteLine($"{result.Error!.Kind}: {result.Error.Message}");
+```
 
+### 4. Declare the output type
+
+```csharp
 public sealed record Ticket
 {
     public required string Summary { get; init; }
+
     public string? Reference { get; init; }
 }
 ```
 
 Every included property must appear in the JSON. Nullable properties may contain `null`;
-they cannot be omitted. Creating a task checks its schema. You can reuse the task for
-concurrent requests. Invalid requests fail before the library reads credentials or sends
-HTTP requests. Use `EnsureSuccess()` if you prefer exceptions to checking the result.
+they cannot be omitted. Creating a task checks its schema, and the task can be reused for
+concurrent requests. Invalid requests fail before credentials are read or HTTP requests
+are sent. Use `EnsureSuccess()` if you prefer exceptions to checking the result.
 Caller cancellation throws `StructuredOperationCanceledException`, which includes any
-token counts already received.
+available token counts. See [failure handling](https://github.com/menk-dev/structly-ai/blob/main/docs/failures.md).
 
 For text input with default execution settings, use
 `await client.ExecuteAsync(task, text, cancellationToken)`. The same overload accepts
 bound output. Use a `StructuredRequest` when supplying per-call settings.
 
-## ASP.NET Core and .NET Hosting
+## Use with ASP.NET Core or Generic Host
 
-Use the optional `Structly.AI.Hosting` package for dependency injection, settings from
-`appsettings.json`, settings validation at startup, and `IHttpClientFactory`:
+The hosting package adds dependency injection, settings from `appsettings.json`, startup
+validation, and `IHttpClientFactory`. Register the provider and a named task:
 
 ```csharp
 using Structly.AI.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddStructlyOpenAi(builder.Configuration);
-```
 
-Inject `OpenAiClient` into endpoints or application services. Configure the
-`Structly:OpenAI` section with a `DefaultModel`, timeouts and model profiles; supply
-`Structly__OpenAI__ApiKey` through the host's environment configuration or use user secrets.
-Install it with `dotnet add package Structly.AI.Hosting --version 0.4.0`.
-See the [hosting guide](https://github.com/menk-dev/structly-ai/blob/main/docs/hosting.md)
-for configuration and ASP.NET Core and worker examples.
-
-For reusable named calls, register the task definitions and inject `StructlyAi`:
-
-```csharp
 builder.Services.AddStructlyAi(ai => ai.AddTask<Ticket>(
     "extract-ticket", "Extract the reported support issue."));
+```
 
-// In an endpoint or application service with an injected StructlyAi ai:
+In an endpoint or service with an injected `StructlyAi ai`, execute the task:
+
+```csharp
 var result = await ai.ExecuteTaskAsync<Ticket>(
     "extract-ticket", text, cancellationToken);
 ```
 
-Definitions are validated once during registration. Each execution resolves a fresh
-client in its own DI scope, including when called from a singleton worker. Provider
-settings and HTTP handlers remain configured through `AddStructlyOpenAi`.
+Configure `Structly:OpenAI:DefaultModel` and supply `Structly__OpenAI__ApiKey` through
+environment configuration or user secrets. Definitions are validated during registration;
+each execution resolves a fresh client in its own DI scope, including calls from singleton
+workers. The [hosting guide](https://github.com/menk-dev/structly-ai/blob/main/docs/hosting.md) includes complete startup and endpoint
+examples, model profiles, credentials, and worker lifetime rules.
 
-## Guides
+## Documentation
 
-- [ASP.NET Core and Generic Host integration](https://github.com/menk-dev/structly-ai/blob/main/docs/hosting.md)
-- [Client and HTTP configuration](https://github.com/menk-dev/structly-ai/blob/main/docs/configuration.md)
-- [Schema support, constraints and analyzer diagnostics](https://github.com/menk-dev/structly-ai/blob/main/docs/schemas.md)
-- [Failure handling](https://github.com/menk-dev/structly-ai/blob/main/docs/failures.md)
-- [Cancellation, deadlines, streaming and retries](https://github.com/menk-dev/structly-ai/blob/main/docs/execution.md)
-- [Token counts and usage callbacks](https://github.com/menk-dev/structly-ai/blob/main/docs/usage.md)
-- [Guidance, messages, vision, continuation, caching, embeddings and images](https://github.com/menk-dev/structly-ai/blob/main/docs/advanced.md)
+Start with the [documentation index](https://github.com/menk-dev/structly-ai/blob/main/docs/README.md) or choose a guide:
+
+| Goal | Guide |
+| --- | --- |
+| Configure HTTP, models and credentials | [Client configuration](https://github.com/menk-dev/structly-ai/blob/main/docs/configuration.md) |
+| Define output types and constraints | [Schemas and analyzer diagnostics](https://github.com/menk-dev/structly-ai/blob/main/docs/schemas.md) |
+| Bind output settings and continue typed conversations | [Bound output and conversations](https://github.com/menk-dev/structly-ai/blob/main/docs/conversations.md) |
+| Handle errors and cancellation | [Failure handling](https://github.com/menk-dev/structly-ai/blob/main/docs/failures.md) and [execution](https://github.com/menk-dev/structly-ai/blob/main/docs/execution.md) |
+| Record token counts | [Usage callbacks](https://github.com/menk-dev/structly-ai/blob/main/docs/usage.md) |
+| Use messages, vision, caching, embeddings or images | [Advanced operations](https://github.com/menk-dev/structly-ai/blob/main/docs/advanced.md) |
+| Prepare and import batch jobs | [Batch operations](https://github.com/menk-dev/structly-ai/blob/main/docs/batches.md) |
+| Test without a provider | [Offline testing](https://github.com/menk-dev/structly-ai/blob/main/docs/testing.md) |
+| Update existing applications | [0.4.0 migration](https://github.com/menk-dev/structly-ai/blob/main/docs/migration-0.4.md) |
+
+## Scope and limitations
 
 Each operation sends one request. Your application chooses the model and controls HTTP
 settings and retries. Check that the selected model supports the features you request.
@@ -112,83 +148,22 @@ Arbitrary JSON converters, recursive output types, dictionaries and polymorphic 
 are unsupported. This release does not support other providers, automatic retries,
 Native AOT, tool calling, image editing, or audio, video and file input.
 
-## Run without credentials
+## Run the offline examples
 
 The [consumer example](https://github.com/menk-dev/structly-ai/tree/main/examples/Structly.AI.Consumer)
-uses a simulated HTTP response to demonstrate typed output, dynamic vocabularies, output
+uses simulated HTTP responses to demonstrate typed output, dynamic vocabularies, output
 instructions, token counts and cancellation. It does not call a provider:
 
 ```sh
 dotnet run --project examples/Structly.AI.Consumer -c Release
 ```
 
-Build both packages and check them with a separate test application. The test application
-uses a fresh package cache and installs the core package from the local feed:
-
-```sh
-dotnet restore Structly.AI.slnx --locked-mode
-dotnet build Structly.AI.slnx -c Release --no-restore
-dotnet pack src/Structly.AI/Structly.AI.csproj -c Release --no-build -o artifacts/packages
-dotnet pack src/Structly.AI.Hosting/Structly.AI.Hosting.csproj -c Release --no-build -o artifacts/packages
-dotnet run --project tools/Structly.AI.PackageValidation -c Release --no-build -- artifacts/packages
-```
-
-The validator checks both packages' contents and versions, documentation and debug symbols.
-It also checks that the packaged analyzer rejects an unsupported output type.
+The [examples guide](https://github.com/menk-dev/structly-ai/blob/main/examples/README.md)
+also covers the hosted consumer and explains the source layout.
 
 ## Development
 
-See the [development guide](https://github.com/menk-dev/structly-ai/blob/main/dev/README.md)
-for local checks, architecture and release maintenance.
+See the [development guide](https://github.com/menk-dev/structly-ai/blob/main/dev/README.md) for local checks, package validation,
+architecture and release maintenance.
 
 Licensed under the [MIT License](https://github.com/menk-dev/structly-ai/blob/main/LICENSE).
-
-For prepared embedding and typed Responses batches, see [batch operations](docs/batches.md).
-Use [Structly.AI.Testing](docs/testing.md) for offline provider envelopes and explicit fixture
-completion. See [0.4.0 migration](docs/migration-0.4.md) for contract changes.
-
-## Bound output and conversations
-
-Bind runtime output settings once to keep the schema and generated guidance stable:
-
-```csharp
-var output = ticketTask.BindOutput(new()
-{
-    Vocabularies = vocabularies,
-    OutputSpecification = new() { IncludeExample = true }
-});
-var conversation = client.CreateConversation(output);
-await conversation.ExecuteAsync(new() { Input = "Extract this issue..." });
-await conversation.ExecuteAsync(new() { Input = "Correct the reference..." });
-var updated = conversation.ChangeOutput(
-    ticketTask.BindOutput(new() { Vocabularies = updatedVocabularies }));
-var planning = conversation.ChangeOutput(planTask.BindOutput());
-```
-
-Binding copies referenced vocabulary values, validates the effective schema, and generates
-optional guidance before credentials or HTTP are involved. `CreateSchema()` returns a
-detached schema; `ReadOutput()` validates against the captured values. You can also call
-`client.ExecuteAsync(output, request)` directly; request vocabularies and output
-specifications must be absent.
-
-Conversation creation resolves instructions and model settings from conversation options,
-the original task, and client defaults. Turns accept new user input and execution controls.
-Messages must contain only user roles. Reasoning summaries configured at creation require
-streaming on every turn.
-
-OpenAI-backed conversations send `store: true`: responses are retained at OpenAI and later
-turns reference the last successful response. Failures leave the local continuation position
-unchanged, but may still have been stored or billed. Accounting and cancellation metadata
-remain available. The library does not retry or restart unavailable provider history.
-
-`ChangeOutput` returns an independent typed branch at the current position. It preserves
-configuration and the original credential fallback, including when the new task specifies
-other instructions, models, or credentials. `ChangeConfiguration(conversation.Configuration
-with { Instructions = "Revised instructions" })` explicitly creates a configuration branch.
-Both originals remain usable; branches advance independently. Overlapping operations on
-the same conversation throw `InvalidOperationException`.
-
-Existing task/request execution, manual continuation, batch, and prewarming APIs remain
-available without migration. Use those advanced APIs for per-call structural overrides,
-provider storage controls, cache controls, or raw capture. Binding and conversations make
-no promises about cache writes, hits, or savings.

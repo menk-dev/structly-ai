@@ -7,9 +7,21 @@ Install the core package, or install the hosting package for ASP.NET Core and Ge
 
 ```sh
 dotnet add package Structly.AI --version 0.4.0
-# For ASP.NET Core and Generic Host; also installs the core package:
+```
+
+For ASP.NET Core and Generic Host, install the hosting package, which also installs the core:
+
+```sh
 dotnet add package Structly.AI.Hosting --version 0.4.0
 ```
+
+For offline envelope builders, install the testing package alongside the matching core:
+
+```sh
+dotnet add package Structly.AI.Testing --version 0.4.0
+```
+
+See the [hosting](hosting.md) and [offline testing](testing.md) guides for usage.
 
 ## Symbols
 
@@ -22,5 +34,3 @@ directory to your debugger's local symbol search path. Package validation checks
 Link metadata. Check symbol downloads separately from package installation.
 
 See the [maintainer release guide](../dev/releases.md) for publication and recovery.
-
-For offline envelope builders: `dotnet add package Structly.AI.Testing --version 0.4.0`.

@@ -13,6 +13,14 @@ sealed class OfflineResponsesHandler : HttpMessageHandler
             throw new InvalidOperationException("The consumer must send a strict schema.");
 
         var output = JsonSerializer.Serialize(new { summary = "Duplicate charge", queue = "billing", reference = "INV-42" });
-        return ResponseEnvelopes.ToHttpResponse(ResponseEnvelopes.CompletedText(output, "offline-fixture-model", "resp_offline", new() { InputTokens = 12, OutputTokens = 8, TotalTokens = 20 }));
+        var envelope = ResponseEnvelopes.CompletedText(
+            output, "offline-fixture-model", "resp_offline", new()
+            {
+                InputTokens = 12,
+                OutputTokens = 8,
+                TotalTokens = 20,
+            });
+
+        return ResponseEnvelopes.ToHttpResponse(envelope);
     }
 }

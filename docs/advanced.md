@@ -34,6 +34,7 @@ var request = new StructuredRequest
     OutputSpecification = new() { AdditionalInstructions = "Keep the summary concise." },
     OpenAi = new() { Store = true }
 };
+
 var result = await client.ExecuteAsync(task, request, cancellationToken);
 ```
 
@@ -63,6 +64,9 @@ throws `ArgumentException` for invalid output instructions; execution returns
 
 ## Follow-up requests
 
+For automatic continuation and typed branches, see [bound output and conversations](conversations.md).
+The following example manages response IDs explicitly.
+
 Set `OpenAi.PreviousResponseId` to continue from an earlier response:
 
 ```csharp
@@ -79,8 +83,8 @@ same provider account. `Store` defaults to false. `Store=false` on the follow-up
 storage of that response; it does not prevent using an earlier stored response.
 
 Current instructions and schema are sent on every call. You can change the task type or
-vocabularies, and the new output is checked against the new schema. The library does not
-store conversations or add history automatically. Availability of stored responses depends
+vocabularies, and the new output is checked against the new schema. This manual API does not
+keep a local continuation position or add history automatically. Availability of stored responses depends
 on the provider's retention rules.
 
 ## Free text
@@ -99,6 +103,7 @@ var text = await client.GenerateTextAsync(new TextRequest
     Instructions = "Summarize the report for an operator.",
     Request = new() { Input = report, Stream = true, TotalTimeout = TimeSpan.FromSeconds(60) }
 }, cancellationToken);
+
 string summary = text.EnsureSuccess();
 ```
 
@@ -121,6 +126,7 @@ var options = new OpenAiClientOptions
         [configuredResponseModel] = OpenAiCacheCompatibility.Modern
     }
 };
+
 var cachedRequest = new StructuredRequest
 {
     Messages = [new(MessageRole.User,
@@ -190,6 +196,8 @@ output, text and prewarming use `Profiles`. The same profile name may select dif
 models for different operations. Profile dictionaries are copied when the client is created.
 Embedding and image profiles and requests reject reasoning effort settings.
 
+### Embeddings
+
 ```csharp
 var embedded = await client.EmbedAsync(new EmbeddingRequest
 {
@@ -197,8 +205,19 @@ var embedded = await client.EmbedAsync(new EmbeddingRequest
     ModelSelection = new() { ModelId = configuredEmbeddingModel },
     Dimensions = 1024
 }, cancellationToken);
-IReadOnlyList<IReadOnlyList<float>> vectors = embedded.EnsureSuccess();
 
+IReadOnlyList<IReadOnlyList<float>> vectors = embedded.EnsureSuccess();
+```
+
+An embedding request sends one nonempty text batch with `encoding_format=float` and an
+optional positive `Dimensions` value. Results are reordered by index. Indexes must be
+unique and complete. Vectors must be nonempty, contain finite values and have equal lengths.
+If `Dimensions` is supplied, lengths must match it. Returned outer and inner lists are
+read-only. `prompt_tokens` becomes `InputTokens`; missing output counts stay null.
+
+### Images
+
+```csharp
 var generated = await client.GenerateImagesAsync(new ImageGenerationRequest
 {
     Prompt = "A simple floor plan with clearly labeled rooms.",
@@ -209,18 +228,9 @@ var generated = await client.GenerateImagesAsync(new ImageGenerationRequest
     Background = ImageBackground.Transparent,
     Format = ImageFormat.Png
 }, cancellationToken);
+
 byte[] imageBytes = generated.EnsureSuccess()[0].ToBytes();
 ```
-
-### Embeddings
-
-An embedding request sends one nonempty text batch with `encoding_format=float` and an
-optional positive `Dimensions` value. Results are reordered by index. Indexes must be
-unique and complete. Vectors must be nonempty, contain finite values and have equal lengths.
-If `Dimensions` is supplied, lengths must match it. Returned outer and inner lists are
-read-only. `prompt_tokens` becomes `InputTokens`; missing output counts stay null.
-
-### Images
 
 Image requests send `n` from 1 to 10, quality, background, `output_format` and size.
 Size presets map as follows:
@@ -288,46 +298,5 @@ Modern controls apply to GPT-5.6 and later. See the
 
 ## Bound output and conversations
 
-Bind runtime output settings once to keep the schema and generated guidance stable:
-
-```csharp
-var output = ticketTask.BindOutput(new()
-{
-    Vocabularies = vocabularies,
-    OutputSpecification = new() { IncludeExample = true }
-});
-var conversation = client.CreateConversation(output);
-await conversation.ExecuteAsync(new() { Input = "Extract this issue..." });
-await conversation.ExecuteAsync(new() { Input = "Correct the reference..." });
-var updated = conversation.ChangeOutput(
-    ticketTask.BindOutput(new() { Vocabularies = updatedVocabularies }));
-var planning = conversation.ChangeOutput(planTask.BindOutput());
-```
-
-Binding copies referenced vocabulary values, validates the effective schema, and generates
-optional guidance before credentials or HTTP are involved. `CreateSchema()` returns a
-detached schema; `ReadOutput()` validates against the captured values. You can also call
-`client.ExecuteAsync(output, request)` directly; request vocabularies and output
-specifications must be absent.
-
-Conversation creation resolves instructions and model settings from conversation options,
-the original task, and client defaults. Turns accept new user input and execution controls.
-Messages must contain only user roles. Reasoning summaries configured at creation require
-streaming on every turn.
-
-OpenAI-backed conversations send `store: true`: responses are retained at OpenAI and later
-turns reference the last successful response. Failures leave the local continuation position
-unchanged, but may still have been stored or billed. Accounting and cancellation metadata
-remain available. The library does not retry or restart unavailable provider history.
-
-`ChangeOutput` returns an independent typed branch at the current position. It preserves
-configuration and the original credential fallback, including when the new task specifies
-other instructions, models, or credentials. `ChangeConfiguration(conversation.Configuration
-with { Instructions = "Revised instructions" })` explicitly creates a configuration branch.
-Both originals remain usable; branches advance independently. Overlapping operations on
-the same conversation throw `InvalidOperationException`.
-
-Existing task/request execution, manual continuation, batch, and prewarming APIs remain
-available without migration. Use those advanced APIs for per-call structural overrides,
-provider storage controls, cache controls, or raw capture. Binding and conversations make
-no promises about cache writes, hits, or savings.
+See the dedicated [bound output and conversations guide](conversations.md) for binding,
+continuation, storage behavior and typed branches.

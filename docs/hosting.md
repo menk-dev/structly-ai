@@ -61,8 +61,14 @@ app.MapPost("/extract", async (TicketInput input, StructlyAi ai,
     CancellationToken cancellationToken) =>
 {
     var result = await ai.ExecuteTaskAsync<Ticket>("extract-ticket", input.Text, cancellationToken);
-    return result.IsSuccess ? Results.Ok(result.Value) : Results.Problem(statusCode: 502,
-        title: result.Error!.Kind.ToString(), detail: result.Error.Message);
+
+    if (result.IsSuccess)
+        return Results.Ok(result.Value);
+
+    return Results.Problem(
+        statusCode: 502,
+        title: result.Error!.Kind.ToString(),
+        detail: result.Error.Message);
 });
 app.Run();
 
