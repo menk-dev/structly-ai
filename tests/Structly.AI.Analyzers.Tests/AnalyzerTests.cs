@@ -180,16 +180,6 @@ public sealed class AnalyzerTests
         Assert.Empty(await Analyze(compilation.RemoveAllSyntaxTrees().AddSyntaxTrees(generated)));
     }
 
-    [Fact]
-    public async Task Unresolved_qualified_legacy_attribute_still_has_guidance()
-    {
-        var compilation = CSharpCompilation.Create("Migration", [CSharpSyntaxTree.ParseText("[Legacy.StructuredLlmName(\"x\")] class Dto { }", cancellationToken: TestContext.Current.CancellationToken)],
-            _references, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-        var diagnostic = Assert.Single(await Analyze(compilation));
-        Assert.Equal("STAI002", diagnostic.Id);
-        Assert.Contains("JsonPropertyNameAttribute", diagnostic.GetMessage());
-    }
-
     [Theory]
     [InlineData("SchemaName = \"bad name\"", "SchemaName")]
     [InlineData("Description = \" \"", "Description")]
@@ -198,20 +188,6 @@ public sealed class AnalyzerTests
         var compilation = Compile("public class Dto { public int Value { get; set; } }",
             $"public static void Run() => StructuredTask.Create<Dto>(new() {{ Instructions = \"test\", {setting} }});");
         Assert.Contains(code, Assert.Single(await Analyze(compilation)).GetMessage());
-    }
-
-    [Theory]
-    [InlineData("StructuredLlmName", "JsonPropertyNameAttribute")]
-    [InlineData("StructuredLlmStringLength", "StringConstraintAttribute")]
-    [InlineData("StructuredLlmArrayLength", "CollectionConstraintAttribute")]
-    [InlineData("StructuredLlmNumberRange", "NumberConstraintAttribute")]
-    [InlineData("StructuredLlmEnumName", "JsonStringEnumMemberNameAttribute")]
-    public async Task Legacy_attribute_guidance(string name, string replacement)
-    {
-        var compilation = Compile($"public class {name}Attribute : Attribute {{ }} public class Dto {{ [{name}] public int Value {{ get; set; }} }}", "public static void Run() { }");
-        var diagnostic = Assert.Single(await Analyze(compilation));
-        Assert.Equal("STAI002", diagnostic.Id);
-        Assert.Contains(replacement, diagnostic.GetMessage());
     }
 
     static CSharpCompilation Compile(string dto, string method)

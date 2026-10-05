@@ -79,10 +79,6 @@ compiler requirement. It adds no compiler dependencies to the runtime package.
 - `STAI001` (error): the analyzer can determine that a task or schema is invalid. The
   diagnostic includes the JSON path and runtime issue code. It checks task creation,
   typed schema and output inspection, execution, and typed prewarming calls.
-- `STAI002` (warning): suggests replacements for known legacy StructuredLlm attributes,
-  including unresolved names during migration. Use JsonPropertyName, JsonIgnore,
-  nullable annotations, JsonStringEnumMemberName, Description/Schema or the corresponding
-  String/Number/CollectionConstraint attributes.
 
 The analyzer checks output types, names, attributes, constructor bindings and structural,
 enum and string limits. It skips unresolved generic type parameters and generated code.
@@ -95,7 +91,7 @@ schema even if compilation passes. The analyzer cannot prove that a provider wil
 a request configured at runtime.
 
 Adjust severity through `.editorconfig`, for example
-`dotnet_diagnostic.STAI002.severity = suggestion`. Suppression does not change runtime rules.
+`dotnet_diagnostic.STAI001.severity = warning`. Suppression does not change runtime rules.
 
 ## Examples and vocabulary order
 

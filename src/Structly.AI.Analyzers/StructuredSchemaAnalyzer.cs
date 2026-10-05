@@ -1,6 +1,4 @@
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 using System.Collections.Immutable;
@@ -15,13 +13,9 @@ public sealed class StructuredSchemaAnalyzer : DiagnosticAnalyzer
         "{0}: {1} — {2}", "Structly.AI.Schema", DiagnosticSeverity.Error, true,
         description: "Use a concrete, constructible DTO supported by the strict schema contract.",
         helpLinkUri: "https://github.com/menk-dev/structly-ai/blob/main/docs/SCHEMAS.md");
-    static readonly DiagnosticDescriptor _legacy = new("STAI002", "Legacy schema attribute",
-        "{0}: use {1} with Structly.AI", "Structly.AI.Schema", DiagnosticSeverity.Warning, true,
-        description: "Replace legacy StructuredLlm schema attributes with the supported contract attributes.",
-        helpLinkUri: "https://github.com/menk-dev/structly-ai/blob/main/docs/SCHEMAS.md");
 
     /// <inheritdoc />
-    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => [_invalid, _legacy];
+    public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => [_invalid];
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -29,7 +23,6 @@ public sealed class StructuredSchemaAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
         context.RegisterOperationAction(AnalyzeInvocation, OperationKind.Invocation);
-        context.RegisterSyntaxNodeAction(AnalyzeLegacyAttribute, SyntaxKind.Attribute);
     }
 
     static void AnalyzeInvocation(OperationAnalysisContext context)
@@ -103,32 +96,6 @@ public sealed class StructuredSchemaAnalyzer : DiagnosticAnalyzer
         => type.TypeKind is TypeKind.TypeParameter or TypeKind.Error
             || type is IArrayTypeSymbol array && ContainsUnresolvedType(array.ElementType)
             || type is INamedTypeSymbol named && named.TypeArguments.Any(ContainsUnresolvedType);
-
-    static void AnalyzeLegacyAttribute(SyntaxNodeAnalysisContext context)
-    {
-        var syntax = (AttributeSyntax)context.Node;
-        var symbol = context.SemanticModel.GetSymbolInfo(syntax, context.CancellationToken).Symbol as IMethodSymbol;
-        var name = symbol?.ContainingType.Name ?? syntax.Name.ToString().Split('.').Last();
-        if(name.EndsWith("Attribute", StringComparison.Ordinal))
-            name = name.Substring(0, name.Length - 9);
-
-        // Match known legacy names, including unresolved attributes during migration; unrelated names are ignored.
-        var replacement = name switch
-        {
-            "StructuredLlmRequired" => "required C# members (all output properties are required)",
-            "StructuredLlmName" => "JsonPropertyNameAttribute",
-            "StructuredLlmIgnore" => "JsonIgnoreAttribute",
-            "StructuredLlmNullable" => "nullable types, MaybeNullAttribute or AllowNullAttribute",
-            "StructuredLlmStringLength" => "StringConstraintAttribute",
-            "StructuredLlmArrayLength" => "CollectionConstraintAttribute",
-            "StructuredLlmNumberRange" => "NumberConstraintAttribute",
-            "StructuredLlmEnumName" => "JsonStringEnumMemberNameAttribute",
-            "StructuredLlmDescription" => "DescriptionAttribute or SchemaAttribute",
-            _ => null,
-        };
-        if(replacement is not null)
-            context.ReportDiagnostic(Diagnostic.Create(_legacy, syntax.GetLocation(), name, replacement));
-    }
 
     internal static bool ValidSchemaName(string name) => Regex.IsMatch(name, "\\A[A-Za-z0-9_-]{1,64}\\z");
 
