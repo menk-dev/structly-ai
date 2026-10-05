@@ -4,6 +4,12 @@ namespace Structly.AI;
 
 static class SchemaNumbers
 {
+    public static bool IsInteger(string json)
+    {
+        var number = Normalize(json);
+        return number.Sign == 0 || number.Magnitude >= number.Digits.Length;
+    }
+
     // Compare the original JSON number against the emitted bound, without rounding
     // through a CLR numeric type. In particular -1e-30 must not become decimal zero.
     public static int Compare(string json, double bound)

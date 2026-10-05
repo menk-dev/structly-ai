@@ -7,15 +7,21 @@ namespace Structly.AI.Testing;
 /// <summary>Runs the real OpenAI client against queued offline envelopes. Dispose after all operations finish.</summary>
 public sealed class OpenAiTestFixture : IDisposable
 {
-    readonly FixtureHandler _handler = new();
+    readonly FixtureHandler _handler;
     readonly HttpClient _http;
     bool _disposed;
 
     /// <summary>Creates an offline client with a test model and static fake credentials.</summary>
-    public OpenAiTestFixture()
+    public OpenAiTestFixture() : this(null, null) { }
+
+    /// <summary>Creates an offline client with construction-time options and an optional asynchronous request responder.</summary>
+    /// <remarks>Queued responses take precedence. The responder runs outside the capture lock and owns creation of a fresh response for each request.</remarks>
+    public OpenAiTestFixture(OpenAiClientOptions? options,
+        Func<CapturedRequest, CancellationToken, ValueTask<HttpResponseMessage>>? responder = null)
     {
+        _handler = new(responder);
         _http = new(_handler) { Timeout = Timeout.InfiniteTimeSpan };
-        Client = new(_http, new()
+        Client = new(_http, options ?? new()
         {
             DefaultModel = new() { ModelId = "test-model" },
             CredentialResolver = Credentials.FromStatic("test-credential"),
@@ -46,7 +52,7 @@ public sealed class OpenAiTestFixture : IDisposable
         _http.Dispose();
     }
 
-    sealed class FixtureHandler : HttpMessageHandler
+    sealed class FixtureHandler(Func<CapturedRequest, CancellationToken, ValueTask<HttpResponseMessage>>? responder) : HttpMessageHandler
     {
         readonly object _gate = new();
         readonly Queue<(JsonElement Envelope, HttpStatusCode Status)> _responses = new();
@@ -80,14 +86,18 @@ public sealed class OpenAiTestFixture : IDisposable
         {
             var body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
+            var captured = new CapturedRequest { Method = request.Method, Uri = request.RequestUri!, Body = body };
             lock(_gate)
             {
-                _requests.Add(new() { Method = request.Method, Uri = request.RequestUri!, Body = body });
-                if(!_responses.TryDequeue(out var response))
-                    throw new InvalidOperationException("No response is queued in OpenAiTestFixture. Call Enqueue before executing a request.");
-
-                return ResponseEnvelopes.ToHttpResponse(response.Envelope, response.Status);
+                _requests.Add(captured);
+                if(_responses.TryDequeue(out var response))
+                    return ResponseEnvelopes.ToHttpResponse(response.Envelope, response.Status);
             }
+
+            if(responder is not null)
+                return await responder(captured, cancellationToken).ConfigureAwait(false);
+
+            throw new InvalidOperationException("No response is queued in OpenAiTestFixture. Call Enqueue before executing a request or configure a responder.");
         }
     }
 }

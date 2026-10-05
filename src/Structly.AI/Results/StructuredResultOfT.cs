@@ -57,4 +57,18 @@ public sealed class StructuredResult<T>
 
     /// <summary>Returns the successful value or throws with the retained failure metadata.</summary>
     public T EnsureSuccess() => IsSuccess ? Value! : throw new StructuredOperationException(Error!, Metadata, Warnings);
+
+    /// <summary>Returns the value or throws an application exception selected by failure category, retaining the original context in the mapping input.</summary>
+    public T EnsureSuccess(Func<StructuredOperationException, Exception> unavailable,
+        Func<StructuredOperationException, Exception> failed)
+    {
+        ArgumentNullException.ThrowIfNull(unavailable);
+        ArgumentNullException.ThrowIfNull(failed);
+        if(IsSuccess)
+            return Value!;
+
+        var failure = new StructuredOperationException(Error!, Metadata, Warnings);
+        throw (Error!.Category == StructuredErrorCategory.Unavailable ? unavailable(failure) : failed(failure))
+            ?? new InvalidOperationException("The exception mapper returned null.", failure);
+    }
 }

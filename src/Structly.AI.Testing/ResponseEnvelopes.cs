@@ -8,6 +8,25 @@ namespace Structly.AI.Testing;
 /// <summary>Detached provider envelopes for offline tests. Supplied output is never corrected implicitly.</summary>
 public static class ResponseEnvelopes
 {
+    /// <summary>Explicitly completes output from the schema in an OpenAI Responses request. Supports Structly-emitted schemas, not arbitrary JSON Schema or CLR-only constraints.</summary>
+    public static JsonElement CompleteFromRequest(string requestJson, string partialJson)
+    {
+        using var request = JsonDocument.Parse(requestJson);
+        return CompleteFromRequest(request.RootElement, partialJson);
+    }
+
+    /// <summary>Explicitly completes output from a detached request, preserving supplied values and validating transmitted constraints.</summary>
+    public static JsonElement CompleteFromRequest(JsonElement requestJson, string partialJson)
+    {
+        if(requestJson.ValueKind != JsonValueKind.Object || !requestJson.TryGetProperty("text", out var text) || text.ValueKind != JsonValueKind.Object ||
+            !text.TryGetProperty("format", out var format) || format.ValueKind != JsonValueKind.Object ||
+            !format.TryGetProperty("type", out var type) || type.ValueKind != JsonValueKind.String || type.GetString() != "json_schema" ||
+            !format.TryGetProperty("schema", out var schema))
+            throw new ArgumentException("Expected an OpenAI Responses request with text.format.schema.", nameof(requestJson));
+
+        return RequestSchemaCompletion.Complete(schema, partialJson);
+    }
+
     /// <summary>Builds a completed response preserving text exactly, including invalid JSON.</summary>
     public static JsonElement CompletedText(string text, string model = "test-model", string responseId = "test-response", StructuredUsage? usage = null)
         => Response("completed", new { type = "output_text", text }, model, responseId, usage);

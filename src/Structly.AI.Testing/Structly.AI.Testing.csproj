@@ -17,6 +17,8 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Structly.AI/Output/FormatRules.cs" Link="Schema/FormatRules.cs" />
+    <Compile Include="../Structly.AI/Output/SchemaNumbers.cs" Link="Schema/SchemaNumbers.cs" />
     <ProjectReference Include="../Structly.AI/Structly.AI.csproj" />
     <None Include="../../README.md" Pack="true" PackagePath="/" />
     <None Include="../../LICENSE" Pack="true" PackagePath="/" />
