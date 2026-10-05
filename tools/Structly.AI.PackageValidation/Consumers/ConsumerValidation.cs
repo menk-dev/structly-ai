@@ -18,8 +18,17 @@ static class ConsumerValidation
             using Structly.AI.Mistral;
             using var http = new HttpClient();
             var client = new MistralClient(http, new() { DefaultModel = new() { ModelId = "offline" } });
-            var result = await client.ExecuteAsync(StructuredTask.Create<Answer>("Extract"), "input");
+            var task = StructuredTask.Create<Answer>("Extract");
+            var result = await client.ExecuteAsync(task, new MistralRequest { Input = "input", Stream = true });
             if(result.Error?.Kind != StructuredErrorKind.CredentialsMissing) throw new Exception();
+            var embedded = await client.EmbedAsync(new() { Inputs = ["input"], ModelSelection = new() { ModelId = "embed" } });
+            if(embedded.Error?.Kind != StructuredErrorKind.CredentialsMissing) throw new Exception();
+            var image = await client.GenerateImagesAsync(new() { Prompt = "cat", ModelSelection = new() { ModelId = "image" } });
+            if(image.Error?.Kind != StructuredErrorKind.CredentialsMissing) throw new Exception();
+            var stored = await client.CreateStoredConversation(task).ExecuteAsync(new() { Input = "input" });
+            if(stored.Error?.Kind != StructuredErrorKind.CredentialsMissing) throw new Exception();
+            var batch = client.PrepareResponseBatch(task, [new ResponseBatchItem("item", new() { Input = "input" })]);
+            if(BatchManifest.FromJson(batch.Manifest.ToJson()).Endpoint != "/v1/chat/completions") throw new Exception();
             Console.WriteLine("Independent consumer passed.");
             public sealed record Answer(string Value);
             """, hosting: false);

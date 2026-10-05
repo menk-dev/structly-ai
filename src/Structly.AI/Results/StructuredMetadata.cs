@@ -30,6 +30,8 @@ public sealed record StructuredMetadata
     public string? ResolvedModel { get; init; }
     /// <summary>Gets the provider response identifier.</summary>
     public string? ResponseId { get; init; }
+    /// <summary>Gets the provider conversation identifier when available.</summary>
+    public string? ConversationId { get; init; }
     /// <summary>Gets the provider request identifier.</summary>
     public string? ProviderRequestId { get; init; }
     /// <summary>Gets reported usage without inferred counts.</summary>

@@ -86,7 +86,7 @@ public sealed class MistralClientTests
         options.CredentialResolver = _ => throw new Exception("Must not resolve");
         var client = new MistralClient(http, options);
         var task = StructuredTask.Create<Answer>("Extract");
-        foreach(var request in new[] { new StructuredRequest { Input = "input", Stream = true }, new StructuredRequest { Input = "input", ModelSelection = new() { ProfileName = "missing" } } })
+        foreach(var request in new[] { new StructuredRequest { Input = "input", IncludeReasoningSummary = true }, new StructuredRequest { Input = "input", ModelSelection = new() { ProfileName = "missing" } } })
             Assert.Equal(StructuredErrorKind.InvalidRequest, (await client.ExecuteAsync(task, request, TestContext.Current.CancellationToken)).Error!.Kind);
 
         Assert.Equal(StructuredErrorKind.InvalidRequest, (await client.ExecuteAsync(task.BindOutput(), new() { Input = "input", Vocabularies = new Dictionary<string, IReadOnlyList<string>>() }, TestContext.Current.CancellationToken)).Error!.Kind);
