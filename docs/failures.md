@@ -54,7 +54,7 @@ Caller cancellation throws `StructuredOperationCanceledException` with the origi
 metadata and warnings. Catch it as `OperationCanceledException` for normal cancellation
 handling, or use the specific type to read any available token counts. Caller cancellation
 takes precedence over timeouts. Callback failures add warnings without replacing the
-operation's outcome. See [execution](EXECUTION.md) and [usage](USAGE.md).
+operation's outcome. See [execution](execution.md) and [usage](usage.md).
 
 `HttpStatusCodeValue` exposes the numeric status alongside `HttpStatusCode`.
 Deadline failures include the effective `TotalTimeout`; inactivity failures include the effective

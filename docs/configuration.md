@@ -4,7 +4,7 @@ Structly.AI requires .NET 10. Task, request and result types are in `Structly.AI
 The OpenAI client is in `Structly.AI.OpenAI`. Embedding and image types are in
 `Structly.AI.Embeddings` and `Structly.AI.Imaging`. The core package has no NuGet dependencies.
 
-For ASP.NET Core and Generic Host, the optional [hosting package](HOSTING.md) registers
+For ASP.NET Core and Generic Host, the optional [hosting package](hosting.md) registers
 the client and reads settings from configuration.
 
 ## HTTP client
@@ -42,7 +42,7 @@ Profiles may set `ReasoningEffort.Low`, `Medium` or `High`. The library does not
 model list, rank models or choose a fallback. Structured output, free text and prewarming
 use `Profiles`. Embeddings and images need their own model selection and use
 `EmbeddingProfiles` and `ImageProfiles`. They reject reasoning settings.
-See [advanced examples](ADVANCED.md).
+See [advanced examples](advanced.md).
 
 ## Credentials
 
@@ -68,5 +68,5 @@ Change `MaxResponseBytes` and `MaxImageResponseBytes` if needed.
 Supply either `StructuredRequest.Input` or ordered `Messages`, not both. The library
 copies request data before reading credentials. Do not change collections while that
 copy is being made. Callbacks, output constructors and setters must return promptly;
-cancellation cannot interrupt synchronous application code. See [execution](EXECUTION.md)
-for timeout and callback rules and [usage](USAGE.md) for token usage callbacks.
+cancellation cannot interrupt synchronous application code. See [execution](execution.md)
+for timeout and callback rules and [usage](usage.md) for token usage callbacks.

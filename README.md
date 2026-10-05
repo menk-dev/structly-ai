@@ -12,7 +12,7 @@ Generic Host. Install packages from nuget.org.
 
 ## Quick start
 
-See the [installation guide](https://github.com/menk-dev/structly-ai/blob/main/docs/INSTALLATION.md#consuming-from-your-projects)
+See the [installation guide](https://github.com/menk-dev/structly-ai/blob/main/docs/installation.md#consuming-from-your-projects)
 and install with `dotnet add package Structly.AI --version 0.4.0`. Configure a model ID
 supported by your account and supply credentials explicitly:
 
@@ -75,18 +75,18 @@ Inject `OpenAiClient` into endpoints or application services. Configure the
 `Structly:OpenAI` section with a `DefaultModel`, timeouts and model profiles; supply
 `Structly__OpenAI__ApiKey` through the host's environment configuration or use user secrets.
 Install it with `dotnet add package Structly.AI.Hosting --version 0.4.0`.
-See the [hosting guide](https://github.com/menk-dev/structly-ai/blob/main/docs/HOSTING.md)
+See the [hosting guide](https://github.com/menk-dev/structly-ai/blob/main/docs/hosting.md)
 for configuration and ASP.NET Core and worker examples.
 
 ## Guides
 
-- [ASP.NET Core and Generic Host integration](https://github.com/menk-dev/structly-ai/blob/main/docs/HOSTING.md)
-- [Client and HTTP configuration](https://github.com/menk-dev/structly-ai/blob/main/docs/CONFIGURATION.md)
-- [Schema support, constraints and analyzer diagnostics](https://github.com/menk-dev/structly-ai/blob/main/docs/SCHEMAS.md)
-- [Failure handling](https://github.com/menk-dev/structly-ai/blob/main/docs/FAILURES.md)
-- [Cancellation, deadlines, streaming and retries](https://github.com/menk-dev/structly-ai/blob/main/docs/EXECUTION.md)
-- [Token counts and usage callbacks](https://github.com/menk-dev/structly-ai/blob/main/docs/USAGE.md)
-- [Guidance, messages, vision, continuation, caching, embeddings and images](https://github.com/menk-dev/structly-ai/blob/main/docs/ADVANCED.md)
+- [ASP.NET Core and Generic Host integration](https://github.com/menk-dev/structly-ai/blob/main/docs/hosting.md)
+- [Client and HTTP configuration](https://github.com/menk-dev/structly-ai/blob/main/docs/configuration.md)
+- [Schema support, constraints and analyzer diagnostics](https://github.com/menk-dev/structly-ai/blob/main/docs/schemas.md)
+- [Failure handling](https://github.com/menk-dev/structly-ai/blob/main/docs/failures.md)
+- [Cancellation, deadlines, streaming and retries](https://github.com/menk-dev/structly-ai/blob/main/docs/execution.md)
+- [Token counts and usage callbacks](https://github.com/menk-dev/structly-ai/blob/main/docs/usage.md)
+- [Guidance, messages, vision, continuation, caching, embeddings and images](https://github.com/menk-dev/structly-ai/blob/main/docs/advanced.md)
 
 Each operation sends one request. Your application chooses the model and controls HTTP
 settings and retries. Check that the selected model supports the features you request.
@@ -128,9 +128,9 @@ for local checks, architecture and release maintenance.
 
 Licensed under the [MIT License](https://github.com/menk-dev/structly-ai/blob/main/LICENSE).
 
-For prepared embedding and typed Responses batches, see [batch operations](docs/BATCHES.md).
-Use [Structly.AI.Testing](docs/TESTING.md) for offline provider envelopes and explicit fixture
-completion. See [0.4.0 migration](docs/MIGRATION-0.4.md) for contract changes.
+For prepared embedding and typed Responses batches, see [batch operations](docs/batches.md).
+Use [Structly.AI.Testing](docs/testing.md) for offline provider envelopes and explicit fixture
+completion. See [0.4.0 migration](docs/migration-0.4.md) for contract changes.
 
 ## Bound output and conversations
 

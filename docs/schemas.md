@@ -61,7 +61,7 @@ be nonempty, with nonblank values that are unique using ordinal comparison. Valu
 not trimmed or converted to another case. Unreferenced sets are ignored. The library copies
 and sorts values for each request; there is no global vocabulary cache. Nullable items
 can still be null. Generated output instructions and output validation use the same values.
-See [output instructions](ADVANCED.md).
+See [output instructions](advanced.md).
 
 Schemas allow up to 10 object or array nesting levels, 5,000 generated properties,
 1,000 generated enum or vocabulary entries, and 120,000 relevant Unicode scalar values

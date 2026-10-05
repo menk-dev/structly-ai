@@ -18,4 +18,4 @@ Update core, hosting and testing packages together to 0.4.0.
   remains explicit credentials. Custom resolvers take precedence without blank-result fallback.
 
 Batch retries, polling, persistence, cleanup and durable accounting deduplication remain
-application responsibilities. See [batches](BATCHES.md) and [testing](TESTING.md).
+application responsibilities. See [batches](batches.md) and [testing](testing.md).
