@@ -66,3 +66,5 @@ models and handlers to keep their names scoped to its tests. Tests remain offlin
 controlled time and fake HTTP transports.
 
 `Structly.AI.OpenAI` contains the OpenAI implementation and provider options. Core contains provider contracts and schema implementation; hosting dispatches typed registrations without a provider dependency.
+
+`Structly.AI.Mistral` contains non-streaming Mistral chat completions and provider registration. It depends only on core.

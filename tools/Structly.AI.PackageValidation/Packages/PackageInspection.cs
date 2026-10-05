@@ -69,6 +69,14 @@ static class PackageInspection
         var openAiDependency = openAiMetadata.Descendants(openAiNs + "dependency").Single();
         Require(openAiDependency.Attribute("id")?.Value == "Structly.AI" && openAiDependency.Attribute("version")?.Value.Trim('[', ']') == version, "OpenAI must depend only on matching core.");
 
+        using var mistralPackage = ZipFile.OpenRead(Path.Combine(packages, $"Structly.AI.Mistral.{version}.nupkg"));
+        using var mistralSymbols = ZipFile.OpenRead(Path.Combine(packages, $"Structly.AI.Mistral.{version}.snupkg"));
+        ValidateCompanionPackage(mistralPackage, mistralSymbols, "Structly.AI.Mistral", version, root);
+        var mistralMetadata = ReadXml(mistralPackage, "Structly.AI.Mistral.nuspec");
+        var mistralNs = mistralMetadata.Root!.Name.Namespace;
+        var mistralDependency = mistralMetadata.Descendants(mistralNs + "dependency").Single();
+        Require(mistralDependency.Attribute("id")?.Value == "Structly.AI" && mistralDependency.Attribute("version")?.Value.Trim('[', ']') == version, "Mistral must depend only on matching core.");
+
         using var hostingPackage = ZipFile.OpenRead(Path.Combine(packages, $"Structly.AI.Hosting.{version}.nupkg"));
         var hostingMetadata = ReadXml(hostingPackage, "Structly.AI.Hosting.nuspec");
         var hostingNs = hostingMetadata.Root!.Name.Namespace;

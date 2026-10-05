@@ -13,6 +13,16 @@ static class ConsumerValidation
             Console.WriteLine("Independent consumer passed.");
             public sealed record Answer(string Value);
             """, hosting: false);
+        await ValidateIndependentConsumer(packages, version, "Structly.AI.Mistral", """
+            using Structly.AI;
+            using Structly.AI.Mistral;
+            using var http = new HttpClient();
+            var client = new MistralClient(http, new() { DefaultModel = new() { ModelId = "offline" } });
+            var result = await client.ExecuteAsync(StructuredTask.Create<Answer>("Extract"), "input");
+            if(result.Error?.Kind != StructuredErrorKind.CredentialsMissing) throw new Exception();
+            Console.WriteLine("Independent consumer passed.");
+            public sealed record Answer(string Value);
+            """, hosting: false);
         await ValidateIndependentConsumer(packages, version, "Structly.AI.Hosting", """
             using Microsoft.Extensions.DependencyInjection;
             using Structly.AI;

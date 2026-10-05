@@ -174,3 +174,6 @@ See the [development guide](https://github.com/menk-dev/structly-ai/blob/main/de
 architecture and release maintenance.
 
 Licensed under the [MIT License](https://github.com/menk-dev/structly-ai/blob/main/LICENSE).
+
+Mistral chat completions are available in the separate `Structly.AI.Mistral` package.
+See [the Mistral guide](docs/mistral.md) for direct use and hosting registration.

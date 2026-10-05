@@ -35,3 +35,5 @@ for a typed request, then choose a guide for your application.
 For repository builds, package validation and releases, see the [development guide](../dev/README.md).
 
 - [Provider package migration](migration-provider-split.md)
+
+- [Mistral provider](mistral.md)
