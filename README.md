@@ -20,11 +20,7 @@ supported by your account and supply credentials explicitly:
 using Structly.AI;
 using Structly.AI.OpenAI;
 
-var task = StructuredTask.Create<Ticket>(new()
-{
-    Instructions = "Extract the reported support issue.",
-    SchemaName = "ticket"
-});
+var task = StructuredTask.Create<Ticket>("Extract the reported support issue.");
 using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
 var client = new OpenAiClient(http, new()
 {
@@ -58,6 +54,10 @@ concurrent requests. Invalid requests fail before the library reads credentials 
 HTTP requests. Use `EnsureSuccess()` if you prefer exceptions to checking the result.
 Caller cancellation throws `StructuredOperationCanceledException`, which includes any
 token counts already received.
+
+For text input with default execution settings, use
+`await client.ExecuteAsync(task, text, cancellationToken)`. The same overload accepts
+bound output. Use a `StructuredRequest` when supplying per-call settings.
 
 ## ASP.NET Core and .NET Hosting
 

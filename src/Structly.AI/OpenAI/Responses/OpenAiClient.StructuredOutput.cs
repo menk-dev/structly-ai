@@ -2,7 +2,18 @@ namespace Structly.AI.OpenAI;
 
 public sealed partial class OpenAiClient
 {
+    /// <summary>Executes a reusable task with text input and default request settings.</summary>
+    public Task<StructuredResult<T>> ExecuteAsync<T>(StructuredTask<T> task, string input,
+        CancellationToken cancellationToken = default)
+        => ExecuteAsync(task, new StructuredRequest { Input = input }, cancellationToken);
+
+    /// <summary>Executes bound output with text input and default request settings.</summary>
+    public Task<StructuredResult<T>> ExecuteAsync<T>(BoundOutput<T> output, string input,
+        CancellationToken cancellationToken = default)
+        => ExecuteAsync(output, new StructuredRequest { Input = input }, cancellationToken);
+
     /// <summary>Validates locally, sends one request and validates the returned typed output.</summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public Task<StructuredResult<T>> ExecuteAsync<T>(StructuredTask<T> task, StructuredRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -12,6 +23,7 @@ public sealed partial class OpenAiClient
     }
 
     /// <summary>Executes a bound contract. Request output settings must be absent.</summary>
+    [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public Task<StructuredResult<T>> ExecuteAsync<T>(BoundOutput<T> output, StructuredRequest request,
         CancellationToken cancellationToken = default)
     {
