@@ -75,3 +75,33 @@ else
 
 `TryGetValue` returns false and the default value on failure. Its boolean return distinguishes
 failure from a successful value such as zero. Metadata and warnings remain on the result.
+
+## Application categories and exception mapping
+
+`StructuredError.Category` groups detailed kinds independently of `IsTransient`:
+
+| Category | Kinds |
+| --- | --- |
+| `Unavailable` | `CredentialsMissing`, `Authentication`, `RateLimited`, `ProviderUnavailable`, `TransportFailure`, `DeadlineExceeded`, `InactivityExceeded` |
+| `Rejected` | `InvalidRequest`, `UnsupportedSchema`, `PermissionDenied`, `ProviderRejected`, `Refused` |
+| `InvalidOutput` | `IncompleteOutput`, `InvalidResponse`, `InvalidOutput`, `BatchItemFailed` |
+
+Authentication means the configured provider cannot serve the operation; permission denial
+means access was rejected. An unclassified batch item failure means no usable output was
+returned. Applications can use the detailed kind when they need a different policy.
+Missing credentials and exhausted quota are unavailable even when retries are not useful.
+
+`error.Summary` returns library-controlled wording on one line, with the numeric HTTP status
+and timeout budgets when present. It never incorporates `Message`, issues or provider content.
+Timeout budgets are retained on timeout failures; they are not available on every error.
+
+```csharp
+var value = result.EnsureSuccess(
+    unavailable: failure => new ApplicationException(failure.Error.Summary, failure),
+    failed: failure => new InvalidOperationException(failure.Error.Summary, failure));
+```
+
+Both mappers receive a `StructuredOperationException` containing the original error, metadata
+and warnings. Returning an exception selects what is thrown; success returns the value without
+invoking either mapper. The parameterless overload retains its existing behavior. Caller
+cancellation continues to propagate as `StructuredOperationCanceledException` from execution.

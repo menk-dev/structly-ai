@@ -1,3 +1,4 @@
+using Structly.AI.OpenAI;
 using Structly.AI.Testing;
 using System.Text.Json;
 
@@ -94,6 +95,76 @@ public sealed class OpenAiTestFixtureTests
         Assert.NotNull(StructuredTask.Create<Answer>(new()));
         Assert.Throws<ArgumentException>(() => StructuredTask.Create<Answer>(" "));
         Assert.Throws<ArgumentNullException>(() => StructuredTask.Create<Answer>((string)null!));
+    }
+
+    [Fact]
+    public async Task ResponderCompletesTheActualRequestAndQueuesTakePrecedence()
+    {
+        using var fixture = new OpenAiTestFixture(null, (request, token) =>
+        {
+            Assert.False(token.IsCancellationRequested);
+            return ValueTask.FromResult(ResponseEnvelopes.ToHttpResponse(ResponseEnvelopes.CompletedJson(
+                ResponseEnvelopes.CompleteFromRequest(request.ReadJson(), "{}"))));
+        });
+        var task = StructuredTask.Create<Answer>("Extract");
+        fixture.Enqueue(ResponseEnvelopes.CompletedText("{\"value\":\"queued\"}"));
+        Assert.Equal("queued", (await fixture.Client.ExecuteAsync(task, "input", TestContext.Current.CancellationToken)).EnsureSuccess().Value);
+        Assert.Equal("", (await fixture.Client.ExecuteAsync(task, "input", TestContext.Current.CancellationToken)).EnsureSuccess().Value);
+        Assert.Equal(2, fixture.Requests.Count);
+    }
+
+    [Fact]
+    public async Task RequestResponderUsesEachCallsVocabulary()
+    {
+        using var fixture = new OpenAiTestFixture(null, (request, _) => ValueTask.FromResult(
+            ResponseEnvelopes.ToHttpResponse(ResponseEnvelopes.CompletedJson(
+                ResponseEnvelopes.CompleteFromRequest(request.ReadJson(), "{}")))));
+        var task = StructuredTask.Create<VocabularyAnswer>("Extract");
+        foreach(var choice in new[] { "first", "second" })
+        {
+            var result = await fixture.Client.ExecuteAsync(task, new()
+            {
+                Input = "input",
+                Vocabularies = new Dictionary<string, IReadOnlyList<string>> { ["choices"] = [choice] },
+            }, TestContext.Current.CancellationToken);
+            Assert.Equal(choice, result.EnsureSuccess().Choice);
+        }
+    }
+
+    [Fact]
+    public async Task ConstructionOptionsAllowMissingCredentialsAndShortDeadlines()
+    {
+        using var missing = new OpenAiTestFixture(new() { DefaultModel = new() { ModelId = "test" } });
+        var task = StructuredTask.Create<Answer>("Extract");
+        Assert.Equal(StructuredErrorKind.CredentialsMissing,
+            (await missing.Client.ExecuteAsync(task, "input", TestContext.Current.CancellationToken)).Error!.Kind);
+        Assert.Empty(missing.Requests);
+        var clock = new ReliabilityClock();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var fixture = new OpenAiTestFixture(new()
+        {
+            DefaultModel = new() { ModelId = "test" },
+            CredentialResolver = Credentials.FromStatic("fake"),
+            TotalTimeout = TimeSpan.FromMilliseconds(50),
+            TimeProvider = clock,
+        }, async (_, token) =>
+        {
+            entered.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            throw new InvalidOperationException();
+        });
+        var pending = fixture.Client.ExecuteAsync(task, "input", TestContext.Current.CancellationToken);
+        await entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        clock.Advance(TimeSpan.FromMilliseconds(50));
+        var result = await pending.WaitAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(StructuredErrorKind.DeadlineExceeded, result.Error!.Kind);
+        Assert.Equal(TimeSpan.FromMilliseconds(50), result.Error.TotalTimeout);
+    }
+
+    sealed record VocabularyAnswer
+    {
+        [DynamicVocabulary("choices")]
+        public required string Choice { get; init; }
     }
 
     sealed record Answer(string Value);

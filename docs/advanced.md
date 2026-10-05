@@ -300,3 +300,12 @@ Modern controls apply to GPT-5.6 and later. See the
 
 See the dedicated [bound output and conversations guide](conversations.md) for binding,
 continuation, storage behavior and typed branches.
+
+## Image data from bytes
+
+Use `ImagePart.FromBytes(bytes, contentType: null, detail: ImageDetail.High)` to build a
+base64 data URL. PNG, JPEG, WebP and GIF are detected from byte signatures; unsupported or
+truncated signatures throw `ArgumentException`. An optional MIME type is matched without
+case sensitivity after trimming and must agree with the detected format. This detects the
+format without decoding or validating the entire image. The resulting part contains a copied
+base64 string and can be used in user messages like other image parts.

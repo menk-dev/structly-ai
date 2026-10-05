@@ -44,10 +44,49 @@ sealed class FakeHandler : HttpMessageHandler
 ```
 
 Use a normal `OpenAiClient` with this handler and a static fake credential. The real client
-will validate the output and retain usage on failure. Builders never inspect the request schema.
+will validate the output and retain usage on failure. Envelope builders preserve supplied output.
 
 For explicit fixture filling, call `ResponseEnvelopes.CompleteExample(task, partialJson, vocabularies)`.
 It adds missing object properties from `CreateExample`, including nested objects. It preserves
 supplied values, nulls, arrays and unknown properties, then validates and throws `ArgumentException`
 if the completed output is invalid. Filling is never implicit. Supplied arrays are not expanded.
 See the runnable [consumer](../examples/Structly.AI.Consumer/Program.cs).
+
+## Responding from the request schema
+
+When payload types are private or vocabularies change per request, complete output from
+`text.format.schema` in the actual Responses request:
+
+```csharp
+using var fixture = new OpenAiTestFixture(null, (request, token) =>
+{
+    var output = ResponseEnvelopes.CompleteFromRequest(request.ReadJson(), "{}");
+    return ValueTask.FromResult(ResponseEnvelopes.ToHttpResponse(
+        ResponseEnvelopes.CompletedJson(output)));
+});
+```
+
+`CompleteFromRequest` accepts request JSON as a string or `JsonElement`, and partial output
+as a JSON string. It returns detached output JSON, not a provider envelope. It fills missing
+properties, including objects inside supplied arrays, without replacing supplied values or
+explicit nulls. Missing arrays use their minimum item count; supplied arrays are not expanded.
+Enums use the first transmitted value, so per-request vocabularies are respected.
+
+Completion supports Structly-emitted schemas. It checks transmitted types, enum values,
+bounds, patterns and formats. Missing patterned strings require explicit values. Unsupported
+schema keywords or constraints that cannot be satisfied throw `ArgumentException`. Generation
+is bounded to 10,000 visited nodes, 1,000 generated items per array, 100,000 generated characters
+per string and 1 MiB of serialized output. CLR-only rules, such as numeric representability and
+set equality, are still checked by the real client when reading the response.
+
+The responder receives a detached request and cancellation token and must return a fresh HTTP
+response for each call. It runs outside the capture lock and can execute concurrently. Queued
+responses take precedence; the responder handles requests when the queue is empty. Without a
+responder, exhaustion still throws. The fixture captures requests before invoking the responder.
+
+Pass `OpenAiClientOptions` as the first constructor argument to configure credentials, model,
+total and inactivity timeouts, or a controlled `TimeProvider`. Supplied options replace the
+fixture defaults; they must include a default model and fake credentials unless the test is
+checking missing credentials. Options are snapshotted at construction. The fixture transport
+never connects to the provider, and its HTTP timeout remains infinite so Structly's execution
+budgets control cancellation.
