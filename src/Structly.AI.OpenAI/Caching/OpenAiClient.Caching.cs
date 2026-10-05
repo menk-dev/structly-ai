@@ -10,7 +10,8 @@ public sealed partial class OpenAiClient
         if(!modern && options.CacheRetention is null)
             return;
 
-        if(!_options.CacheCompatibility.TryGetValue(model, out var compatibility))
+        if(!_options.CacheCompatibility.TryGetValue(model, out var compatibility) &&
+            !OpenAiCacheDefaults.TryGetCompatibility(model, out compatibility))
             throw new ArgumentException("Configure model cache compatibility.");
 
         if(modern)

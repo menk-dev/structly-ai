@@ -43,9 +43,7 @@ public sealed partial class OpenAiClient : IStructuredClient
         SelectModel(options.DefaultModel);
         var embeddingProfiles = SnapshotProfiles(options.EmbeddingProfiles);
         var imageProfiles = SnapshotProfiles(options.ImageProfiles);
-        var compatibility = new Dictionary<string, OpenAiCacheCompatibility>(OpenAiCacheDefaults.Models, StringComparer.Ordinal);
-        foreach(var entry in options.CacheCompatibility)
-            compatibility[entry.Key] = entry.Value;
+        var compatibility = new Dictionary<string, OpenAiCacheCompatibility>(options.CacheCompatibility, StringComparer.Ordinal);
 
         if(compatibility.Any(x => String.IsNullOrWhiteSpace(x.Key) || !Enum.IsDefined(x.Value)))
             throw new ArgumentException("Invalid cache compatibility configuration.", nameof(options));
