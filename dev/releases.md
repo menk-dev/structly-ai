@@ -86,6 +86,6 @@ If publication succeeds but the test application cannot restore, allow time for 
 indexing before retrying. The workflow makes 30 restore attempts, waiting 20 seconds between attempts.
 Check symbol downloads separately from package restore.
 
-See [installation](../docs/INSTALLATION.md) for package and symbol setup.
+See [installation](../docs/installation.md) for package and symbol setup.
 NuGet documents [trusted publishing](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing).
 The .NET CLI documents [package push options](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-nuget-push).

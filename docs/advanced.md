@@ -2,7 +2,7 @@
 
 All operations return `StructuredResult<T>`. They use the same rules for one HTTP attempt,
 total timeouts, caller cancellation, per-call credentials, errors and usage callback limits.
-See [execution](EXECUTION.md). You can inspect a schema or generate output instructions
+See [execution](execution.md). You can inspect a schema or generate output instructions
 without credentials or provider calls.
 
 ## Messages and output instructions

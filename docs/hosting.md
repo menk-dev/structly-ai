@@ -5,7 +5,7 @@ worker services and Generic Host applications. It requires .NET 10. The core `St
 package has no NuGet dependencies and can be used without hosting integration.
 
 Install with `dotnet add package Structly.AI.Hosting --version 0.4.0` from
-[nuget.org](INSTALLATION.md). You can also reference the project locally.
+[nuget.org](installation.md). You can also reference the project locally.
 
 ## Settings
 
@@ -37,7 +37,7 @@ Add this section to `appsettings.json` and replace the model IDs with models you
 
 Only `DefaultModel` is required. It can instead be `{ "ModelId": "your-response-model" }`.
 `CacheCompatibility` accepts a dictionary of model IDs to enum names; see
-[advanced configuration](ADVANCED.md). `InactivityTimeout` applies only to streaming.
+[advanced configuration](advanced.md). `InactivityTimeout` applies only to streaming.
 
 The default host configuration loads appsettings files, development user secrets,
 environment variables and command-line arguments in that order. Store credentials using

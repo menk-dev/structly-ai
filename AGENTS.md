@@ -10,7 +10,7 @@ Give each top-level public type its own file named after the type, including enu
 
 Keep substantial internal types in separate files. Small nested types used only by their containing implementation or test may stay there. Put shared test fixtures in `Support/` and group tests by the feature they exercise. Avoid catch-all folders and filenames such as `Helpers` or `AdvancedContracts`.
 
-Folders describe source responsibilities; existing public namespaces do not need to match folders. Preserve public namespaces when moving files so consumers keep their existing imports. See [dev/STRUCTURE.md](dev/STRUCTURE.md) for the project layout.
+Folders describe source responsibilities; existing public namespaces do not need to match folders. Preserve public namespaces when moving files so consumers keep their existing imports. See [dev/structure.md](dev/structure.md) for the project layout.
 
 Add an abstraction when it removes meaningful duplication or supports multiple existing implementations. Otherwise, use direct feature code rather than interfaces or service layers for possible future uses.
 

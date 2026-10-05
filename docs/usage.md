@@ -54,7 +54,7 @@ or `CaptureRawResponse`, decide where that data is stored and who can access it.
 
 For streaming, raw capture contains the final response object, not every SSE event.
 Progress callbacks may receive output text and requested reasoning summaries.
-See [execution](EXECUTION.md).
+See [execution](execution.md).
 
 Usage events expose required `Provider`, `RequestedModel`, and `Usage` properties directly.
 `ResolvedModel` may be absent; use `RequestedModel` as the accounting fallback. Counts are
@@ -65,4 +65,4 @@ There is no universal maximum promised by this package.
 Batch imports notify once for each item with reported usage on each import, including failed
 output validation. Re-importing can repeat notifications. Persist ledger entries with a unique
 execution-ID constraint and record usage transactionally. Do not add aggregate batch counts to
-item counts or infer usage for missing results. See [batches](BATCHES.md).
+item counts or infer usage for missing results. See [batches](batches.md).

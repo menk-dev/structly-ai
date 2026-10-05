@@ -20,7 +20,7 @@ it is not a plan to implement those features.
 `SchemaResolver` builds an immutable description of the task's serialization rules.
 `SchemaWriter`, `OutputValidator` and the output specification partial of `StructuredTask<T>` use it to generate the JSON
 schema, validate output and generate output instructions. Keep supported types consistent
-with [SCHEMAS.md](../docs/SCHEMAS.md). Finding a type through reflection does not prove
+with [schemas.md](../docs/schemas.md). Finding a type through reflection does not prove
 that `System.Text.Json` can deserialize it.
 
 Each request copies its vocabularies. There is no global schema cache for vocabulary data.
@@ -42,8 +42,8 @@ response parsing, streaming and operation-specific processing stay in their feat
 Your application configures model profiles, chooses models and handles retries. When
 changing provider requests, check official documentation rather than old comments or fixtures.
 
-Preserve the behavior described in [EXECUTION.md](../docs/EXECUTION.md),
-[FAILURES.md](../docs/FAILURES.md) and [USAGE.md](../docs/USAGE.md):
+Preserve the behavior described in [execution.md](../docs/execution.md),
+[failures.md](../docs/failures.md) and [usage.md](../docs/usage.md):
 
 - Validate requests before resolving credentials or sending HTTP. Copy mutable request
   data and keep credentials, options, callbacks and vocabularies separate across calls.
@@ -67,7 +67,7 @@ Keep the regression tests for these rules when refactoring.
 Cache settings are provider-specific and configured per model. Unsupported combinations
 fail before sending, and unknown diagnostic strings are retained. Cache settings do not
 guarantee reuse, storage or protection from duplicate requests.
-See [ADVANCED.md](../docs/ADVANCED.md).
+See [advanced.md](../docs/advanced.md).
 
 ## Test coverage
 

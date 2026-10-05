@@ -122,7 +122,7 @@ token may continue after the operation returns; later faults are observed.
 Cache diagnostics retain comparison results, reasons and counts, including unknown strings.
 `Usage.CachedInputTokens` is the provider's reported cached input count. Embedding
 `prompt_tokens` becomes `InputTokens`. Images retain reported text and image token counts.
-Missing counts stay unknown. See [advanced features](ADVANCED.md).
+Missing counts stay unknown. See [advanced features](advanced.md).
 
 Read final usage from `result.Metadata` or cancellation-exception metadata. If you record
 both callback data and result data, deduplicate using `ExecutionId`. Malformed responses,

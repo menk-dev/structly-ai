@@ -12,7 +12,7 @@ public sealed class StructuredSchemaAnalyzer : DiagnosticAnalyzer
     static readonly DiagnosticDescriptor _invalid = new("STAI001", "Invalid structured output contract",
         "{0}: {1} — {2}", "Structly.AI.Schema", DiagnosticSeverity.Error, true,
         description: "Use a concrete, constructible DTO supported by the strict schema contract.",
-        helpLinkUri: "https://github.com/menk-dev/structly-ai/blob/main/docs/SCHEMAS.md");
+        helpLinkUri: "https://github.com/menk-dev/structly-ai/blob/main/docs/schemas.md");
 
     /// <inheritdoc />
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => [_invalid];

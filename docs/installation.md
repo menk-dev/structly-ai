@@ -21,6 +21,6 @@ For debugging, download the matching `.snupkg`, extract its portable PDB, and ad
 directory to your debugger's local symbol search path. Package validation checks Source
 Link metadata. Check symbol downloads separately from package installation.
 
-See the [maintainer release guide](../dev/RELEASES.md) for publication and recovery.
+See the [maintainer release guide](../dev/releases.md) for publication and recovery.
 
 For offline envelope builders: `dotnet add package Structly.AI.Testing --version 0.4.0`.
