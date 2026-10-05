@@ -3,18 +3,28 @@
 ## Consuming from your projects
 
 Install from nuget.org. No GitHub token or additional package feed is required.
-Install the core package, or install the hosting package for ASP.NET Core and Generic Host:
+Install the core package and a provider package. For OpenAI:
 
 ```sh
 dotnet add package Structly.AI --version 0.8.0
 dotnet add package Structly.AI.OpenAI --version 0.8.0
 ```
 
+For Mistral, use `Structly.AI.Mistral` instead of `Structly.AI.OpenAI`:
+
+```sh
+dotnet add package Structly.AI.Mistral --version 0.8.0
+```
+
+See the [Mistral guide](mistral.md) for configuration and supported operations.
+
 For ASP.NET Core and Generic Host, install the hosting package, which also installs the core:
 
 ```sh
 dotnet add package Structly.AI.Hosting --version 0.8.0
 ```
+
+Keep the provider package installed alongside hosting.
 
 For offline envelope builders, install the testing package alongside the matching core:
 
@@ -35,5 +45,3 @@ directory to your debugger's local symbol search path. Package validation checks
 Link metadata. Check symbol downloads separately from package installation.
 
 See the [maintainer release guide](../dev/releases.md) for publication and recovery.
-
-For Mistral, install `Structly.AI.Mistral --version 0.8.0` and follow [the Mistral guide](mistral.md).
