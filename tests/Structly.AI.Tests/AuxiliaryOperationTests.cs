@@ -1,9 +1,9 @@
-using System.Net;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using Structly.AI.Embeddings;
 using Structly.AI.Imaging;
 using Structly.AI.OpenAI;
+using System.Net;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Structly.AI.Tests;
 
@@ -65,7 +65,11 @@ public sealed class AuxiliaryOperationTests
             IdempotencyKey = "idem",
             CaptureRawResponse = true,
             CredentialResolver = Credentials.FromStatic("request-key"),
-            UsageObserver = (item, _) => { observed = item; return ValueTask.CompletedTask; }
+            UsageObserver = (item, _) =>
+            {
+                observed = item;
+                return ValueTask.CompletedTask;
+            }
         }, TestContext.Current.CancellationToken);
         var vectors = result.EnsureSuccess();
         Assert.Equal(new float[] { 1, 2 }, vectors[0]);
@@ -101,26 +105,58 @@ public sealed class AuxiliaryOperationTests
     public async Task InvalidEmbeddingOutputRetainsBilledUsage(string scenario)
     {
         var root = JsonNode.Parse(EmbeddingEnvelope())!;
-        switch (scenario)
+        switch(scenario)
         {
-            case "duplicate": root["data"]![1]!["index"] = 1; break;
-            case "negative": root["data"]![0]!["index"] = -1; break;
-            case "outside": root["data"]![0]!["index"] = 2; break;
-            case "fractional": root["data"]![0]!["index"] = 0.5; break;
-            case "missing": ((JsonArray)root["data"]!).RemoveAt(0); break;
-            case "empty-vector": root["data"]![0]!["embedding"] = new JsonArray(); break;
+            case "duplicate":
+                root["data"]![1]!["index"] = 1;
+                break;
+            case "negative":
+                root["data"]![0]!["index"] = -1;
+                break;
+            case "outside":
+                root["data"]![0]!["index"] = 2;
+                break;
+            case "fractional":
+                root["data"]![0]!["index"] = 0.5;
+                break;
+            case "missing":
+                ((JsonArray)root["data"]!).RemoveAt(0);
+                break;
+            case "empty-vector":
+                root["data"]![0]!["embedding"] = new JsonArray();
+                break;
             case "dimension-mismatch":
-            case "unequal-vectors": root["data"]![0]!["embedding"] = new JsonArray(1); break;
-            case "string-component": root["data"]![0]!["embedding"]![0] = "secret"; break;
-            case "null-component": root["data"]![0]!["embedding"]![0] = null; break;
-            case "infinite": root["data"]![0]!["embedding"]![0] = JsonNode.Parse("1e100"); break;
-            case "missing-model": ((JsonObject)root).Remove("model"); break;
-            case "non-array": root["data"] = new JsonObject(); break;
+            case "unequal-vectors":
+                root["data"]![0]!["embedding"] = new JsonArray(1);
+                break;
+            case "string-component":
+                root["data"]![0]!["embedding"]![0] = "secret";
+                break;
+            case "null-component":
+                root["data"]![0]!["embedding"]![0] = null;
+                break;
+            case "infinite":
+                root["data"]![0]!["embedding"]![0] = JsonNode.Parse("1e100");
+                break;
+            case "missing-model":
+                ((JsonObject)root).Remove("model");
+                break;
+            case "non-array":
+                root["data"] = new JsonObject();
+                break;
         }
         using var handler = new Handler(_ => Task.FromResult(Response(root.ToJsonString())));
         using var http = new HttpClient(handler);
         StructuredUsageEvent? usage = null;
-        var request = Embedding() with { Dimensions = scenario == "unequal-vectors" ? null : 2, UsageObserver = (item, _) => { usage = item; return ValueTask.CompletedTask; } };
+        var request = Embedding() with
+        {
+            Dimensions = scenario == "unequal-vectors" ? null : 2,
+            UsageObserver = (item, _) =>
+        {
+            usage = item;
+            return ValueTask.CompletedTask;
+        }
+        };
         var result = await Client(http).EmbedAsync(request, TestContext.Current.CancellationToken);
         Assert.Equal(StructuredErrorKind.InvalidResponse, result.Error!.Kind);
         Assert.Equal(7, result.Metadata.Usage!.InputTokens);
@@ -139,7 +175,14 @@ public sealed class AuxiliaryOperationTests
     public async Task InvalidEmbeddingInputNeverResolvesAuthOrSends(string scenario)
     {
         var auth = 0;
-        var request = Embedding() with { CredentialResolver = _ => { auth++; return ValueTask.FromResult<string?>("key"); } };
+        var request = Embedding() with
+        {
+            CredentialResolver = _ =>
+        {
+            auth++;
+            return ValueTask.FromResult<string?>("key");
+        }
+        };
         request = scenario switch
         {
             "empty" => request with { Inputs = [] },
@@ -190,10 +233,18 @@ public sealed class AuxiliaryOperationTests
             Background = ImageBackground.Transparent,
             Format = ImageFormat.WebP,
             Count = 2,
-            UsageObserver = (item, _) => { usage = item; return ValueTask.CompletedTask; }
+            UsageObserver = (item, _) =>
+            {
+                usage = item;
+                return ValueTask.CompletedTask;
+            }
         }, TestContext.Current.CancellationToken);
         Assert.Equal(2, result.EnsureSuccess().Count);
-        Assert.All(result.Value!, image => { Assert.Equal("image/webp", image.MediaType); Assert.Equal(Convert.FromBase64String(Base64("webp")), image.ToBytes()); });
+        Assert.All(result.Value!, image =>
+        {
+            Assert.Equal("image/webp", image.MediaType);
+            Assert.Equal(Convert.FromBase64String(Base64("webp")), image.ToBytes());
+        });
         Assert.Throws<NotSupportedException>(() => ((IList<GeneratedImage>)result.Value!)[0] = new("AQ==", "image/png"));
         Assert.Equal("Images", result.Metadata.Operation);
         Assert.Equal("image", result.Metadata.RequestedModel);
@@ -239,7 +290,14 @@ public sealed class AuxiliaryOperationTests
     public async Task InvalidImageControlsAreSuppressed(string scenario)
     {
         var auth = 0;
-        var request = Image() with { CredentialResolver = _ => { auth++; return ValueTask.FromResult<string?>("key"); } };
+        var request = Image() with
+        {
+            CredentialResolver = _ =>
+        {
+            auth++;
+            return ValueTask.FromResult<string?>("key");
+        }
+        };
         request = scenario switch
         {
             "prompt" => request with { Prompt = " " },
@@ -274,20 +332,42 @@ public sealed class AuxiliaryOperationTests
     public async Task ImageProcessingFailuresRetainUsageAndNotifyObserver(string scenario)
     {
         var root = JsonNode.Parse(ImageEnvelope())!;
-        switch (scenario)
+        switch(scenario)
         {
-            case "bad-base64": root["data"]![0]!["b64_json"] = "private!!"; break;
-            case "empty": root["data"]![0]!["b64_json"] = ""; break;
-            case "wrong-bytes": root["data"]![0]!["b64_json"] = Base64("jpeg"); break;
-            case "wrong-reported-format": root["output_format"] = "webp"; break;
-            case "url-only": root["data"]![0] = new JsonObject { ["url"] = "https://example.test/private.png" }; break;
-            case "count": root["data"] = new JsonArray(); break;
-            case "data-shape": root["data"] = new JsonObject(); break;
+            case "bad-base64":
+                root["data"]![0]!["b64_json"] = "private!!";
+                break;
+            case "empty":
+                root["data"]![0]!["b64_json"] = "";
+                break;
+            case "wrong-bytes":
+                root["data"]![0]!["b64_json"] = Base64("jpeg");
+                break;
+            case "wrong-reported-format":
+                root["output_format"] = "webp";
+                break;
+            case "url-only":
+                root["data"]![0] = new JsonObject { ["url"] = "https://example.test/private.png" };
+                break;
+            case "count":
+                root["data"] = new JsonArray();
+                break;
+            case "data-shape":
+                root["data"] = new JsonObject();
+                break;
         }
         using var handler = new Handler(_ => Task.FromResult(Response(root.ToJsonString())));
         using var http = new HttpClient(handler);
         StructuredUsageEvent? usage = null;
-        var result = await Client(http).GenerateImagesAsync(Image() with { CaptureRawResponse = true, UsageObserver = (item, _) => { usage = item; return ValueTask.CompletedTask; } }, TestContext.Current.CancellationToken);
+        var result = await Client(http).GenerateImagesAsync(Image() with
+        {
+            CaptureRawResponse = true,
+            UsageObserver = (item, _) =>
+        {
+            usage = item;
+            return ValueTask.CompletedTask;
+        }
+        }, TestContext.Current.CancellationToken);
         Assert.Equal(StructuredErrorKind.InvalidResponse, result.Error!.Kind);
         Assert.Equal(30, result.Metadata.Usage!.TotalTokens);
         Assert.NotNull(result.Metadata.RawResponse);
@@ -333,12 +413,20 @@ public sealed class AuxiliaryOperationTests
         var client = Client(http);
         var exception = await Assert.ThrowsAsync<StructuredOperationCanceledException>(async () =>
         {
-            switch (operation)
+            switch(operation)
             {
-                case "text": await client.GenerateTextAsync(new() { Request = new() { Input = "prompt" } }, cancelled.Token); break;
-                case "prewarm": await client.PrewarmAsync(new() { Request = new() { Input = "prompt" } }, cancelled.Token); break;
-                case "embedding": await client.EmbedAsync(Embedding(), cancelled.Token); break;
-                default: await client.GenerateImagesAsync(Image(), cancelled.Token); break;
+                case "text":
+                    await client.GenerateTextAsync(new() { Request = new() { Input = "prompt" } }, cancelled.Token);
+                    break;
+                case "prewarm":
+                    await client.PrewarmAsync(new() { Request = new() { Input = "prompt" } }, cancelled.Token);
+                    break;
+                case "embedding":
+                    await client.EmbedAsync(Embedding(), cancelled.Token);
+                    break;
+                default:
+                    await client.GenerateImagesAsync(Image(), cancelled.Token);
+                    break;
             }
         });
         Assert.Equal(cancelled.Token, exception.CancellationToken);
@@ -353,7 +441,11 @@ public sealed class AuxiliaryOperationTests
         var clock = new ManualClock();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var responseGate = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var handler = new Handler(_ => { entered.SetResult(); return responseGate.Task; });
+        using var handler = new Handler(_ =>
+        {
+            entered.SetResult();
+            return responseGate.Task;
+        });
         using var http = new HttpClient(handler);
         var client = Client(http, clock);
         var pending = image ? Observe(client.GenerateImagesAsync(Image() with { TotalTimeout = TimeSpan.FromSeconds(1) }, TestContext.Current.CancellationToken))
@@ -379,7 +471,7 @@ public sealed class AuxiliaryOperationTests
         {
             using var document = JsonDocument.Parse(await message.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken));
             var root = document.RootElement;
-            if (message.RequestUri!.AbsolutePath.EndsWith("embeddings", StringComparison.Ordinal))
+            if(message.RequestUri!.AbsolutePath.EndsWith("embeddings", StringComparison.Ordinal))
             {
                 Assert.Equal("embed-key", message.Headers.Authorization!.Parameter);
                 Assert.Equal("first", root.GetProperty("input")[0].GetString());
@@ -395,15 +487,27 @@ public sealed class AuxiliaryOperationTests
         var embed = client.EmbedAsync(Embedding() with
         {
             Inputs = inputs,
-            CredentialResolver = _ => { entered.SetResult(); return new(release.Task); },
-            UsageObserver = (item, _) => { observers.Add(item.Metadata.Operation!); return ValueTask.CompletedTask; }
+            CredentialResolver = _ =>
+            {
+                entered.SetResult();
+                return new(release.Task);
+            },
+            UsageObserver = (item, _) =>
+            {
+                observers.Add(item.Metadata.Operation!);
+                return ValueTask.CompletedTask;
+            }
         }, TestContext.Current.CancellationToken);
         await entered.Task.WaitAsync(TestContext.Current.CancellationToken);
         inputs[0] = "mutated";
         var image = await client.GenerateImagesAsync(Image() with
         {
             CredentialResolver = Credentials.FromStatic("image-key"),
-            UsageObserver = (item, _) => { observers.Add(item.Metadata.Operation!); return ValueTask.CompletedTask; }
+            UsageObserver = (item, _) =>
+            {
+                observers.Add(item.Metadata.Operation!);
+                return ValueTask.CompletedTask;
+            }
         }, TestContext.Current.CancellationToken);
         release.SetResult("embed-key");
         Assert.True((await embed).IsSuccess);
@@ -429,8 +533,10 @@ public sealed class AuxiliaryOperationTests
         }
         var exception = await Assert.ThrowsAsync<StructuredOperationCanceledException>(async () =>
         {
-            if (image) await client.GenerateImagesAsync(Image() with { UsageObserver = Observer }, caller.Token);
-            else await client.EmbedAsync(Embedding() with { UsageObserver = Observer }, caller.Token);
+            if(image)
+                await client.GenerateImagesAsync(Image() with { UsageObserver = Observer }, caller.Token);
+            else
+                await client.EmbedAsync(Embedding() with { UsageObserver = Observer }, caller.Token);
         });
         Assert.Equal(image ? 30 : 7, exception.Metadata.Usage!.TotalTokens);
         Assert.Equal(caller.Token, exception.CancellationToken);
@@ -506,13 +612,21 @@ public sealed class AuxiliaryOperationTests
         int _calls;
         public int Calls => Volatile.Read(ref _calls);
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        { Interlocked.Increment(ref _calls); return send(request); }
+        {
+            Interlocked.Increment(ref _calls);
+            return send(request);
+        }
     }
     sealed class TrackedContent : StringContent
     {
         public TrackedContent() : base("{}") { }
         public TaskCompletionSource Disposed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        protected override void Dispose(bool disposing) { base.Dispose(disposing); if (disposing) Disposed.TrySetResult(); }
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            if(disposing)
+                Disposed.TrySetResult();
+        }
     }
     sealed class ManualClock : TimeProvider
     {
@@ -531,15 +645,30 @@ public sealed class AuxiliaryOperationTests
         public void Advance(TimeSpan duration)
         {
             _ticks += duration.Ticks;
-            foreach (var timer in _timers.ToArray()) timer.Fire();
+            foreach(var timer in _timers.ToArray())
+                timer.Fire();
         }
         sealed class ManualTimer(ManualClock clock, TimerCallback callback, object? state) : ITimer
         {
             long _due = Int64.MaxValue;
-            public bool Change(TimeSpan dueTime, TimeSpan period) { _due = dueTime == Timeout.InfiniteTimeSpan ? Int64.MaxValue : clock._ticks + dueTime.Ticks; return true; }
-            public void Fire() { if (clock._ticks < _due) return; _due = Int64.MaxValue; callback(state); }
+            public bool Change(TimeSpan dueTime, TimeSpan period)
+            {
+                _due = dueTime == Timeout.InfiniteTimeSpan ? Int64.MaxValue : clock._ticks + dueTime.Ticks;
+                return true;
+            }
+            public void Fire()
+            {
+                if(clock._ticks < _due)
+                    return;
+                _due = Int64.MaxValue;
+                callback(state);
+            }
             public void Dispose() => _due = Int64.MaxValue;
-            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+            public ValueTask DisposeAsync()
+            {
+                Dispose();
+                return ValueTask.CompletedTask;
+            }
         }
     }
 }

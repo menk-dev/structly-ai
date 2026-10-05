@@ -53,15 +53,19 @@ public static class ResponseEnvelopes
         var example = JsonNode.Parse(task.CreateExample(vocabularies).GetRawText());
         Fill(supplied, example);
         var json = supplied?.ToJsonString() ?? "null";
-        if (!task.ReadOutput(json, vocabularies).IsSuccess) throw new ArgumentException("Completed example does not satisfy the contract.", nameof(partialJson));
+        if(!task.ReadOutput(json, vocabularies).IsSuccess)
+            throw new ArgumentException("Completed example does not satisfy the contract.", nameof(partialJson));
         return JsonSerializer.Deserialize<JsonElement>(json);
     }
 
     static void Fill(JsonNode? supplied, JsonNode? example)
     {
-        if (supplied is not JsonObject target || example is not JsonObject source) return;
-        foreach (var property in source)
-            if (!target.ContainsKey(property.Key)) target[property.Key] = property.Value?.DeepClone();
-            else Fill(target[property.Key], property.Value);
+        if(supplied is not JsonObject target || example is not JsonObject source)
+            return;
+        foreach(var property in source)
+            if(!target.ContainsKey(property.Key))
+                target[property.Key] = property.Value?.DeepClone();
+            else
+                Fill(target[property.Key], property.Value);
     }
 }

@@ -1,10 +1,10 @@
+using Structly.AI.OpenAI;
 using System.ComponentModel;
 using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using Structly.AI.OpenAI;
 
 namespace Structly.AI.Tests;
 
@@ -107,9 +107,17 @@ public sealed class AdvancedResponseTests
                 Input = "prompt",
                 Stream = stream,
                 ModelSelection = new() { ProfileName = "fast" },
-                Progress = stream ? (item, _) => { progress.Add(item.Kind); return ValueTask.CompletedTask; }
+                Progress = stream ? (item, _) =>
+                {
+                    progress.Add(item.Kind);
+                    return ValueTask.CompletedTask;
+                }
                 : null,
-                UsageObserver = (item, _) => { usage = item; return ValueTask.CompletedTask; },
+                UsageObserver = (item, _) =>
+                {
+                    usage = item;
+                    return ValueTask.CompletedTask;
+                },
                 OpenAi = new()
                 {
                     PreviousResponseId = "prior",
@@ -131,7 +139,8 @@ public sealed class AdvancedResponseTests
         Assert.Equal(40, result.Metadata.Usage!.CachedInputTokens);
         Assert.Equal(10, result.Metadata.Usage.CacheWriteTokens);
         Assert.True(usage!.Succeeded);
-        if (stream) Assert.Equal([StructuredProgressKind.Started, StructuredProgressKind.Completed], progress);
+        if(stream)
+            Assert.Equal([StructuredProgressKind.Started, StructuredProgressKind.Completed], progress);
     }
 
     [Theory]
@@ -145,7 +154,18 @@ public sealed class AdvancedResponseTests
         using var handler = new Handler(_ => Task.FromResult(Response(Envelope(text, status, refusal))));
         using var http = new HttpClient(handler);
         StructuredUsageEvent? observed = null;
-        var result = await Client(http).GenerateTextAsync(new() { Request = new() { Input = "prompt", UsageObserver = (item, _) => { observed = item; return ValueTask.CompletedTask; } } }, TestContext.Current.CancellationToken);
+        var result = await Client(http).GenerateTextAsync(new()
+        {
+            Request = new()
+            {
+                Input = "prompt",
+                UsageObserver = (item, _) =>
+        {
+            observed = item;
+            return ValueTask.CompletedTask;
+        }
+            }
+        }, TestContext.Current.CancellationToken);
         Assert.Equal(expected, result.Error!.Kind);
         Assert.Equal(100, result.Metadata.Usage!.InputTokens);
         Assert.False(observed!.Succeeded);
@@ -219,7 +239,15 @@ public sealed class AdvancedResponseTests
         var auth = 0;
         using var handler = new Handler(_ => throw new InvalidOperationException("Should not send"));
         using var http = new HttpClient(handler);
-        var request = new StructuredRequest { Messages = [new(MessageRole.User, [new TextPart("prompt")])], CredentialResolver = _ => { auth++; return ValueTask.FromResult<string?>("key"); } };
+        var request = new StructuredRequest
+        {
+            Messages = [new(MessageRole.User, [new TextPart("prompt")])],
+            CredentialResolver = _ =>
+        {
+            auth++;
+            return ValueTask.FromResult<string?>("key");
+        }
+        };
         request = scenario switch
         {
             "both" => request with { Input = "prompt" },
@@ -322,7 +350,8 @@ public sealed class AdvancedResponseTests
             Assert.False(root.TryGetProperty("max_output_tokens", out _));
             Assert.Equal(typed, root.TryGetProperty("text", out _));
             Assert.Equal(typed ? "Current instructions" : "Shared instructions", root.GetProperty("instructions").GetString());
-            if (typed) Assert.Equal(Contract<Guided>().CreateSchema(Vocabulary("a")).GetRawText(), root.GetProperty("text").GetProperty("format").GetProperty("schema").GetRawText());
+            if(typed)
+                Assert.Equal(Contract<Guided>().CreateSchema(Vocabulary("a")).GetRawText(), root.GetProperty("text").GetProperty("format").GetProperty("schema").GetRawText());
             return Response(Envelope(prewarm: true));
         });
         using var http = new HttpClient(handler);
@@ -378,7 +407,12 @@ public sealed class AdvancedResponseTests
             var root = document.RootElement;
             Assert.Equal("Current instructions", root.GetProperty("instructions").GetString());
             var properties = root.GetProperty("text").GetProperty("format").GetProperty("schema").GetProperty("properties");
-            if (++calls == 1) { Assert.True(root.GetProperty("store").GetBoolean()); Assert.True(properties.TryGetProperty("code", out _)); return Response(Envelope("{\"code\":\"AB\"}")); }
+            if(++calls == 1)
+            {
+                Assert.True(root.GetProperty("store").GetBoolean());
+                Assert.True(properties.TryGetProperty("code", out _));
+                return Response(Envelope("{\"code\":\"AB\"}"));
+            }
             Assert.Equal("current", root.GetProperty("previous_response_id").GetString());
             Assert.Equal("current", root.GetProperty("prompt_cache_options").GetProperty("comparison_response_id").GetString());
             Assert.False(root.GetProperty("store").GetBoolean());
@@ -417,7 +451,8 @@ public sealed class AdvancedResponseTests
             var guidance = root.GetProperty("input")[0].GetProperty("content")[1].GetProperty("text").GetString()!;
             Assert.Contains(JsonSerializer.Serialize(choice), guidance);
             Assert.DoesNotContain(JsonSerializer.Serialize(choice == "red" ? "blue" : "red"), guidance);
-            if (Interlocked.Increment(ref calls) == 2) bothSent.SetResult();
+            if(Interlocked.Increment(ref calls) == 2)
+                bothSent.SetResult();
             await bothSent.Task.WaitAsync(TestContext.Current.CancellationToken);
             return Response(Envelope(JsonSerializer.Serialize(new { values = new string?[] { null, choice }, enums = new string?[] { null, "yes" } })));
         });
@@ -506,7 +541,11 @@ public sealed class AdvancedResponseTests
             {
                 Messages = messages,
                 OpenAi = new() { Metadata = metadata },
-                CredentialResolver = _ => { entered.SetResult(); return new(release.Task); }
+                CredentialResolver = _ =>
+                {
+                    entered.SetResult();
+                    return new(release.Task);
+                }
             }
         }, TestContext.Current.CancellationToken);
         await entered.Task.WaitAsync(TestContext.Current.CancellationToken);
@@ -556,6 +595,9 @@ public sealed class AdvancedResponseTests
         int _calls;
         public int Calls => Volatile.Read(ref _calls);
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        { Interlocked.Increment(ref _calls); return send(request); }
+        {
+            Interlocked.Increment(ref _calls);
+            return send(request);
+        }
     }
 }

@@ -1,7 +1,7 @@
+using Structly.AI.OpenAI;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using Structly.AI.OpenAI;
 
 namespace Structly.AI.Tests;
 
@@ -51,7 +51,11 @@ public sealed class OpenAiClientTests
                 Input = "input",
                 Instructions = "Source instructions",
                 OpenAi = null,
-                UsageObserver = (item, _) => { usage = item; return ValueTask.CompletedTask; }
+                UsageObserver = (item, _) =>
+                {
+                    usage = item;
+                    return ValueTask.CompletedTask;
+                }
             }
         }, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
@@ -77,7 +81,11 @@ public sealed class OpenAiClientTests
             Input = "input",
             OpenAi = null,
             Instructions = "Source instructions",
-            UsageObserver = (item, _) => { usage = item; return ValueTask.CompletedTask; }
+            UsageObserver = (item, _) =>
+            {
+                usage = item;
+                return ValueTask.CompletedTask;
+            }
         }, TestContext.Current.CancellationToken);
         Assert.True(result.IsSuccess);
         Assert.Equal(task.SchemaName, result.Metadata.SchemaName);
@@ -263,13 +271,22 @@ public sealed class OpenAiClientTests
         using var handler = new Handler(_ => throw new InvalidOperationException("Should not send"));
         using var http = new HttpClient(handler);
         var resolved = 0;
-        var client = Client(http, new() { DefaultModel = new() { ModelId = "configured" }, CredentialResolver = _ => { resolved++; return ValueTask.FromResult<string?>("key"); } });
+        var client = Client(http, new()
+        {
+            DefaultModel = new() { ModelId = "configured" },
+            CredentialResolver = _ =>
+        {
+            resolved++;
+            return ValueTask.FromResult<string?>("key");
+        }
+        });
         StructuredRequest[] invalid = [new() { Input = " " }, new() { Input = "input", MaxOutputTokens = 0 },
             new() { Input = "input", ModelSelection = new() { ProfileName = "unknown" } },
             new() { Input = "input", ModelSelection = new() { ModelId = "a", ProfileName = "b" } },
             new() { Input = "input", OpenAi = new() { IdempotencyKey = "bad\r\nheader" } },
             new() { Input = "input", OpenAi = new() { Metadata = new Dictionary<string, string> { ["k"] = new string('x', 513) } } }];
-        foreach (var request in invalid) Assert.Equal(StructuredErrorKind.InvalidRequest, (await client.ExecuteAsync(TaskContract(), request, TestContext.Current.CancellationToken)).Error!.Kind);
+        foreach(var request in invalid)
+            Assert.Equal(StructuredErrorKind.InvalidRequest, (await client.ExecuteAsync(TaskContract(), request, TestContext.Current.CancellationToken)).Error!.Kind);
         var dynamicTask = StructuredTask.Create<DynamicAnswer>(new() { Instructions = "Extract" });
         Assert.Equal(StructuredErrorKind.UnsupportedSchema, (await client.ExecuteAsync(dynamicTask, new() { Input = "input" }, TestContext.Current.CancellationToken)).Error!.Kind);
         Assert.Equal(0, resolved);
@@ -311,8 +328,13 @@ public sealed class OpenAiClientTests
         using var handler = new Handler(async message =>
         {
             var key = message.Headers.Authorization!.Parameter;
-            if (key == "first") { entered.SetResult(); await release.Task; }
-            else release.SetResult();
+            if(key == "first")
+            {
+                entered.SetResult();
+                await release.Task;
+            }
+            else
+                release.SetResult();
             Assert.Equal(key, message.Headers.Authorization.Parameter);
             return Response(Envelope(text: key == "first" ? "{\"value\":1}" : "{\"value\":2}"));
         });
@@ -340,7 +362,10 @@ public sealed class OpenAiClientTests
             Environment.SetEnvironmentVariable(variable, "second");
             Assert.Equal("second", await resolver(TestContext.Current.CancellationToken));
         }
-        finally { Environment.SetEnvironmentVariable(variable, null); }
+        finally
+        {
+            Environment.SetEnvironmentVariable(variable, null);
+        }
     }
 
     [Theory]
@@ -444,7 +469,11 @@ public sealed class OpenAiClientTests
     sealed class TrackedContent(string text) : StringContent(text)
     {
         public bool Disposed { get; set; }
-        protected override void Dispose(bool disposing) { Disposed = true; base.Dispose(disposing); }
+        protected override void Dispose(bool disposing)
+        {
+            Disposed = true;
+            base.Dispose(disposing);
+        }
     }
 
     [Fact]
@@ -466,7 +495,14 @@ public sealed class OpenAiClientTests
         public int Calls { get; set; }
         public bool Disposed { get; set; }
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        { Calls++; return Callback(request); }
-        protected override void Dispose(bool disposing) { Disposed = true; base.Dispose(disposing); }
+        {
+            Calls++;
+            return Callback(request);
+        }
+        protected override void Dispose(bool disposing)
+        {
+            Disposed = true;
+            base.Dispose(disposing);
+        }
     }
 }

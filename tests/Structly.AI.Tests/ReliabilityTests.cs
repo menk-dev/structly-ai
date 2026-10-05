@@ -1,9 +1,9 @@
+using Structly.AI.OpenAI;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
-using Structly.AI.OpenAI;
 
 namespace Structly.AI.Tests;
 
@@ -98,7 +98,7 @@ public sealed class ReliabilityTests
         var client = Client(http, new());
         StructuredRequest[] requests = [new() { Input = "input", Progress = (_, _) => ValueTask.CompletedTask },
             new() { Input = "input", InactivityTimeout = TimeSpan.FromSeconds(1) }, new() { Input = "input", IncludeReasoningSummary = true }];
-        foreach (var request in requests)
+        foreach(var request in requests)
         {
             var result = await client.ExecuteAsync(Contract(), request with { CredentialResolver = _ => throw new InvalidOperationException() }, TestToken);
             Assert.Equal(StructuredErrorKind.InvalidRequest, result.Error!.Kind);
@@ -129,7 +129,11 @@ public sealed class ReliabilityTests
             Input = "input",
             Stream = true,
             IncludeReasoningSummary = true,
-            Progress = (item, _) => { events.Add(item); return ValueTask.CompletedTask; },
+            Progress = (item, _) =>
+            {
+                events.Add(item);
+                return ValueTask.CompletedTask;
+            },
             OpenAi = new() { CaptureRawResponse = true }
         }, TestToken);
         Assert.Equal(42, result.EnsureSuccess().Value);
@@ -154,7 +158,11 @@ public sealed class ReliabilityTests
         using var stream = new FragmentStream(Event("response." + status, Envelope(status, text)));
         using var handler = new Handler(_ => Task.FromResult(Response(stream)));
         using var http = new HttpClient(handler);
-        var result = await Client(http, new(), (item, _) => { notifications.Add(item); return ValueTask.CompletedTask; })
+        var result = await Client(http, new(), (item, _) =>
+        {
+            notifications.Add(item);
+            return ValueTask.CompletedTask;
+        })
             .ExecuteAsync(Contract(), new() { Input = "input", Stream = true }, TestToken);
         Assert.Equal(error, result.Error?.Kind);
         Assert.Equal(10, result.Metadata.Usage!.InputTokens);
@@ -193,7 +201,7 @@ public sealed class ReliabilityTests
         using var http = new HttpClient(handler);
         var pending = Client(http, clock).ExecuteAsync(Contract(), new() { Input = "input", Stream = true, InactivityTimeout = TimeSpan.FromSeconds(3) }, TestToken);
         await stream.NextRead();
-        for (var index = 0; index < 3; index++)
+        for(var index = 0; index < 3; index++)
         {
             clock.Advance(TimeSpan.FromSeconds(2));
             stream.Push(": keepalive\n");
@@ -277,7 +285,11 @@ public sealed class ReliabilityTests
         {
             Input = "input",
             UsageObserver = (_, token) =>
-            { Assert.False(token.IsCancellationRequested); entered.SetResult(true); return new(callback.Task); }
+            {
+                Assert.False(token.IsCancellationRequested);
+                entered.SetResult(true);
+                return new(callback.Task);
+            }
         }, TestToken);
         await entered.Task.WaitAsync(TestToken);
         clock.Advance(TimeSpan.FromSeconds(5));
@@ -299,7 +311,11 @@ public sealed class ReliabilityTests
         {
             Input = "input",
             TotalTimeout = TimeSpan.FromSeconds(2),
-            UsageObserver = (_, _) => { entered.SetResult(true); return new(callback.Task); }
+            UsageObserver = (_, _) =>
+            {
+                entered.SetResult(true);
+                return new(callback.Task);
+            }
         }, TestToken);
         await entered.Task.WaitAsync(TestToken);
         clock.Advance(TimeSpan.FromSeconds(2));
@@ -317,12 +333,22 @@ public sealed class ReliabilityTests
         var observed = new List<StructuredUsageEvent>();
         using var handler = new Handler(_ => Task.FromResult(Response(new FragmentStream(Event("response.completed", Envelope())))));
         using var http = new HttpClient(handler);
-        var client = Client(http, new(), (item, token) => { Assert.False(token.IsCancellationRequested); observed.Add(item); return ValueTask.CompletedTask; });
+        var client = Client(http, new(), (item, token) =>
+        {
+            Assert.False(token.IsCancellationRequested);
+            observed.Add(item);
+            return ValueTask.CompletedTask;
+        });
         var exception = await Assert.ThrowsAsync<StructuredOperationCanceledException>(() => client.ExecuteAsync(Contract(), new()
         {
             Input = "input",
             Stream = true,
-            Progress = (item, _) => { if (item.Kind == StructuredProgressKind.Completed) caller.Cancel(); return ValueTask.CompletedTask; }
+            Progress = (item, _) =>
+            {
+                if(item.Kind == StructuredProgressKind.Completed)
+                    caller.Cancel();
+                return ValueTask.CompletedTask;
+            }
         }, caller.Token));
         Assert.Equal(10, exception.Metadata.Usage!.InputTokens);
         Assert.True(Assert.Single(observed).CallerCancelled);
@@ -341,7 +367,11 @@ public sealed class ReliabilityTests
         var usageCalls = 0;
         using var handler = new Handler(_ => Task.FromResult(Response(new FragmentStream(Event("response.completed", Envelope())))));
         using var http = new HttpClient(handler);
-        var pending = Client(http, clock, (_, _) => { usageCalls++; return ValueTask.CompletedTask; }).ExecuteAsync(Contract(), new()
+        var pending = Client(http, clock, (_, _) =>
+        {
+            usageCalls++;
+            return ValueTask.CompletedTask;
+        }).ExecuteAsync(Contract(), new()
         {
             Input = "input",
             Stream = true,
@@ -349,12 +379,14 @@ public sealed class ReliabilityTests
             {
                 progressCalls++;
                 entered.TrySetResult(true);
-                if (!timeout) throw new InvalidOperationException("secret");
+                if(!timeout)
+                    throw new InvalidOperationException("secret");
                 return new(callback.Task);
             }
         }, TestToken);
         await entered.Task.WaitAsync(TestToken);
-        if (timeout) clock.Advance(TimeSpan.FromSeconds(1));
+        if(timeout)
+            clock.Advance(TimeSpan.FromSeconds(1));
         var result = await pending.WaitAsync(TestToken);
         Assert.True(result.IsSuccess);
         Assert.Equal(1, progressCalls);
@@ -369,14 +401,25 @@ public sealed class ReliabilityTests
         var calls = 0;
         using var handler = new Handler(_ => Task.FromResult(Response(new FragmentStream(Envelope(usage: false)), false)));
         using var http = new HttpClient(handler);
-        var client = Client(http, new(), (_, _) => { calls++; return ValueTask.CompletedTask; });
+        var client = Client(http, new(), (_, _) =>
+        {
+            calls++;
+            return ValueTask.CompletedTask;
+        });
         Assert.True((await client.ExecuteAsync(Contract(), new() { Input = "input" }, TestToken)).IsSuccess);
         Assert.Equal(0, calls);
         using var billedHandler = new Handler(_ => Task.FromResult(Response(new FragmentStream(Envelope()), false)));
         using var billedHttp = new HttpClient(billedHandler);
         var local = 0;
         var result = await Client(billedHttp, new(), (_, _) => throw new InvalidOperationException()).ExecuteAsync(Contract(), new()
-        { Input = "input", UsageObserver = (_, _) => { local++; return ValueTask.CompletedTask; } }, TestToken);
+        {
+            Input = "input",
+            UsageObserver = (_, _) =>
+        {
+            local++;
+            return ValueTask.CompletedTask;
+        }
+        }, TestToken);
         Assert.True(result.IsSuccess);
         Assert.Equal(1, local);
         Assert.Empty(result.Warnings);
@@ -396,7 +439,11 @@ public sealed class ReliabilityTests
         using var stream = new FragmentStream(delta + Event("response.completed", Envelope()));
         using var handler = new Handler(_ => Task.FromResult(Response(stream)));
         using var http = new HttpClient(handler);
-        var pending = Client(http, clock, (item, _) => { observed = item; return ValueTask.CompletedTask; }).ExecuteAsync(Contract(), new()
+        var pending = Client(http, clock, (item, _) =>
+        {
+            observed = item;
+            return ValueTask.CompletedTask;
+        }).ExecuteAsync(Contract(), new()
         {
             Input = "input",
             Stream = true,
@@ -404,24 +451,29 @@ public sealed class ReliabilityTests
             InactivityTimeout = TimeSpan.FromMilliseconds(100),
             Progress = (item, _) =>
             {
-                if (item.Kind != StructuredProgressKind.OutputTextDelta) return ValueTask.CompletedTask;
+                if(item.Kind != StructuredProgressKind.OutputTextDelta)
+                    return ValueTask.CompletedTask;
                 entered.SetResult(true);
                 return new(callback.Task);
             }
         }, TestToken);
         await entered.Task.WaitAsync(TestToken);
         clock.Advance(TimeSpan.FromMilliseconds(timeout ? 1000 : 500));
-        if (!timeout) callback.SetResult(true);
+        if(!timeout)
+            callback.SetResult(true);
         var result = await pending.WaitAsync(TestToken);
-        if (totalExpires) Assert.Equal(StructuredErrorKind.DeadlineExceeded, result.Error!.Kind);
+        if(totalExpires)
+            Assert.Equal(StructuredErrorKind.DeadlineExceeded, result.Error!.Kind);
         else
         {
             Assert.True(result.IsSuccess);
             Assert.Equal(10, result.Metadata.Usage!.InputTokens);
             Assert.True(observed!.Succeeded);
             Assert.Equal(10, observed.Metadata.Usage!.InputTokens);
-            if (timeout) Assert.Equal("ProgressObserverTimedOut", Assert.Single(result.Warnings).Code);
-            else Assert.Empty(result.Warnings);
+            if(timeout)
+                Assert.Equal("ProgressObserverTimedOut", Assert.Single(result.Warnings).Code);
+            else
+                Assert.Empty(result.Warnings);
         }
         Assert.True(stream.Disposed.Task.IsCompleted);
         callback.TrySetResult(true);
@@ -443,7 +495,8 @@ public sealed class ReliabilityTests
             InactivityTimeout = TimeSpan.FromMilliseconds(100),
             Progress = (item, _) =>
             {
-                if (item.Kind != StructuredProgressKind.OutputTextDelta) return ValueTask.CompletedTask;
+                if(item.Kind != StructuredProgressKind.OutputTextDelta)
+                    return ValueTask.CompletedTask;
                 entered.SetResult(true);
                 return new(callback.Task);
             }
@@ -470,17 +523,23 @@ public sealed class ReliabilityTests
         StructuredUsageEvent? observed = null;
         using var handler = new Handler(_ => Task.FromResult(Response(new FragmentStream(Envelope()), false)));
         using var http = new HttpClient(handler);
-        var client = Client(http, clock, (item, _) => { observed = item; return ValueTask.CompletedTask; });
+        var client = Client(http, clock, (item, _) =>
+        {
+            observed = item;
+            return ValueTask.CompletedTask;
+        });
         _materializationCancellation.Value = () =>
         {
-            if (cancellation == 1) caller.Cancel();
-            if (cancellation == 2) clock.Advance(TimeSpan.FromSeconds(20));
+            if(cancellation == 1)
+                caller.Cancel();
+            if(cancellation == 2)
+                clock.Advance(TimeSpan.FromSeconds(20));
             throw new OperationCanceledException("sensitive");
         };
         try
         {
             var pending = client.ExecuteAsync(StructuredTask.Create<CancellingConstructor>(new() { Instructions = "Extract" }), new() { Input = "input" }, caller.Token);
-            if (cancellation == 1)
+            if(cancellation == 1)
             {
                 var exception = await Assert.ThrowsAsync<StructuredOperationCanceledException>(async () => await pending);
                 Assert.Equal(caller.Token, exception.CancellationToken);
@@ -494,10 +553,14 @@ public sealed class ReliabilityTests
                 Assert.Equal(cancellation == 2, result.Error.IsTransient);
                 Assert.Equal(10, result.Metadata.Usage!.InputTokens);
                 Assert.DoesNotContain("sensitive", result.Error.Message);
-                if (cancellation == 0) Assert.Equal(StructuredErrorKind.InvalidOutput, observed!.FailureKind);
+                if(cancellation == 0)
+                    Assert.Equal(StructuredErrorKind.InvalidOutput, observed!.FailureKind);
             }
         }
-        finally { _materializationCancellation.Value = null; }
+        finally
+        {
+            _materializationCancellation.Value = null;
+        }
     }
 
     static readonly AsyncLocal<Action?> _materializationCancellation = new();
@@ -555,7 +618,11 @@ public sealed class ReliabilityTests
             MaxOutputTokens = 50,
             ModelSelection = new() { ModelId = "model-a" },
             OpenAi = new() { CaptureOutputText = true, Metadata = new Dictionary<string, string> { ["job"] = "a" } },
-            UsageObserver = (item, _) => { eventA = item; throw new InvalidOperationException("secret"); }
+            UsageObserver = (item, _) =>
+            {
+                eventA = item;
+                throw new InvalidOperationException("secret");
+            }
         }, TestToken);
         var second = client.ExecuteAsync(task, new()
         {
@@ -564,7 +631,11 @@ public sealed class ReliabilityTests
             Vocabularies = new Dictionary<string, IReadOnlyList<string>> { ["choices"] = wordsB },
             MaxOutputTokens = 100,
             ModelSelection = new() { ModelId = "model-b" },
-            UsageObserver = (item, _) => { eventB = item; return ValueTask.CompletedTask; }
+            UsageObserver = (item, _) =>
+            {
+                eventB = item;
+                return ValueTask.CompletedTask;
+            }
         }, TestToken);
         await entered.Reader.ReadAsync(TestToken);
         await entered.Reader.ReadAsync(TestToken);
@@ -579,7 +650,7 @@ public sealed class ReliabilityTests
         Assert.NotNull(results[0].Metadata.OutputText);
         Assert.Null(results[1].Metadata.OutputText);
         Assert.NotEqual(eventA!.Metadata.ExecutionId, eventB!.Metadata.ExecutionId);
-        foreach (var input in new[] { "apple", "pear" })
+        foreach(var input in new[] { "apple", "pear" })
         {
             var wire = snapshots[input];
             Assert.Equal(input, wire.GetProperty("text").GetProperty("format").GetProperty("schema")
@@ -629,7 +700,8 @@ public sealed class ReliabilityTests
                 Stream = true,
                 Progress = (item, _) =>
             {
-                if (item.Kind == StructuredProgressKind.Completed) clock.Advance(TimeSpan.FromSeconds(20));
+                if(item.Kind == StructuredProgressKind.Completed)
+                    clock.Advance(TimeSpan.FromSeconds(20));
                 return ValueTask.CompletedTask;
             }
             }, TestToken);
@@ -666,7 +738,11 @@ public sealed class ReliabilityTests
         {
             Input = "input",
             Stream = true,
-            Progress = (item, _) => { progress.Add(item); return ValueTask.CompletedTask; }
+            Progress = (item, _) =>
+            {
+                progress.Add(item);
+                return ValueTask.CompletedTask;
+            }
         }, TestToken);
         Assert.True(result.IsSuccess);
         Assert.DoesNotContain(progress, p => p.Kind == StructuredProgressKind.ReasoningSummaryDelta);
@@ -719,7 +795,11 @@ public sealed class ReliabilityTests
         var envelope = Envelope().Replace("\"type\":\"output_text\",\"text\":", "\"type\":\"refusal\",\"refusal\":", StringComparison.Ordinal);
         using var handler = new Handler(_ => Task.FromResult(Response(new FragmentStream(Event("response.completed", envelope)))));
         using var http = new HttpClient(handler);
-        var result = await Client(http, new(), (item, _) => { observed = item; return ValueTask.CompletedTask; })
+        var result = await Client(http, new(), (item, _) =>
+        {
+            observed = item;
+            return ValueTask.CompletedTask;
+        })
             .ExecuteAsync(Contract(), new() { Input = "input", Stream = true }, TestToken);
         Assert.Equal(StructuredErrorKind.Refused, result.Error!.Kind);
         Assert.Equal(StructuredErrorKind.Refused, observed!.FailureKind);
@@ -763,9 +843,16 @@ public sealed class ReliabilityTests
     sealed class DeferredContent(Task<Stream> stream, TaskCompletionSource<bool> entered) : HttpContent
     {
         protected override Task<Stream> CreateContentReadStreamAsync(CancellationToken cancellationToken)
-        { entered.TrySetResult(true); return stream; }
+        {
+            entered.TrySetResult(true);
+            return stream;
+        }
         protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) => throw new NotSupportedException();
-        protected override bool TryComputeLength(out long length) { length = 0; return false; }
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
     }
 
     public sealed record Choice { [DynamicVocabulary("choices")] public required string Value { get; init; } }
@@ -774,14 +861,22 @@ public sealed class ReliabilityTests
     {
         public int Calls { get; set; }
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        { Calls++; return send(request); }
+        {
+            Calls++;
+            return send(request);
+        }
     }
     sealed class FragmentStream(string body, int fragment = 4096) : MemoryStream(Encoding.UTF8.GetBytes(body))
     {
         public TaskCompletionSource<bool> Disposed { get; } = Gate<bool>();
         public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
             base.ReadAsync(buffer[..Math.Min(buffer.Length, fragment)], cancellationToken);
-        protected override void Dispose(bool disposing) { base.Dispose(disposing); if (disposing) Disposed.TrySetResult(true); }
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            if(disposing)
+                Disposed.TrySetResult(true);
+        }
     }
     sealed class ControlledStream : Stream
     {
@@ -798,7 +893,12 @@ public sealed class ReliabilityTests
             chunk.CopyTo(buffer);
             return chunk.Length;
         }
-        protected override void Dispose(bool disposing) { IsDisposed = true; _chunks.Writer.TryComplete(); base.Dispose(disposing); }
+        protected override void Dispose(bool disposing)
+        {
+            IsDisposed = true;
+            _chunks.Writer.TryComplete();
+            base.Dispose(disposing);
+        }
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
@@ -818,24 +918,34 @@ public sealed class ReliabilityTests
         readonly object _sync = new();
         long _ticks;
         public override long TimestampFrequency => TimeSpan.TicksPerSecond;
-        public override long GetTimestamp() { lock (_sync) return _ticks; }
+        public override long GetTimestamp()
+        {
+            lock(_sync)
+                return _ticks;
+        }
         public override DateTimeOffset GetUtcNow() => new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero).AddTicks(GetTimestamp());
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
             var timer = new ManualTimer(this, callback, state);
-            lock (_sync) { _timers.Add(timer); timer.Change(dueTime, period); }
+            lock(_sync)
+            {
+                _timers.Add(timer);
+                timer.Change(dueTime, period);
+            }
             return timer;
         }
         public void Advance(TimeSpan duration)
         {
             List<ManualTimer> due;
-            lock (_sync)
+            lock(_sync)
             {
                 _ticks += duration.Ticks;
                 due = _timers.Where(t => t.Due <= _ticks).ToList();
-                foreach (var timer in due) timer.Due = Int64.MaxValue;
+                foreach(var timer in due)
+                    timer.Due = Int64.MaxValue;
             }
-            foreach (var timer in due) timer.Fire();
+            foreach(var timer in due)
+                timer.Fire();
         }
         sealed class ManualTimer(ManualClock clock, TimerCallback callback, object? state) : ITimer
         {
@@ -843,16 +953,35 @@ public sealed class ReliabilityTests
             bool _disposed;
             public bool Change(TimeSpan dueTime, TimeSpan period)
             {
-                lock (clock._sync)
+                lock(clock._sync)
                 {
-                    if (_disposed) return false;
+                    if(_disposed)
+                        return false;
                     Due = dueTime == Timeout.InfiniteTimeSpan ? Int64.MaxValue : clock._ticks + dueTime.Ticks;
                     return true;
                 }
             }
-            public void Fire() { lock (clock._sync) { if (!_disposed) callback(state); } }
-            public void Dispose() { lock (clock._sync) { _disposed = true; Due = Int64.MaxValue; } }
-            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+            public void Fire()
+            {
+                lock(clock._sync)
+                {
+                    if(!_disposed)
+                        callback(state);
+                }
+            }
+            public void Dispose()
+            {
+                lock(clock._sync)
+                {
+                    _disposed = true;
+                    Due = Int64.MaxValue;
+                }
+            }
+            public ValueTask DisposeAsync()
+            {
+                Dispose();
+                return ValueTask.CompletedTask;
+            }
         }
     }
 }

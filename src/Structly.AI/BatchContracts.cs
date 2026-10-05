@@ -1,6 +1,6 @@
+using Structly.AI.Embeddings;
 using System.Text;
 using System.Text.Json;
-using Structly.AI.Embeddings;
 
 namespace Structly.AI.OpenAI;
 
@@ -73,7 +73,11 @@ public sealed class PreparedBatch
 {
     readonly byte[] _jsonl;
     readonly string _manifest;
-    internal PreparedBatch(byte[] jsonl, BatchManifest manifest) { _jsonl = jsonl; _manifest = manifest.ToJson(); }
+    internal PreparedBatch(byte[] jsonl, BatchManifest manifest)
+    {
+        _jsonl = jsonl;
+        _manifest = manifest.ToJson();
+    }
     /// <summary>Gets a fresh manifest snapshot; caller mutation does not affect preparation.</summary>
     public BatchManifest Manifest => BatchManifest.FromJson(_manifest);
     /// <summary>Gets the complete UTF-8 JSONL as text.</summary>

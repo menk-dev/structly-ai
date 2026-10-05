@@ -20,14 +20,17 @@ static class OutputValidator
     static void Visit(SchemaNode node, JsonElement value, string path, Dictionary<string, string[]> vocabularies,
         JsonSerializerOptions serializer, List<StructuredIssue> issues)
     {
-        if (issues.Count >= 100) return;
+        if(issues.Count >= 100)
+            return;
         void Issue(string code, string message)
         {
-            if (issues.Count < 100) issues.Add(new(path, code, message));
+            if(issues.Count < 100)
+                issues.Add(new(path, code, message));
         }
-        if (value.ValueKind == JsonValueKind.Null)
+        if(value.ValueKind == JsonValueKind.Null)
         {
-            if (!node.Nullable) Issue("Null", "A non-null value is required.");
+            if(!node.Nullable)
+                Issue("Null", "A non-null value is required.");
             return;
         }
         var validToken = node.Kind switch
@@ -38,72 +41,89 @@ static class OutputValidator
             SchemaKind.Boolean => value.ValueKind is JsonValueKind.True or JsonValueKind.False,
             _ => value.ValueKind == JsonValueKind.Number
         };
-        if (!validToken) { Issue("TokenType", "JSON token type must match the declared contract."); return; }
-        if (node.Kind == SchemaKind.Object)
+        if(!validToken)
+        {
+            Issue("TokenType", "JSON token type must match the declared contract.");
+            return;
+        }
+        if(node.Kind == SchemaKind.Object)
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var property in value.EnumerateObject())
+            foreach(var property in value.EnumerateObject())
             {
-                if (issues.Count >= 100) return;
+                if(issues.Count >= 100)
+                    return;
                 var member = node.Members.FirstOrDefault(x => x.Name == property.Name);
-                if (!seen.Add(property.Name))
+                if(!seen.Add(property.Name))
                     issues.Add(new(member is null ? path : path + "." + member.Name, "DuplicateKey", "Duplicate JSON keys are invalid."));
-                if (member is null) Issue("AdditionalKey", "Only declared serialized keys are allowed.");
-                else Visit(member.Node, property.Value, path + "." + property.Name, vocabularies, serializer, issues);
+                if(member is null)
+                    Issue("AdditionalKey", "Only declared serialized keys are allowed.");
+                else
+                    Visit(member.Node, property.Value, path + "." + property.Name, vocabularies, serializer, issues);
             }
-            foreach (var member in node.Members)
-                if (!seen.Contains(member.Name) && issues.Count < 100)
+            foreach(var member in node.Members)
+                if(!seen.Contains(member.Name) && issues.Count < 100)
                     issues.Add(new(path + "." + member.Name, "MissingKey", "Every declared key is required, including nullable keys."));
             return;
         }
-        if (node.Kind == SchemaKind.Array)
+        if(node.Kind == SchemaKind.Array)
         {
             var count = value.GetArrayLength();
-            if (node.MinItems >= 0 && count < node.MinItems || node.MaxItems >= 0 && count > node.MaxItems)
+            if(node.MinItems >= 0 && count < node.MinItems || node.MaxItems >= 0 && count > node.MaxItems)
                 Issue("ItemCount", "Collection cardinality violates its bounds.");
             var elements = node.IsSet ? new HashSet<object?>() : null;
-            foreach (var item in value.EnumerateArray())
+            foreach(var item in value.EnumerateArray())
             {
-                if (issues.Count >= 100) break;
+                if(issues.Count >= 100)
+                    break;
                 var before = issues.Count;
                 Visit(node.Item!, item, path + "[]", vocabularies, serializer, issues);
-                if (elements is not null && before == issues.Count)
+                if(elements is not null && before == issues.Count)
                 {
                     try
                     {
                         // Compare as the target element type, matching HashSet/ISet equality.
                         var element = JsonSerializer.Deserialize(item, node.Item!.Nullable && node.Item.Type.IsValueType
                             ? typeof(Nullable<>).MakeGenericType(node.Item.Type) : node.Item.Type, serializer);
-                        if (!elements.Add(element)) Issue("SetDuplicate", "Set collections cannot contain duplicate typed elements.");
+                        if(!elements.Add(element))
+                            Issue("SetDuplicate", "Set collections cannot contain duplicate typed elements.");
                     }
-                    catch (JsonException) { Issue("Deserialization", "Collection items must be constructible as declared."); }
+                    catch(JsonException)
+                    {
+                        Issue("Deserialization", "Collection items must be constructible as declared.");
+                    }
                 }
             }
             return;
         }
-        if (node.Kind is SchemaKind.String or SchemaKind.Enum)
+        if(node.Kind is SchemaKind.String or SchemaKind.Enum)
         {
             var text = value.GetString()!;
             var entries = node.Vocabulary is { } key ? vocabularies[key] : node.EnumValues;
-            if (entries is not null && !entries.Contains(text, StringComparer.Ordinal))
+            if(entries is not null && !entries.Contains(text, StringComparer.Ordinal))
                 Issue("EnumValue", "Value must exactly match a declared enum or vocabulary wire value.");
             var length = SchemaWriter.ScalarCount(text);
-            if (node.MinLength >= 0 && length < node.MinLength || node.MaxLength >= 0 && length > node.MaxLength)
+            if(node.MinLength >= 0 && length < node.MinLength || node.MaxLength >= 0 && length > node.MaxLength)
                 Issue("StringLength", "Unicode scalar length violates its bounds.");
             try
             {
-                if (node.Regex is not null && !node.Regex.IsMatch(text)) Issue("Pattern", "String does not match the required pattern.");
+                if(node.Regex is not null && !node.Regex.IsMatch(text))
+                    Issue("Pattern", "String does not match the required pattern.");
             }
-            catch (RegexMatchTimeoutException) { Issue("PatternTimeout", "Pattern validation exceeded its bounded execution time."); }
-            if (node.Format is not null && !FormatRules.IsValid(node.Format, text)) Issue("Format", "String does not satisfy its declared format.");
-            if (node.Type != typeof(string) && node.Kind == SchemaKind.String)
+            catch(RegexMatchTimeoutException)
+            {
+                Issue("PatternTimeout", "Pattern validation exceeded its bounded execution time.");
+            }
+            if(node.Format is not null && !FormatRules.IsValid(node.Format, text))
+                Issue("Format", "String does not satisfy its declared format.");
+            if(node.Type != typeof(string) && node.Kind == SchemaKind.String)
                 CheckRepresentable(node, value, serializer, Issue);
             return;
         }
-        if (node.Kind is SchemaKind.Integer or SchemaKind.Number)
+        if(node.Kind is SchemaKind.Integer or SchemaKind.Number)
         {
             CheckRepresentable(node, value, serializer, Issue);
-            if (!Double.IsNaN(node.Minimum) && SchemaNumbers.Compare(value.GetRawText(), node.Minimum) < 0
+            if(!Double.IsNaN(node.Minimum) && SchemaNumbers.Compare(value.GetRawText(), node.Minimum) < 0
                 || !Double.IsNaN(node.Maximum) && SchemaNumbers.Compare(value.GetRawText(), node.Maximum) > 0)
                 Issue("NumberBounds", "Number violates its inclusive bounds.");
         }
@@ -114,10 +134,13 @@ static class OutputValidator
         try
         {
             var result = JsonSerializer.Deserialize(value, node.Type, serializer);
-            if (result is double d && !Double.IsFinite(d) || result is float f && !Single.IsFinite(f))
+            if(result is double d && !Double.IsFinite(d) || result is float f && !Single.IsFinite(f))
                 issue("NumericRange", "Numeric values must be finite and representable in the declared CLR type.");
         }
-        catch (JsonException) { issue("ScalarValue", "Scalar must be representable in the declared CLR type without coercion."); }
+        catch(JsonException)
+        {
+            issue("ScalarValue", "Scalar must be representable in the declared CLR type without coercion.");
+        }
     }
 }
 
@@ -129,14 +152,18 @@ static class SchemaNumbers
     {
         var left = Normalize(json);
         var right = Normalize(bound.ToString("R", CultureInfo.InvariantCulture));
-        if (left.Sign != right.Sign) return left.Sign.CompareTo(right.Sign);
-        if (left.Sign == 0) return 0;
-        if (left.Magnitude != right.Magnitude) return left.Sign * left.Magnitude.CompareTo(right.Magnitude);
-        for (var i = 0; i < Math.Max(left.Digits.Length, right.Digits.Length); i++)
+        if(left.Sign != right.Sign)
+            return left.Sign.CompareTo(right.Sign);
+        if(left.Sign == 0)
+            return 0;
+        if(left.Magnitude != right.Magnitude)
+            return left.Sign * left.Magnitude.CompareTo(right.Magnitude);
+        for(var i = 0; i < Math.Max(left.Digits.Length, right.Digits.Length); i++)
         {
             var a = i < left.Digits.Length ? left.Digits[i] : '0';
             var b = i < right.Digits.Length ? right.Digits[i] : '0';
-            if (a != b) return left.Sign * a.CompareTo(b);
+            if(a != b)
+                return left.Sign * a.CompareTo(b);
         }
         return 0;
     }
@@ -147,7 +174,7 @@ static class SchemaNumbers
         var offset = text[0] is '-' or '+' ? 1 : 0;
         var index = text.IndexOfAny(['e', 'E']);
         long exponent = 0;
-        if (index >= 0 && !Int64.TryParse(text.AsSpan(index + 1), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out exponent))
+        if(index >= 0 && !Int64.TryParse(text.AsSpan(index + 1), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out exponent))
             exponent = text[index + 1] == '-' ? Int64.MinValue / 2 : Int64.MaxValue / 2;
         // Saturate exponents before adding a bounded (<= 16 MiB) significand length.
         exponent = Math.Clamp(exponent, Int64.MinValue / 2, Int64.MaxValue / 2);
@@ -196,7 +223,10 @@ static class FormatRules
                 _ => false
             };
         }
-        catch (Exception exception) when (exception is FormatException or OverflowException or RegexMatchTimeoutException) { return false; }
+        catch(Exception exception) when(exception is FormatException or OverflowException or RegexMatchTimeoutException)
+        {
+            return false;
+        }
     }
 
     static bool Match(string text, string pattern) => Regex.IsMatch(text, pattern, RegexOptions.CultureInvariant, _regexTimeout);
@@ -204,12 +234,12 @@ static class FormatRules
         => text.Length is > 0 and <= 253 && (text.EndsWith('.') ? text[..^1] : text).Split('.').All(x => x.Length is > 0 and <= 63 && Match(x, @"\A[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\z"));
     static bool ValidEmail(string text)
     {
-        if (text.Length > 254 || text.Any(x => x > 127 || Char.IsControl(x)) || !MailAddress.TryCreate(text, out var address)
+        if(text.Length > 254 || text.Any(x => x > 127 || Char.IsControl(x)) || !MailAddress.TryCreate(text, out var address)
             || address.Address != text || address.User.Length > 64)
             return false;
-        if (!address.User.StartsWith('"') && !Match(address.User, @"\A[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*\z"))
+        if(!address.User.StartsWith('"') && !Match(address.User, @"\A[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*\z"))
             return false;
-        if (address.Host.StartsWith('[') && address.Host.EndsWith(']'))
+        if(address.Host.StartsWith('[') && address.Host.EndsWith(']'))
         {
             var literal = address.Host[1..^1];
             return literal.StartsWith("IPv6:", StringComparison.OrdinalIgnoreCase)

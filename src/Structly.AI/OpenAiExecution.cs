@@ -37,13 +37,17 @@ sealed class OpenAiExecution : IDisposable
 
     void CancelIdle()
     {
-        try { _idle.Cancel(); }
-        catch (ObjectDisposedException) { }
+        try
+        {
+            _idle.Cancel();
+        }
+        catch(ObjectDisposedException) { }
     }
 
     public void CheckCancellation()
     {
-        if (Remaining <= TimeSpan.Zero) _total.Cancel();
+        if(Remaining <= TimeSpan.Zero)
+            _total.Cancel();
         Token.ThrowIfCancellationRequested();
     }
 
@@ -54,26 +58,37 @@ sealed class OpenAiExecution : IDisposable
     public void StartInactivity(TimeSpan? timeout)
     {
         InactivityTimeout = timeout;
-        if (timeout is { } duration)
+        if(timeout is { } duration)
             _idleTimer = _clock.CreateTimer(_ => CancelIdle(), null, IdleTimerDelay(duration), Timeout.InfiniteTimeSpan);
     }
 
     public void ResetInactivity(TimeSpan? timeout)
     {
-        if (timeout is { } duration) _idleTimer?.Change(IdleTimerDelay(duration), Timeout.InfiniteTimeSpan);
+        if(timeout is { } duration)
+            _idleTimer?.Change(IdleTimerDelay(duration), Timeout.InfiniteTimeSpan);
     }
 
     public void StopInactivity() => _idleTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
     public async Task Await(Task pending)
     {
-        try { await pending.WaitAsync(Token).ConfigureAwait(false); }
-        catch { _ = ObserveLate(pending); throw; }
+        try
+        {
+            await pending.WaitAsync(Token).ConfigureAwait(false);
+        }
+        catch
+        {
+            _ = ObserveLate(pending);
+            throw;
+        }
     }
 
     public async Task<T> Await<T>(Task<T> pending, Action<T>? disposeLate = null)
     {
-        try { return await pending.WaitAsync(Token).ConfigureAwait(false); }
+        try
+        {
+            return await pending.WaitAsync(Token).ConfigureAwait(false);
+        }
         catch
         {
             // WaitAsync can abandon a noncooperative operation. Observe its eventual fault,
@@ -85,25 +100,33 @@ sealed class OpenAiExecution : IDisposable
 
     static async Task ObserveLate<T>(Task<T> pending, Action<T>? disposeLate)
     {
-        try { var value = await pending.ConfigureAwait(false); disposeLate?.Invoke(value); }
-        catch (Exception exception) when (exception is not OutOfMemoryException and not StackOverflowException) { }
+        try
+        {
+            var value = await pending.ConfigureAwait(false);
+            disposeLate?.Invoke(value);
+        }
+        catch(Exception exception) when(exception is not OutOfMemoryException and not StackOverflowException) { }
     }
 
     static async Task ObserveLate(Task pending)
     {
-        try { await pending.ConfigureAwait(false); }
-        catch (Exception exception) when (exception is not OutOfMemoryException and not StackOverflowException) { }
+        try
+        {
+            await pending.ConfigureAwait(false);
+        }
+        catch(Exception exception) when(exception is not OutOfMemoryException and not StackOverflowException) { }
     }
 
     public async ValueTask Progress(StructuredProgress item)
     {
-        if (_progress is null || _progressDisabled) return;
+        if(_progress is null || _progressDisabled)
+            return;
         _progressDisabled = !await Callback(token => _progress(item, token), TimeSpan.FromSeconds(1), "ProgressObserver").ConfigureAwait(false);
     }
 
     public async ValueTask<bool> Callback(Func<CancellationToken, ValueTask> callback, TimeSpan cap, string code)
     {
-        if (Remaining <= TimeSpan.Zero)
+        if(Remaining <= TimeSpan.Zero)
         {
             Warnings.Add(new(code + "Skipped", "Observer skipped because no execution budget remains."));
             return false;
@@ -117,9 +140,10 @@ sealed class OpenAiExecution : IDisposable
             await pending.WaitAsync(linked.Token).ConfigureAwait(false);
             return true;
         }
-        catch (Exception exception) when (exception is not OutOfMemoryException and not StackOverflowException)
+        catch(Exception exception) when(exception is not OutOfMemoryException and not StackOverflowException)
         {
-            if (pending is not null) _ = ObserveLate(pending);
+            if(pending is not null)
+                _ = ObserveLate(pending);
             Warnings.Add(new(code + (linked.IsCancellationRequested ? "TimedOut" : "Failed"), "Observer did not complete successfully."));
             return false;
         }

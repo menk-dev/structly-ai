@@ -15,7 +15,7 @@ public sealed class StructuredSchemaException : ArgumentException
     {
         ArgumentNullException.ThrowIfNull(issues);
         Issues = Array.AsReadOnly(issues.ToArray());
-        if (Issues.Count == 0)
+        if(Issues.Count == 0)
             throw new ArgumentException("At least one issue is required.", nameof(issues));
     }
 

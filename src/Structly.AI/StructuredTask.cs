@@ -68,13 +68,14 @@ public sealed partial class StructuredTask<T>
 
     internal StructuredTask(StructuredTaskOptions options)
     {
-        if (options.Instructions is not null && String.IsNullOrWhiteSpace(options.Instructions))
+        if(options.Instructions is not null && String.IsNullOrWhiteSpace(options.Instructions))
             throw new ArgumentException("Task instructions must be nonblank.", nameof(options));
         ArgumentNullException.ThrowIfNull(options.SerializationProfile);
-        if (!Enum.IsDefined(options.SerializationProfile.Naming))
+        if(!Enum.IsDefined(options.SerializationProfile.Naming))
             throw new ArgumentException("Unsupported naming policy.", nameof(options));
         options.ModelSelection?.Validate();
-        if (!Enum.IsDefined(options.VocabularyOrder)) throw new ArgumentException("Invalid vocabulary order.", nameof(options));
+        if(!Enum.IsDefined(options.VocabularyOrder))
+            throw new ArgumentException("Invalid vocabulary order.", nameof(options));
         VocabularyOrder = options.VocabularyOrder;
         ModelSelection = options.ModelSelection;
         CredentialResolver = options.CredentialResolver;
@@ -85,7 +86,8 @@ public sealed partial class StructuredTask<T>
         {
             // Presence is enforced for every property by the resolved contract.
             // STJ otherwise rejects JsonRequired on constructor-bound get-only members.
-            foreach (var property in info.Properties) property.IsRequired = false;
+            foreach(var property in info.Properties)
+                property.IsRequired = false;
         });
         _serializer = new JsonSerializerOptions
         {
@@ -100,16 +102,16 @@ public sealed partial class StructuredTask<T>
         _contract = SchemaResolver.Resolve(typeof(T), _serializer);
         var attribute = typeof(T).GetCustomAttributes(typeof(SchemaAttribute), true).Cast<SchemaAttribute>().SingleOrDefault();
         var name = options.SchemaName ?? attribute?.Name;
-        if (name is null)
+        if(name is null)
         {
             name = Regex.Replace(typeof(T).Name, "[^A-Za-z0-9_-]", "_");
             name = name[..Math.Min(name.Length, 64)];
         }
-        if (!Regex.IsMatch(name, "\\A[A-Za-z0-9_-]{1,64}\\z"))
+        if(!Regex.IsMatch(name, "\\A[A-Za-z0-9_-]{1,64}\\z"))
             throw new ArgumentException("SchemaName must contain 1–64 ASCII letters, digits, underscores or hyphens.", nameof(options));
         SchemaName = name;
         Description = options.Description ?? _contract.Description;
-        if (Description is not null && String.IsNullOrWhiteSpace(Description))
+        if(Description is not null && String.IsNullOrWhiteSpace(Description))
             throw new ArgumentException("Description must be nonblank when supplied.", nameof(options));
         SchemaWriter.Create(_contract, Description, null, allowMissingVocabularies: true);
     }
@@ -147,7 +149,7 @@ public sealed partial class StructuredTask<T>
             values = SchemaWriter.ResolveVocabularies(_contract, vocabularies, order: VocabularyOrder);
             SchemaWriter.Create(_contract, Description, values.ToDictionary(x => x.Key, x => (IReadOnlyList<string>)x.Value), order: VocabularyOrder);
         }
-        catch (StructuredSchemaException exception)
+        catch(StructuredSchemaException exception)
         {
             return StructuredResult<T>.Failure(new StructuredError
             {
@@ -156,19 +158,19 @@ public sealed partial class StructuredTask<T>
                 Issues = exception.Issues
             }, metadata);
         }
-        if (System.Text.Encoding.UTF8.GetByteCount(json) > 16 * 1024 * 1024)
+        if(System.Text.Encoding.UTF8.GetByteCount(json) > 16 * 1024 * 1024)
             return Invalid([new("$", "OutputSize", "Output JSON exceeds 16 MiB.")], metadata);
         try
         {
             using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 64 });
             var issues = OutputValidator.Validate(_contract, document.RootElement, values, _serializer);
-            if (issues.Count > 0)
+            if(issues.Count > 0)
                 return Invalid(issues, metadata);
             var value = JsonSerializer.Deserialize<T>(document.RootElement, _serializer);
             return value is null ? Invalid([new("$", "NullRoot", "The output root must be an object.")], metadata)
                 : StructuredResult<T>.Success(value, metadata);
         }
-        catch (Exception exception) when (exception is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
+        catch(Exception exception) when(exception is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
         {
             // Host materialization cancellation is an output failure. The execution
             // layer independently checks actual caller cancellation and deadlines.
@@ -180,14 +182,16 @@ public sealed partial class StructuredTask<T>
     {
         var summary = "Output does not satisfy the typed contract.";
         var included = 0;
-        foreach (var issue in issues.Take(5))
+        foreach(var issue in issues.Take(5))
         {
             var pair = " " + JsonSerializer.Serialize(issue.Path) + "/" + JsonSerializer.Serialize(issue.Code) + ";";
-            if (summary.Length + pair.Length > 480) break;
+            if(summary.Length + pair.Length > 480)
+                break;
             summary += pair;
             included++;
         }
-        if (included < issues.Count) summary += " (additional issues omitted)";
+        if(included < issues.Count)
+            summary += " (additional issues omitted)";
         return summary;
     }
 

@@ -59,7 +59,8 @@ public sealed class SchemaLimitTests
     public void ObjectAndArrayDepthLimitIncludesTheRoot()
     {
         var type = typeof(int);
-        for (var i = 0; i < 9; i++) type = type.MakeArrayType();
+        for(var i = 0; i < 9; i++)
+            type = type.MakeArrayType();
         CreateDynamic(typeof(SchemaTests.Box<>).MakeGenericType(type));
         type = type.MakeArrayType();
         Assert.Equal("DepthLimit", InvalidDynamic(typeof(SchemaTests.Box<>).MakeGenericType(type)).Issues[0].Code);
@@ -88,18 +89,24 @@ public sealed class SchemaLimitTests
         var assembly = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("SchemaLimit" + Guid.NewGuid().ToString("N")), AssemblyBuilderAccess.RunAndCollect);
         var type = assembly.DefineDynamicModule("Main").DefineType("Output", TypeAttributes.Public | TypeAttributes.Class);
         type.DefineDefaultConstructor(MethodAttributes.Public);
-        for (var i = 0; i < count; i++)
+        for(var i = 0; i < count; i++)
         {
             var name = "p" + i;
             var field = type.DefineField("_" + name, propertyType, FieldAttributes.Private);
             var property = type.DefineProperty(name, PropertyAttributes.None, propertyType, null);
             var getter = type.DefineMethod("get_" + name, MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig, propertyType, Type.EmptyTypes);
             var il = getter.GetILGenerator();
-            il.Emit(OpCodes.Ldarg_0); il.Emit(OpCodes.Ldfld, field); il.Emit(OpCodes.Ret);
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Ldfld, field);
+            il.Emit(OpCodes.Ret);
             var setter = type.DefineMethod("set_" + name, MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig, typeof(void), [propertyType]);
             il = setter.GetILGenerator();
-            il.Emit(OpCodes.Ldarg_0); il.Emit(OpCodes.Ldarg_1); il.Emit(OpCodes.Stfld, field); il.Emit(OpCodes.Ret);
-            property.SetGetMethod(getter); property.SetSetMethod(setter);
+            il.Emit(OpCodes.Ldarg_0);
+            il.Emit(OpCodes.Ldarg_1);
+            il.Emit(OpCodes.Stfld, field);
+            il.Emit(OpCodes.Ret);
+            property.SetGetMethod(getter);
+            property.SetSetMethod(setter);
         }
         return type.CreateType()!;
     }

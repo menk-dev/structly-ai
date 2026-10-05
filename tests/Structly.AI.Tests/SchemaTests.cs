@@ -194,7 +194,8 @@ public sealed class SchemaTests
             typeof(Box<DuplicateWireEnum>), typeof(Box<OnlyEnumerable>), typeof(BadStringTarget), typeof(BadNumberTarget),
             typeof(BadCollectionTarget), typeof(BadBounds), typeof(BadNumberBounds), typeof(BadVocabulary), typeof(BadPattern),
             typeof(BadFormat), typeof(IndexerDto), typeof(FieldsOnly)];
-        foreach (var type in types) yield return [type];
+        foreach(var type in types)
+            yield return [type];
     }
 
     [Fact]

@@ -12,7 +12,7 @@ public sealed record ModelSelection
 
     internal void Validate()
     {
-        if ((ModelId is null) == (ProfileName is null) ||
+        if((ModelId is null) == (ProfileName is null) ||
             ModelId is not null && String.IsNullOrWhiteSpace(ModelId) ||
             ProfileName is not null && String.IsNullOrWhiteSpace(ProfileName) ||
             ReasoningEffort is { } effort && !Enum.IsDefined(effort))
@@ -37,14 +37,16 @@ public static class Credentials
     /// <summary>Uses a fixed credential.</summary>
     public static Func<CancellationToken, ValueTask<string?>> FromStatic(string credential)
     {
-        if (String.IsNullOrWhiteSpace(credential)) throw new ArgumentException("Credential must be nonblank.", nameof(credential));
+        if(String.IsNullOrWhiteSpace(credential))
+            throw new ArgumentException("Credential must be nonblank.", nameof(credential));
         return _ => ValueTask.FromResult<string?>(credential);
     }
 
     /// <summary>Reads the named environment variable on every execution.</summary>
     public static Func<CancellationToken, ValueTask<string?>> FromEnvironment(string variable)
     {
-        if (String.IsNullOrWhiteSpace(variable)) throw new ArgumentException("Variable must be nonblank.", nameof(variable));
+        if(String.IsNullOrWhiteSpace(variable))
+            throw new ArgumentException("Variable must be nonblank.", nameof(variable));
         return _ => ValueTask.FromResult(Environment.GetEnvironmentVariable(variable));
     }
 }

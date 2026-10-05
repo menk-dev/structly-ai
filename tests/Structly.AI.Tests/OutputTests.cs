@@ -151,7 +151,7 @@ public sealed class OutputTests
     {
         var task = SchemaTests.Create<SchemaTests.Box<SchemaTests.State>>();
         Assert.True(task.ReadOutput("""{"value":"in-progress"}""").IsSuccess);
-        foreach (var json in new[] { "{\"value\":0}", "{\"value\":\"done\"}", "{\"value\":\"0\"}", "{\"value\":\"Unknown\"}" })
+        foreach(var json in new[] { "{\"value\":0}", "{\"value\":\"done\"}", "{\"value\":\"0\"}", "{\"value\":\"Unknown\"}" })
             Assert.False(task.ReadOutput(json).IsSuccess);
     }
 
@@ -178,8 +178,10 @@ public sealed class OutputTests
         var error = new StructuredError { Kind = StructuredErrorKind.InvalidOutput, Message = "Safe", Issues = source };
         var warnings = new List<StructuredWarning> { new("Code", "Safe") };
         var result = StructuredResult<int>.Failure(error, metadata, warnings);
-        source.Clear(); warnings.Clear();
-        Assert.Single(error.Issues); Assert.Single(result.Warnings);
+        source.Clear();
+        warnings.Clear();
+        Assert.Single(error.Issues);
+        Assert.Single(result.Warnings);
         Assert.Throws<NotSupportedException>(() => ((IList<StructuredIssue>)error.Issues).Clear());
         Assert.Throws<NotSupportedException>(() => ((IList<StructuredWarning>)result.Warnings).Clear());
         Assert.Throws<ArgumentNullException>(() => StructuredResult<string>.Success(null!, metadata));
@@ -214,7 +216,7 @@ public sealed class OutputTests
     [Fact]
     public void PublicAccountingContractsValidateCountsAndDetachCapturedJson()
     {
-        foreach (var property in typeof(StructuredUsage).GetProperties())
+        foreach(var property in typeof(StructuredUsage).GetProperties())
         {
             var exception = Assert.Throws<System.Reflection.TargetInvocationException>(() => property.SetValue(new StructuredUsage(), (long?)-1));
             Assert.IsType<ArgumentOutOfRangeException>(exception.InnerException);

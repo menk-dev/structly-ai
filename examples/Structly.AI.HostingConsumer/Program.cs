@@ -15,7 +15,8 @@ using var provider = services.BuildServiceProvider();
 var client = provider.GetRequiredService<OpenAiClient>();
 var task = StructuredTask.Create<Answer>(new());
 var result = await client.ExecuteAsync(task, new() { Input = "input", Instructions = "Extract" });
-if (result.EnsureSuccess().Value != "hosted") throw new InvalidOperationException("Hosted consumer failed.");
+if(result.EnsureSuccess().Value != "hosted")
+    throw new InvalidOperationException("Hosted consumer failed.");
 Console.WriteLine("Offline hosted consumer passed.");
 
 public sealed record Answer(string Value);

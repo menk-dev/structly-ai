@@ -1,11 +1,11 @@
-using System.Net;
-using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Structly.AI.Hosting;
 using Structly.AI.OpenAI;
+using System.Net;
+using System.Text;
 
 namespace Structly.AI.Tests;
 

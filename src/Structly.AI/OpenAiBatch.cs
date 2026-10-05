@@ -1,9 +1,9 @@
+using Structly.AI.Embeddings;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using Structly.AI.Embeddings;
 
 namespace Structly.AI.OpenAI;
 
@@ -22,10 +22,24 @@ public sealed partial class OpenAiClient
         => RunOperation(BatchControls(options), name, async execution =>
         {
             execution.CheckCancellation();
-            try { ValidateCommonRequest(BatchControls(options)); if (options?.MaxDownloadBytes <= 0) throw new ArgumentException(); }
-            catch (ArgumentException) { return InvalidOptions<T>(execution); }
-            try { return await action(execution).ConfigureAwait(false); }
-            catch (ArgumentException) { return InvalidOptions<T>(execution); }
+            try
+            {
+                ValidateCommonRequest(BatchControls(options));
+                if(options?.MaxDownloadBytes <= 0)
+                    throw new ArgumentException();
+            }
+            catch(ArgumentException)
+            {
+                return InvalidOptions<T>(execution);
+            }
+            try
+            {
+                return await action(execution).ConfigureAwait(false);
+            }
+            catch(ArgumentException)
+            {
+                return InvalidOptions<T>(execution);
+            }
         }, token);
 
     async Task<StructuredResult<T>> BatchHttp<T>(HttpMethod method, string endpoint, HttpContent? content,
@@ -38,23 +52,35 @@ public sealed partial class OpenAiClient
             var resolver = options?.CredentialResolver ?? _options.CredentialResolver;
             credential = resolver is null ? null : await execution.Await(resolver(execution.Token).AsTask()).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (execution.Token.IsCancellationRequested) { throw; }
-        catch (Exception e) when (e is not OutOfMemoryException and not StackOverflowException) { return LocalFailure<T>(execution, StructuredErrorKind.Authentication); }
-        if (String.IsNullOrWhiteSpace(credential)) return LocalFailure<T>(execution, StructuredErrorKind.CredentialsMissing);
-        if (credential.Any(c => c < 33 || c > 126)) return LocalFailure<T>(execution, StructuredErrorKind.Authentication);
+        catch(OperationCanceledException) when(execution.Token.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch(Exception e) when(e is not OutOfMemoryException and not StackOverflowException)
+        {
+            return LocalFailure<T>(execution, StructuredErrorKind.Authentication);
+        }
+        if(String.IsNullOrWhiteSpace(credential))
+            return LocalFailure<T>(execution, StructuredErrorKind.CredentialsMissing);
+        if(credential.Any(c => c < 33 || c > 126))
+            return LocalFailure<T>(execution, StructuredErrorKind.Authentication);
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
-        if (options?.IdempotencyKey is { } key && method == HttpMethod.Post) message.Headers.Add("Idempotency-Key", key);
+        if(options?.IdempotencyKey is { } key && method == HttpMethod.Post)
+            message.Headers.Add("Idempotency-Key", key);
         try
         {
             execution.CheckCancellation();
             using var response = await execution.Await(_http.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, execution.Token), r => r.Dispose()).ConfigureAwait(false);
             execution.Metadata = execution.Metadata with { ProviderRequestId = response.Headers.TryGetValues("x-request-id", out var ids) ? ids.FirstOrDefault() : null };
-            if (!response.IsSuccessStatusCode)
+            if(!response.IsSuccessStatusCode)
             {
                 var kind = ClassifyStatus((int)response.StatusCode);
                 string? providerCode = null;
-                try { providerCode = Text(Property(await ReadBatchEnvelope(response, execution).ConfigureAwait(false), "error"), "code"); }
-                catch (Exception e) when (e is JsonException or ArgumentException or InvalidOperationException) { }
+                try
+                {
+                    providerCode = Text(Property(await ReadBatchEnvelope(response, execution).ConfigureAwait(false), "error"), "code");
+                }
+                catch(Exception e) when(e is JsonException or ArgumentException or InvalidOperationException) { }
 
                 var delay = response.Headers.RetryAfter?.Delta ?? (response.Headers.RetryAfter?.Date is { } date ? date - _options.TimeProvider.GetUtcNow() : (TimeSpan?)null);
                 return StructuredResult<T>.Failure(new()
@@ -70,10 +96,22 @@ public sealed partial class OpenAiClient
             execution.CheckCancellation();
             return StructuredResult<T>.Success(value, execution.Metadata);
         }
-        catch (OperationCanceledException) when (!execution.Token.IsCancellationRequested) { return LocalFailure<T>(execution, StructuredErrorKind.TransportFailure, true); }
-        catch (HttpRequestException) { return LocalFailure<T>(execution, StructuredErrorKind.TransportFailure, true); }
-        catch (IOException) { return LocalFailure<T>(execution, StructuredErrorKind.TransportFailure, true); }
-        catch (Exception e) when (e is JsonException or ArgumentException or InvalidOperationException or OverflowException) { return LocalFailure<T>(execution, StructuredErrorKind.InvalidResponse); }
+        catch(OperationCanceledException) when(!execution.Token.IsCancellationRequested)
+        {
+            return LocalFailure<T>(execution, StructuredErrorKind.TransportFailure, true);
+        }
+        catch(HttpRequestException)
+        {
+            return LocalFailure<T>(execution, StructuredErrorKind.TransportFailure, true);
+        }
+        catch(IOException)
+        {
+            return LocalFailure<T>(execution, StructuredErrorKind.TransportFailure, true);
+        }
+        catch(Exception e) when(e is JsonException or ArgumentException or InvalidOperationException or OverflowException)
+        {
+            return LocalFailure<T>(execution, StructuredErrorKind.InvalidResponse);
+        }
     }
 
     static StructuredErrorKind ClassifyStatus(int status) => status switch
@@ -98,15 +136,21 @@ public sealed partial class OpenAiClient
         var buffer = new byte[8192];
         long total = 0;
         int count;
-        while ((count = await execution.Await(source.ReadAsync(buffer, execution.Token).AsTask()).ConfigureAwait(false)) != 0)
+        while((count = await execution.Await(source.ReadAsync(buffer, execution.Token).AsTask()).ConfigureAwait(false)) != 0)
         {
             total += count;
-            if (total > limit) throw new JsonException("Download limit exceeded.");
+            if(total > limit)
+                throw new JsonException("Download limit exceeded.");
             await execution.Await(destination.WriteAsync(buffer.AsMemory(0, count), execution.Token).AsTask()).ConfigureAwait(false);
         }
     }
 
-    static string RemoteId(string id) { if (String.IsNullOrWhiteSpace(id)) throw new ArgumentException("A remote ID is required."); return Uri.EscapeDataString(id); }
+    static string RemoteId(string id)
+    {
+        if(String.IsNullOrWhiteSpace(id))
+            throw new ArgumentException("A remote ID is required.");
+        return Uri.EscapeDataString(id);
+    }
     static HttpContent JsonContent(object body) => new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
     static OpenAiFile ReadFile(JsonElement root) => new() { Id = Text(root, "id") ?? throw new JsonException(), Filename = Text(root, "filename") ?? throw new JsonException(), Bytes = Property(root, "bytes").GetInt64(), Purpose = Text(root, "purpose") };
     static OpenAiBatch ReadBatch(JsonElement root) => new() { Id = Text(root, "id") ?? throw new JsonException(), Status = Text(root, "status") ?? throw new JsonException(), InputFileId = Text(root, "input_file_id") ?? throw new JsonException(), Endpoint = Text(root, "endpoint") ?? throw new JsonException(), OutputFileId = Text(root, "output_file_id"), ErrorFileId = Text(root, "error_file_id") };
@@ -117,10 +161,17 @@ public sealed partial class OpenAiClient
         ArgumentNullException.ThrowIfNull(source);
         return BatchOperation(options, "UploadBatchFile", async execution =>
         {
-            if (!source.CanRead || String.IsNullOrWhiteSpace(filename)) return InvalidOptions<OpenAiFile>(execution);
+            if(!source.CanRead || String.IsNullOrWhiteSpace(filename))
+                return InvalidOptions<OpenAiFile>(execution);
             using var buffer = new MemoryStream();
-            try { await CopyLimited(source, buffer, 200L * 1024 * 1024, execution).ConfigureAwait(false); }
-            catch (JsonException) { return InvalidOptions<OpenAiFile>(execution); }
+            try
+            {
+                await CopyLimited(source, buffer, 200L * 1024 * 1024, execution).ConfigureAwait(false);
+            }
+            catch(JsonException)
+            {
+                return InvalidOptions<OpenAiFile>(execution);
+            }
             var multipart = new MultipartFormDataContent();
             multipart.Add(new StringContent("batch"), "purpose");
             multipart.Add(new ByteArrayContent(buffer.ToArray()), "file", filename);
@@ -154,7 +205,8 @@ public sealed partial class OpenAiClient
 
     Task<StructuredResult<OpenAiBatch>> CreateBatch(string inputFileId, string endpoint, BatchOperationOptions? options, OpenAiExecution execution)
     {
-        if (String.IsNullOrWhiteSpace(inputFileId) || endpoint is not ("/v1/responses" or "/v1/embeddings")) return Task.FromResult(InvalidOptions<OpenAiBatch>(execution));
+        if(String.IsNullOrWhiteSpace(inputFileId) || endpoint is not ("/v1/responses" or "/v1/embeddings"))
+            return Task.FromResult(InvalidOptions<OpenAiBatch>(execution));
         return BatchHttp(HttpMethod.Post, "batches", JsonContent(new { input_file_id = inputFileId, endpoint, completion_window = "24h" }), options, execution, async r => ReadBatch(await ReadBatchEnvelope(r, execution).ConfigureAwait(false)));
     }
 
@@ -184,18 +236,23 @@ public sealed partial class OpenAiClient
         var manifest = new List<BatchManifestItem>();
         var ids = new HashSet<string>(StringComparer.Ordinal);
         var inputs = 0;
-        foreach (var item in items)
+        foreach(var item in items)
         {
             var request = item.Request;
-            if (request.CredentialResolver is not null || request.TotalTimeout is not null || request.UsageObserver is not null || request.IdempotencyKey is not null) throw new ArgumentException("Use operation controls for batch transport.");
+            if(request.CredentialResolver is not null || request.TotalTimeout is not null || request.UsageObserver is not null || request.IdempotencyKey is not null)
+                throw new ArgumentException("Use operation controls for batch transport.");
             var texts = request.Inputs.ToArray();
-            if (texts.Length is < 1 or > 2048 || texts.Any(String.IsNullOrWhiteSpace) || request.Dimensions is <= 0) throw new ArgumentException("Invalid embedding inputs.");
+            if(texts.Length is < 1 or > 2048 || texts.Any(String.IsNullOrWhiteSpace) || request.Dimensions is <= 0)
+                throw new ArgumentException("Invalid embedding inputs.");
             inputs = checked(inputs + texts.Length);
-            if (inputs > 50000) throw new ArgumentException("Embedding batches support at most 50,000 inputs.");
+            if(inputs > 50000)
+                throw new ArgumentException("Embedding batches support at most 50,000 inputs.");
             var model = SelectModel(request.ModelSelection, _options.EmbeddingProfiles);
-            if (model.ReasoningEffort is not null) throw new ArgumentException("Embedding reasoning is unsupported.");
+            if(model.ReasoningEffort is not null)
+                throw new ArgumentException("Embedding reasoning is unsupported.");
             var body = new Dictionary<string, object?> { ["model"] = model.ModelId, ["input"] = texts, ["encoding_format"] = "float" };
-            if (request.Dimensions is { } dimensions) body["dimensions"] = dimensions;
+            if(request.Dimensions is { } dimensions)
+                body["dimensions"] = dimensions;
             CheckPreparedItem(manifest, ids, item.CustomId, model.ModelId!);
             WriteBatchLine(lines, new { custom_id = item.CustomId, method = "POST", url = "/v1/embeddings", body });
             manifest.Add(new() { CustomId = item.CustomId, Position = manifest.Count, ExecutionId = Guid.NewGuid(), CorrelationId = request.CorrelationId, RequestedModel = model.ModelId!, InputCount = texts.Length, Dimensions = request.Dimensions, CaptureRawResponse = request.CaptureRawResponse });
@@ -206,23 +263,28 @@ public sealed partial class OpenAiClient
     /// <summary>Validates and snapshots homogeneous typed Responses inputs, including vocabulary and schema fingerprints.</summary>
     public PreparedBatch PrepareResponseBatch<T>(StructuredTask<T> task, IEnumerable<ResponseBatchItem> items)
     {
-        ArgumentNullException.ThrowIfNull(task); ArgumentNullException.ThrowIfNull(items);
-        using var lines = new MemoryStream(); var manifest = new List<BatchManifestItem>();
+        ArgumentNullException.ThrowIfNull(task);
+        ArgumentNullException.ThrowIfNull(items);
+        using var lines = new MemoryStream();
+        var manifest = new List<BatchManifestItem>();
         var ids = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var item in items)
+        foreach(var item in items)
         {
             var request = item.Request;
             ValidateResponseRequest(request);
-            if (request.Stream || request.Progress is not null || request.CredentialResolver is not null || request.TotalTimeout is not null || request.UsageObserver is not null || request.OpenAi.IdempotencyKey is not null) throw new ArgumentException("Batch items cannot specify streaming or transport controls.");
+            if(request.Stream || request.Progress is not null || request.CredentialResolver is not null || request.TotalTimeout is not null || request.UsageObserver is not null || request.OpenAi.IdempotencyKey is not null)
+                throw new ArgumentException("Batch items cannot specify streaming or transport controls.");
             var instructions = request.Instructions ?? task.Instructions;
-            if (String.IsNullOrWhiteSpace(instructions)) throw new ArgumentException("Typed execution requires instructions.");
+            if(String.IsNullOrWhiteSpace(instructions))
+                throw new ArgumentException("Typed execution requires instructions.");
             var vocabularies = request.Vocabularies?.ToDictionary(x => x.Key, x => x.Value.ToArray(), StringComparer.Ordinal);
             var values = vocabularies?.ToDictionary(x => x.Key, x => (IReadOnlyList<string>)x.Value);
             var schema = task.CreateSchema(values);
             var model = SelectModel(request.ModelSelection ?? task.ModelSelection ?? _options.DefaultModel);
             var body = ResponsePayload(request, model, instructions, request.OutputSpecification is { } specification ? task.CreateOutputSpecification(specification, values) : null);
             var format = new Dictionary<string, object?> { ["type"] = "json_schema", ["name"] = task.SchemaName, ["schema"] = schema, ["strict"] = true };
-            if (task.Description is not null) format["description"] = task.Description;
+            if(task.Description is not null)
+                format["description"] = task.Description;
             body["text"] = new { format };
             CheckPreparedItem(manifest, ids, item.CustomId, model.ModelId!);
             WriteBatchLine(lines, new { custom_id = item.CustomId, method = "POST", url = "/v1/responses", body });
@@ -234,15 +296,17 @@ public sealed partial class OpenAiClient
     static string Fingerprint(JsonElement schema) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(schema.GetRawText())));
     static void CheckPreparedItem(List<BatchManifestItem> items, HashSet<string> ids, string id, string model)
     {
-        if (items.Count >= 50000 || String.IsNullOrWhiteSpace(id) || id.Length > 64 || !ids.Add(id))
+        if(items.Count >= 50000 || String.IsNullOrWhiteSpace(id) || id.Length > 64 || !ids.Add(id))
             throw new ArgumentException("Batch custom IDs must be nonblank, unique and at most 64 characters; jobs support at most 50,000 requests.");
-        if (items.Count > 0 && items[0].RequestedModel != model) throw new ArgumentException("A batch must use one resolved model.");
+        if(items.Count > 0 && items[0].RequestedModel != model)
+            throw new ArgumentException("A batch must use one resolved model.");
     }
 
     static void WriteBatchLine(MemoryStream destination, object line)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(line);
-        if (destination.Length + bytes.Length + 1 > 200L * 1024 * 1024) throw new ArgumentException("Batch files support at most 200 MiB.");
+        if(destination.Length + bytes.Length + 1 > 200L * 1024 * 1024)
+            throw new ArgumentException("Batch files support at most 200 MiB.");
         destination.Write(bytes);
         destination.WriteByte(10);
     }
@@ -255,16 +319,23 @@ public sealed partial class OpenAiClient
 
     static void ValidateManifest(BatchManifest manifest, string endpoint)
     {
-        if (manifest.Version != 1 || manifest.Endpoint != endpoint || manifest.Items is null || manifest.Items.Count is < 1 or > 50000) throw new ArgumentException("Invalid manifest version, endpoint or item count.");
-        if (endpoint == "/v1/embeddings" && manifest.Items.Sum(x => (long)x.InputCount) > 50000) throw new ArgumentException("Embedding batches support at most 50,000 inputs.");
-        var ids = new HashSet<string>(StringComparer.Ordinal); var executions = new HashSet<Guid>(); string? model = null;
-        for (var i = 0; i < manifest.Items.Count; i++)
+        if(manifest.Version != 1 || manifest.Endpoint != endpoint || manifest.Items is null || manifest.Items.Count is < 1 or > 50000)
+            throw new ArgumentException("Invalid manifest version, endpoint or item count.");
+        if(endpoint == "/v1/embeddings" && manifest.Items.Sum(x => (long)x.InputCount) > 50000)
+            throw new ArgumentException("Embedding batches support at most 50,000 inputs.");
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        var executions = new HashSet<Guid>();
+        string? model = null;
+        for(var i = 0; i < manifest.Items.Count; i++)
         {
             var item = manifest.Items[i];
-            if (item.Position != i || String.IsNullOrWhiteSpace(item.CustomId) || item.CustomId.Length > 64 || !ids.Add(item.CustomId) || item.ExecutionId == Guid.Empty || !executions.Add(item.ExecutionId) || String.IsNullOrWhiteSpace(item.RequestedModel)) throw new ArgumentException("Invalid batch item identity.");
+            if(item.Position != i || String.IsNullOrWhiteSpace(item.CustomId) || item.CustomId.Length > 64 || !ids.Add(item.CustomId) || item.ExecutionId == Guid.Empty || !executions.Add(item.ExecutionId) || String.IsNullOrWhiteSpace(item.RequestedModel))
+                throw new ArgumentException("Invalid batch item identity.");
             model ??= item.RequestedModel;
-            if (model != item.RequestedModel) throw new ArgumentException("A batch must use one resolved model.");
-            if (endpoint == "/v1/embeddings" && (item.InputCount is < 1 or > 2048 || item.Dimensions is <= 0)) throw new ArgumentException("Invalid embedding manifest.");
+            if(model != item.RequestedModel)
+                throw new ArgumentException("A batch must use one resolved model.");
+            if(endpoint == "/v1/embeddings" && (item.InputCount is < 1 or > 2048 || item.Dimensions is <= 0))
+                throw new ArgumentException("Invalid embedding manifest.");
         }
     }
 
@@ -272,11 +343,20 @@ public sealed partial class OpenAiClient
     public Task<StructuredResult<OpenAiBatch>> SubmitBatchAsync(PreparedBatch batch, BatchOperationOptions? options = null, CancellationToken cancellationToken = default)
         => BatchOperation(options, "SubmitBatch", async execution =>
         {
-            try { ValidateManifest(batch.Manifest, batch.Manifest.Endpoint); }
-            catch (ArgumentException) { return InvalidOptions<OpenAiBatch>(execution); }
-            var multipart = new MultipartFormDataContent(); multipart.Add(new StringContent("batch"), "purpose"); multipart.Add(new ByteArrayContent(Encoding.UTF8.GetBytes(batch.Jsonl)), "file", "batch.jsonl");
+            try
+            {
+                ValidateManifest(batch.Manifest, batch.Manifest.Endpoint);
+            }
+            catch(ArgumentException)
+            {
+                return InvalidOptions<OpenAiBatch>(execution);
+            }
+            var multipart = new MultipartFormDataContent();
+            multipart.Add(new StringContent("batch"), "purpose");
+            multipart.Add(new ByteArrayContent(Encoding.UTF8.GetBytes(batch.Jsonl)), "file", "batch.jsonl");
             var uploaded = await BatchHttp(HttpMethod.Post, "files", multipart, options, execution, async r => ReadFile(await ReadBatchEnvelope(r, execution).ConfigureAwait(false))).ConfigureAwait(false);
-            if (!uploaded.IsSuccess) return StructuredResult<OpenAiBatch>.Failure(uploaded.Error!, execution.Metadata);
+            if(!uploaded.IsSuccess)
+                return StructuredResult<OpenAiBatch>.Failure(uploaded.Error!, execution.Metadata);
             execution.Metadata = execution.Metadata with { UploadedFileId = uploaded.Value!.Id };
             return await CreateBatch(uploaded.Value.Id, batch.Manifest.Endpoint, options, execution).ConfigureAwait(false);
         }, cancellationToken);
@@ -294,47 +374,76 @@ public sealed partial class OpenAiClient
             return ProcessResponse(root, request, execution, (text, metadata) => task.ReadOutput(text, item.Vocabularies?.ToDictionary(x => x.Key, x => (IReadOnlyList<string>)x.Value), metadata));
         }, item =>
         {
-            if (Fingerprint(task.CreateSchema(item.Vocabularies?.ToDictionary(x => x.Key, x => (IReadOnlyList<string>)x.Value))) != item.SchemaFingerprint) throw new ArgumentException("Batch schema contract mismatch.");
+            if(Fingerprint(task.CreateSchema(item.Vocabularies?.ToDictionary(x => x.Key, x => (IReadOnlyList<string>)x.Value))) != item.SchemaFingerprint)
+                throw new ArgumentException("Batch schema contract mismatch.");
         }, cancellationToken, task.SchemaName);
 
     Task<StructuredResult<IReadOnlyList<StructuredResult<T>>>> ImportBatch<T>(string batchId, BatchManifest manifest, string endpoint, BatchOperationOptions? options,
         Func<BatchManifestItem, JsonElement, OpenAiExecution, ValueTask<StructuredResult<T>>> process, Action<BatchManifestItem>? validate, CancellationToken caller, string? schemaName = null)
         => BatchOperation(options, "ImportBatch", async execution =>
         {
-            try { manifest = BatchManifest.FromJson(manifest.ToJson()); ValidateManifest(manifest, endpoint); foreach (var item in manifest.Items) validate?.Invoke(item); }
-            catch (ArgumentException) { return InvalidOptions<IReadOnlyList<StructuredResult<T>>>(execution); }
+            try
+            {
+                manifest = BatchManifest.FromJson(manifest.ToJson());
+                ValidateManifest(manifest, endpoint);
+                foreach(var item in manifest.Items)
+                    validate?.Invoke(item);
+            }
+            catch(ArgumentException)
+            {
+                return InvalidOptions<IReadOnlyList<StructuredResult<T>>>(execution);
+            }
             execution.Metadata = execution.Metadata with { BatchId = batchId, SchemaName = schemaName };
             var job = await GetBatch(batchId, options, execution).ConfigureAwait(false);
-            if (!job.IsSuccess) return StructuredResult<IReadOnlyList<StructuredResult<T>>>.Failure(job.Error!, execution.Metadata);
-            if (!job.Value!.IsTerminal || job.Value.Endpoint != endpoint) return InvalidOptions<IReadOnlyList<StructuredResult<T>>>(execution);
+            if(!job.IsSuccess)
+                return StructuredResult<IReadOnlyList<StructuredResult<T>>>.Failure(job.Error!, execution.Metadata);
+            if(!job.Value!.IsTerminal || job.Value.Endpoint != endpoint)
+                return InvalidOptions<IReadOnlyList<StructuredResult<T>>>(execution);
             var index = manifest.Items.ToDictionary(x => x.CustomId, StringComparer.Ordinal);
             var results = new Dictionary<string, StructuredResult<T>>(StringComparer.Ordinal);
             long downloaded = 0;
-            foreach (var file in new[] { job.Value.OutputFileId, job.Value.ErrorFileId }.Where(x => x is not null))
+            foreach(var file in new[] { job.Value.OutputFileId, job.Value.ErrorFileId }.Where(x => x is not null))
             {
                 var imported = await BatchHttp(HttpMethod.Get, "files/" + RemoteId(file!) + "/content", null, options, execution, async response =>
                 {
                     using var source = await execution.Await(response.Content.ReadAsStreamAsync(execution.Token), s => s.Dispose()).ConfigureAwait(false);
-                    var chunk = new byte[8192]; using var line = new MemoryStream(); int count;
-                    while ((count = await execution.Await(source.ReadAsync(chunk, execution.Token).AsTask()).ConfigureAwait(false)) != 0)
+                    var chunk = new byte[8192];
+                    using var line = new MemoryStream();
+                    int count;
+                    while((count = await execution.Await(source.ReadAsync(chunk, execution.Token).AsTask()).ConfigureAwait(false)) != 0)
                     {
                         downloaded += count;
-                        if (downloaded > (options?.MaxDownloadBytes ?? 256L * 1024 * 1024)) throw new JsonException();
-                        for (var i = 0; i < count; i++)
+                        if(downloaded > (options?.MaxDownloadBytes ?? 256L * 1024 * 1024))
+                            throw new JsonException();
+                        for(var i = 0; i < count; i++)
                         {
-                            if (chunk[i] == 10) { if (line.Length > 0) await ReadLine().ConfigureAwait(false); line.SetLength(0); }
-                            else { if (line.Length >= _options.MaxResponseBytes) throw new JsonException(); line.WriteByte(chunk[i]); }
+                            if(chunk[i] == 10)
+                            {
+                                if(line.Length > 0)
+                                    await ReadLine().ConfigureAwait(false);
+                                line.SetLength(0);
+                            }
+                            else
+                            {
+                                if(line.Length >= _options.MaxResponseBytes)
+                                    throw new JsonException();
+                                line.WriteByte(chunk[i]);
+                            }
                         }
                     }
-                    if (line.Length > 0) await ReadLine().ConfigureAwait(false);
+                    if(line.Length > 0)
+                        await ReadLine().ConfigureAwait(false);
                     return true;
                     async Task ReadLine()
                     {
-                        using var document = JsonDocument.Parse(line.ToArray()); var root = document.RootElement;
+                        using var document = JsonDocument.Parse(line.ToArray());
+                        var root = document.RootElement;
                         var id = Text(root, "custom_id");
-                        if (id is null || !index.TryGetValue(id, out var item) || results.ContainsKey(id)) throw new JsonException();
+                        if(id is null || !index.TryGetValue(id, out var item) || results.ContainsKey(id))
+                            throw new JsonException();
                         using var itemExecution = new OpenAiExecution(BatchControls(options), _options, caller);
-                        var envelope = Property(root, "response"); var body = Property(envelope, "body");
+                        var envelope = Property(root, "response");
+                        var body = Property(envelope, "body");
                         itemExecution.Metadata = new()
                         {
                             Operation = endpoint == "/v1/embeddings" ? "Embeddings" : "Structured",
@@ -353,16 +462,21 @@ public sealed partial class OpenAiClient
                         };
                         StructuredResult<T> result;
                         var status = Property(envelope, "status_code");
-                        if (Property(root, "error").ValueKind == JsonValueKind.Object) result = LocalFailure<T>(itemExecution, StructuredErrorKind.BatchItemFailed);
-                        else if (status.ValueKind != JsonValueKind.Number || !status.TryGetInt32(out var code) || code is < 100 or > 599) throw new JsonException();
-                        else if (code is < 200 or >= 300) result = StructuredResult<T>.Failure(new() { Kind = ClassifyStatus(code), Message = "Batch item HTTP failure.", HttpStatusCode = (HttpStatusCode)code, IsTransient = ClassifyStatus(code) == StructuredErrorKind.ProviderUnavailable || ClassifyStatus(code) == StructuredErrorKind.RateLimited && Text(Property(body, "error"), "code") != "insufficient_quota" }, itemExecution.Metadata);
-                        else result = await process(item, body, itemExecution).ConfigureAwait(false);
-                        if (itemExecution.Metadata.Usage is { } usage && (options?.UsageObserver ?? _options.UsageObserver) is { } observer)
+                        if(Property(root, "error").ValueKind == JsonValueKind.Object)
+                            result = LocalFailure<T>(itemExecution, StructuredErrorKind.BatchItemFailed);
+                        else if(status.ValueKind != JsonValueKind.Number || !status.TryGetInt32(out var code) || code is < 100 or > 599)
+                            throw new JsonException();
+                        else if(code is < 200 or >= 300)
+                            result = StructuredResult<T>.Failure(new() { Kind = ClassifyStatus(code), Message = "Batch item HTTP failure.", HttpStatusCode = (HttpStatusCode)code, IsTransient = ClassifyStatus(code) == StructuredErrorKind.ProviderUnavailable || ClassifyStatus(code) == StructuredErrorKind.RateLimited && Text(Property(body, "error"), "code") != "insufficient_quota" }, itemExecution.Metadata);
+                        else
+                            result = await process(item, body, itemExecution).ConfigureAwait(false);
+                        if(itemExecution.Metadata.Usage is { } usage && (options?.UsageObserver ?? _options.UsageObserver) is { } observer)
                             await execution.Callback(token => observer(new() { Provider = "openai", RequestedModel = item.RequestedModel, Usage = usage, Metadata = itemExecution.Metadata, Succeeded = result.IsSuccess, FailureKind = result.Error?.Kind, CallerCancelled = caller.IsCancellationRequested }, token), TimeSpan.FromSeconds(5), "UsageObserver").ConfigureAwait(false);
                         results.Add(id, result.IsSuccess ? StructuredResult<T>.Success(result.Value!, itemExecution.Metadata, itemExecution.Warnings) : StructuredResult<T>.Failure(result.Error!, itemExecution.Metadata, itemExecution.Warnings));
                     }
                 }).ConfigureAwait(false);
-                if (!imported.IsSuccess) return StructuredResult<IReadOnlyList<StructuredResult<T>>>.Failure(imported.Error!, execution.Metadata, execution.Warnings);
+                if(!imported.IsSuccess)
+                    return StructuredResult<IReadOnlyList<StructuredResult<T>>>.Failure(imported.Error!, execution.Metadata, execution.Warnings);
             }
             var ordered = manifest.Items.Select(item => results.TryGetValue(item.CustomId, out var result) ? result : StructuredResult<T>.Failure(new() { Kind = StructuredErrorKind.IncompleteOutput, Message = "Terminal batch has no result for this item.", Issues = [new("$", "BatchResultMissing", "The terminal batch omitted this item.")] }, new() { ExecutionId = item.ExecutionId, SchemaName = schemaName, Provider = "openai", RequestedModel = item.RequestedModel, CorrelationId = item.CorrelationId, BatchId = batchId, BatchCustomId = item.CustomId, IsBatch = true })).ToArray();
             return StructuredResult<IReadOnlyList<StructuredResult<T>>>.Success(Array.AsReadOnly(ordered), execution.Metadata, execution.Warnings);

@@ -11,7 +11,8 @@ var version = File.ReadAllText(Path.Combine(root, "version.txt")).Trim();
 var properties = XDocument.Load(Path.Combine(root, "Directory.Build.props"));
 Require(properties.Descendants("Version").Single().Value == version, "Directory.Build.props and version.txt disagree.");
 Require(File.ReadAllLines(Path.Combine(root, "CHANGELOG.md")).Contains("## " + version), "Missing changelog entry for the package version.");
-if (args.Length > 1) Require(args[1] == "v" + version, "Release tag and package version disagree.");
+if(args.Length > 1)
+    Require(args[1] == "v" + version, "Release tag and package version disagree.");
 
 using var package = ZipFile.OpenRead(Path.Combine(packages, $"Structly.AI.{version}.nupkg"));
 var metadata = ReadXml(package, "Structly.AI.nuspec");
@@ -34,10 +35,11 @@ var expected = new HashSet<string>(StringComparer.Ordinal)
     "lib/net10.0/Structly.AI.dll", "lib/net10.0/Structly.AI.xml",
     "analyzers/dotnet/cs/Structly.AI.Analyzers.dll"
 };
-foreach (var entry in package.Entries)
+foreach(var entry in package.Entries)
     Require(expected.Contains(entry.FullName) || entry.FullName.StartsWith("package/services/metadata/core-properties/", StringComparison.Ordinal)
         && entry.FullName.EndsWith(".psmdcp", StringComparison.Ordinal), $"Unexpected package file: {entry.FullName}");
-foreach (var name in expected) Require(package.GetEntry(name) is { Length: > 0 }, $"Missing package file: {name}");
+foreach(var name in expected)
+    Require(package.GetEntry(name) is { Length: > 0 }, $"Missing package file: {name}");
 ValidateAssemblyVersion(package, "lib/net10.0/Structly.AI.dll", version);
 ValidateAssemblyVersion(package, "analyzers/dotnet/cs/Structly.AI.Analyzers.dll", version);
 Require(ReadXml(package, "lib/net10.0/Structly.AI.xml").Descendants("member").Count() > 100, "Missing public XML documentation.");
@@ -117,7 +119,7 @@ try
             new XElement("ImplicitUsings", "enable"), new XElement("Nullable", "enable"), new XElement("TreatWarningsAsErrors", "true")),
         new XElement("ItemGroup", new XElement("PackageReference", new XAttribute("Include", "Structly.AI"), new XAttribute("Version", version)), new XElement("PackageReference", new XAttribute("Include", "Structly.AI.Testing"), new XAttribute("Version", version)))))
         .Save(Path.Combine(consumer, "Consumer.csproj"));
-    foreach (var source in Directory.GetFiles(Path.Combine(root, "examples/Structly.AI.Consumer"), "*.cs"))
+    foreach(var source in Directory.GetFiles(Path.Combine(root, "examples/Structly.AI.Consumer"), "*.cs"))
         File.Copy(source, Path.Combine(consumer, Path.GetFileName(source)));
     var restore = await Dotnet(consumer, "restore", "Consumer.csproj", "--configfile", "NuGet.Config", "--packages", Path.Combine(consumer, "packages"), "--no-http-cache");
     Require(restore.ExitCode == 0, "Packed consumer restore failed:\n" + restore.Output);
@@ -136,7 +138,10 @@ try
         && !invalid.Output.Contains("AD0001", StringComparison.Ordinal), "The packed analyzer did not diagnose the invalid DTO:\n" + invalid.Output);
     Console.WriteLine("Packed analyzer rejected an invalid DTO with STAI001.");
 }
-finally { Directory.Delete(consumer, recursive: true); }
+finally
+{
+    Directory.Delete(consumer, recursive: true);
+}
 
 static void ValidateCompanionPackage(ZipArchive package, ZipArchive symbols, string id, string version, string root)
 {
@@ -149,12 +154,15 @@ static void ValidateCompanionPackage(ZipArchive package, ZipArchive symbols, str
     Require(details.Element(ns + "repository")?.Attribute("url")?.Value == "https://github.com/menk-dev/structly-ai", "Missing companion repository.");
     Require(ReadText(package, "LICENSE") == File.ReadAllText(Path.Combine(root, "LICENSE")), "Stale companion license.");
     var expected = new HashSet<string>(StringComparer.Ordinal) { "_rels/.rels", id + ".nuspec", "[Content_Types].xml", "README.md", "LICENSE", $"lib/net10.0/{id}.dll", $"lib/net10.0/{id}.xml" };
-    foreach (var entry in package.Entries)
+    foreach(var entry in package.Entries)
         Require(expected.Contains(entry.FullName) || entry.FullName.StartsWith("package/services/metadata/core-properties/", StringComparison.Ordinal) && entry.FullName.EndsWith(".psmdcp", StringComparison.Ordinal), "Unexpected companion content: " + entry.FullName);
-    foreach (var name in expected) Require(package.GetEntry(name) is { Length: > 0 }, "Missing companion content: " + name);
+    foreach(var name in expected)
+        Require(package.GetEntry(name) is { Length: > 0 }, "Missing companion content: " + name);
     ValidateAssemblyVersion(package, $"lib/net10.0/{id}.dll", version);
     using var stream = symbols.GetEntry($"lib/net10.0/{id}.pdb")!.Open();
-    using var buffer = new MemoryStream(); stream.CopyTo(buffer); buffer.Position = 0;
+    using var buffer = new MemoryStream();
+    stream.CopyTo(buffer);
+    buffer.Position = 0;
     using var pdb = MetadataReaderProvider.FromPortablePdbStream(buffer);
     var reader = pdb.GetMetadataReader();
     var sourceLinkId = new Guid("CC110556-A091-4D38-9FEC-25AB9A351A6A");
@@ -168,7 +176,8 @@ static void ValidateCompanionPackage(ZipArchive package, ZipArchive symbols, str
 
 static void Require(bool condition, string message)
 {
-    if (!condition) throw new InvalidOperationException(message);
+    if(!condition)
+        throw new InvalidOperationException(message);
 }
 
 static string ReadText(ZipArchive archive, string name)
@@ -192,14 +201,17 @@ static void ValidateAssemblyVersion(ZipArchive archive, string name, string vers
     buffer.Position = 0;
     using var pe = new PEReader(buffer);
     var reader = pe.GetMetadataReader();
-    foreach (var handle in reader.GetAssemblyDefinition().GetCustomAttributes())
+    foreach(var handle in reader.GetAssemblyDefinition().GetCustomAttributes())
     {
         var attribute = reader.GetCustomAttribute(handle);
-        if (attribute.Constructor.Kind != HandleKind.MemberReference) continue;
+        if(attribute.Constructor.Kind != HandleKind.MemberReference)
+            continue;
         var constructor = reader.GetMemberReference((MemberReferenceHandle)attribute.Constructor);
-        if (constructor.Parent.Kind != HandleKind.TypeReference) continue;
+        if(constructor.Parent.Kind != HandleKind.TypeReference)
+            continue;
         var type = reader.GetTypeReference((TypeReferenceHandle)constructor.Parent);
-        if (reader.GetString(type.Name) != "AssemblyInformationalVersionAttribute") continue;
+        if(reader.GetString(type.Name) != "AssemblyInformationalVersionAttribute")
+            continue;
         var blob = reader.GetBlobReader(attribute.Value);
         Require(blob.ReadUInt16() == 1, "Invalid assembly version attribute.");
         Require(blob.ReadSerializedString()?.Split('+')[0] == version, $"Packed assembly version disagrees: {name}");
@@ -217,13 +229,17 @@ static async Task<(int ExitCode, string Output)> Dotnet(string directory, params
         RedirectStandardError = true,
         UseShellExecute = false
     };
-    foreach (var argument in arguments) start.ArgumentList.Add(argument);
+    foreach(var argument in arguments)
+        start.ArgumentList.Add(argument);
     using var process = Process.Start(start)!;
     var stdout = process.StandardOutput.ReadToEndAsync();
     var stderr = process.StandardError.ReadToEndAsync();
     using var budget = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-    try { await process.WaitForExitAsync(budget.Token); }
-    catch (OperationCanceledException)
+    try
+    {
+        await process.WaitForExitAsync(budget.Token);
+    }
+    catch(OperationCanceledException)
     {
         process.Kill(entireProcessTree: true);
         throw new InvalidOperationException("Consumer verification exceeded its two-minute process budget.");

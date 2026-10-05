@@ -1,9 +1,9 @@
-using System.Net;
-using System.Text;
-using System.Text.Json;
 using Structly.AI.Embeddings;
 using Structly.AI.OpenAI;
 using Structly.AI.Testing;
+using System.Net;
+using System.Text;
+using System.Text.Json;
 
 namespace Structly.AI.Tests;
 
@@ -27,18 +27,26 @@ public sealed class BatchAndTestingTests
         });
         using var http = new HttpClient(handler);
         var observed = new List<Guid>();
-        var client = Client(http, (item, _) => { Assert.Equal("embedding", item.RequestedModel); Assert.Equal(7, item.Usage.InputTokens); observed.Add(item.Metadata.ExecutionId); return ValueTask.CompletedTask; });
+        var client = Client(http, (item, _) =>
+        {
+            Assert.Equal("embedding", item.RequestedModel);
+            Assert.Equal(7, item.Usage.InputTokens);
+            observed.Add(item.Metadata.ExecutionId);
+            return ValueTask.CompletedTask;
+        });
         var prepared = client.PrepareEmbeddingBatch([Item("a"), Item("b"), Item("missing")]);
         var persisted = BatchManifest.FromJson(prepared.Manifest.ToJson());
-        for (var i = 0; i < 2; i++)
+        for(var i = 0; i < 2; i++)
         {
             var results = (await client.ImportEmbeddingBatchResultsAsync("batch", persisted, cancellationToken: TestContext.Current.CancellationToken)).EnsureSuccess();
-            Assert.Equal("a", results[0].Metadata.BatchCustomId); Assert.True(results[0].IsSuccess);
+            Assert.Equal("a", results[0].Metadata.BatchCustomId);
+            Assert.True(results[0].IsSuccess);
             Assert.Equal(new float[] { 1, 2 }, results[1].Value![0]);
             Assert.Equal("BatchResultMissing", Assert.Single(results[2].Error!.Issues).Code);
             Assert.Equal(persisted.Items[0].ExecutionId, results[0].Metadata.ExecutionId);
         }
-        Assert.Equal(4, observed.Count); Assert.Equal(observed[0], observed[2]);
+        Assert.Equal(4, observed.Count);
+        Assert.Equal(observed[0], observed[2]);
     }
 
     [Theory]
@@ -49,8 +57,13 @@ public sealed class BatchAndTestingTests
     {
         using var handler = new Handler(request => request.RequestUri!.AbsolutePath.EndsWith("batch", StringComparison.Ordinal) ? Response(Job()) :
             new(HttpStatusCode.OK) { Content = new StringContent(Line("a", Vectors()) + Line(scenario == "unknown" ? "other" : "a", Vectors())) });
-        using var http = new HttpClient(handler); var events = 0;
-        var client = Client(http, (_, _) => { events++; return ValueTask.CompletedTask; });
+        using var http = new HttpClient(handler);
+        var events = 0;
+        var client = Client(http, (_, _) =>
+        {
+            events++;
+            return ValueTask.CompletedTask;
+        });
         var prepared = client.PrepareEmbeddingBatch([Item("a")]);
         var result = await client.ImportEmbeddingBatchResultsAsync("batch", prepared.Manifest, new() { MaxDownloadBytes = scenario == "limit" ? 1 : 10000 }, TestContext.Current.CancellationToken);
         Assert.Equal(StructuredErrorKind.InvalidResponse, result.Error!.Kind);
@@ -63,14 +76,20 @@ public sealed class BatchAndTestingTests
         var task = StructuredTask.Create<Answer>(new() { Instructions = "Extract" });
         var envelope = ResponseEnvelopes.CompletedText("{\"value\":42}", "resolved", usage: new() { TotalTokens = 8 });
         using var handler = new Handler(request => request.RequestUri!.AbsolutePath.EndsWith("batch", StringComparison.Ordinal) ? Response(Job(endpoint: "/v1/responses")) : new(HttpStatusCode.OK) { Content = new StringContent(request.RequestUri.AbsolutePath.Contains("errors", StringComparison.Ordinal) ? "" : Line("a", envelope)) });
-        using var http = new HttpClient(handler); StructuredUsageEvent? observed = null;
-        var client = Client(http, (item, _) => { observed = item; return ValueTask.CompletedTask; });
+        using var http = new HttpClient(handler);
+        StructuredUsageEvent? observed = null;
+        var client = Client(http, (item, _) =>
+        {
+            observed = item;
+            return ValueTask.CompletedTask;
+        });
         var prepared = client.PrepareResponseBatch(task, [new("a", new() { Input = "input" })]);
         var wrong = StructuredTask.Create<OtherAnswer>(new() { Instructions = "Extract" });
         Assert.Equal(StructuredErrorKind.InvalidRequest, (await client.ImportResponseBatchResultsAsync("batch", prepared.Manifest, wrong, cancellationToken: TestContext.Current.CancellationToken)).Error!.Kind);
         Assert.Equal(0, handler.Calls);
         var results = (await client.ImportResponseBatchResultsAsync("batch", prepared.Manifest, task, cancellationToken: TestContext.Current.CancellationToken)).EnsureSuccess();
-        Assert.Equal(StructuredErrorKind.InvalidOutput, results[0].Error!.Kind); Assert.Equal(8, observed!.Usage.TotalTokens);
+        Assert.Equal(StructuredErrorKind.InvalidOutput, results[0].Error!.Kind);
+        Assert.Equal(8, observed!.Usage.TotalTokens);
     }
 
     [Fact]
@@ -78,20 +97,25 @@ public sealed class BatchAndTestingTests
     {
         using var handler = new AsyncHandler(async request =>
         {
-            if (request.RequestUri!.AbsolutePath.EndsWith("files", StringComparison.Ordinal))
+            if(request.RequestUri!.AbsolutePath.EndsWith("files", StringComparison.Ordinal))
             {
                 Assert.IsType<MultipartFormDataContent>(request.Content);
                 var body = await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
-                Assert.Contains("batch", body); Assert.Contains("custom_id", body);
+                Assert.Contains("batch", body);
+                Assert.Contains("custom_id", body);
                 return Response(new { id = "uploaded", filename = "batch.jsonl", bytes = 20, purpose = "batch" });
             }
             return new(HttpStatusCode.BadRequest) { Content = new StringContent("{}") };
         });
-        using var http = new HttpClient(handler); var client = Client(http); var prepared = client.PrepareEmbeddingBatch([Item("a")]);
+        using var http = new HttpClient(handler);
+        var client = Client(http);
+        var prepared = client.PrepareEmbeddingBatch([Item("a")]);
         using var source = new MemoryStream(Encoding.UTF8.GetBytes(prepared.Jsonl));
-        Assert.True((await client.UploadBatchFileAsync(source, cancellationToken: TestContext.Current.CancellationToken)).IsSuccess); Assert.True(source.CanRead);
+        Assert.True((await client.UploadBatchFileAsync(source, cancellationToken: TestContext.Current.CancellationToken)).IsSuccess);
+        Assert.True(source.CanRead);
         var result = await client.SubmitBatchAsync(prepared, cancellationToken: TestContext.Current.CancellationToken);
-        Assert.Equal("uploaded", result.Metadata.UploadedFileId); Assert.Equal(400, result.Error!.HttpStatusCodeValue);
+        Assert.Equal("uploaded", result.Metadata.UploadedFileId);
+        Assert.Equal(400, result.Error!.HttpStatusCodeValue);
     }
 
     [Fact]
@@ -105,10 +129,14 @@ public sealed class BatchAndTestingTests
             "/v1/batches" when request.Method == HttpMethod.Get => Response(new { data = new[] { Job() }, has_more = true, last_id = "batch" }),
             _ => Response(Job("cancelling"))
         });
-        using var http = new HttpClient(handler); var client = Client(http); var token = TestContext.Current.CancellationToken;
+        using var http = new HttpClient(handler);
+        var client = Client(http);
+        var token = TestContext.Current.CancellationToken;
         Assert.Equal(12, (await client.GetFileAsync("f", cancellationToken: token)).EnsureSuccess().Bytes);
         Assert.True((await client.DeleteFileAsync("f", cancellationToken: token)).EnsureSuccess());
-        using var destination = new MemoryStream(); Assert.True((await client.DownloadFileContentAsync("f", destination, cancellationToken: token)).IsSuccess); Assert.True(destination.CanWrite);
+        using var destination = new MemoryStream();
+        Assert.True((await client.DownloadFileContentAsync("f", destination, cancellationToken: token)).IsSuccess);
+        Assert.True(destination.CanWrite);
         Assert.Equal("content", Encoding.UTF8.GetString(destination.ToArray()));
         Assert.True((await client.ListBatchesAsync(cancellationToken: token)).EnsureSuccess().HasMore);
         Assert.Equal("cancelling", (await client.CancelBatchAsync("batch", cancellationToken: token)).EnsureSuccess().Status);
@@ -117,7 +145,8 @@ public sealed class BatchAndTestingTests
     [Fact]
     public void PreparationRejectsDuplicateModelsAndTransportControls()
     {
-        using var http = new HttpClient(); var client = Client(http);
+        using var http = new HttpClient();
+        var client = Client(http);
         Assert.Throws<ArgumentException>(() => client.PrepareEmbeddingBatch([Item("a"), Item("a")]));
         Assert.Throws<ArgumentException>(() => client.PrepareEmbeddingBatch([Item("a"), new("b", Item("b").Request with { ModelSelection = new() { ModelId = "other" } })]));
         Assert.Throws<ArgumentException>(() => client.PrepareEmbeddingBatch([new("a", Item("a").Request with { TotalTimeout = TimeSpan.FromSeconds(1) })]));
@@ -128,7 +157,8 @@ public sealed class BatchAndTestingTests
     {
         var task = StructuredTask.Create<Answer>(new());
         Assert.True(task.ReadOutput(task.CreateExample().GetRawText()).IsSuccess);
-        var completed = ResponseEnvelopes.CompleteExample(task, "{}"); Assert.True(task.ReadOutput(completed.GetRawText()).IsSuccess);
+        var completed = ResponseEnvelopes.CompleteExample(task, "{}");
+        Assert.True(task.ReadOutput(completed.GetRawText()).IsSuccess);
         Assert.Equal("supplied", ResponseEnvelopes.CompleteExample(task, "{\"value\":\"supplied\"}").GetProperty("value").GetString());
         Assert.Throws<ArgumentException>(() => ResponseEnvelopes.CompleteExample(task, "{\"value\":null}"));
         Assert.Throws<ArgumentException>(() => ResponseEnvelopes.CompleteExample(task, "{\"unknown\":true}"));
@@ -151,9 +181,11 @@ public sealed class BatchAndTestingTests
         var result = await resultTask;
         Assert.Equal(StructuredErrorKind.DeadlineExceeded, result.Error!.Kind);
         Assert.Equal(TimeSpan.FromSeconds(2), result.Error.TotalTimeout);
-        var content = new TrackedContent(); pending.SetResult(new(HttpStatusCode.OK) { Content = content });
+        var content = new TrackedContent();
+        pending.SetResult(new(HttpStatusCode.OK) { Content = content });
         await content.Disposed.Task.WaitAsync(TestContext.Current.CancellationToken);
-        using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
         var exception = await Assert.ThrowsAsync<StructuredOperationCanceledException>(() => client.GetBatchAsync("batch", cancellationToken: cancellation.Token));
         Assert.Equal(cancellation.Token, exception.CancellationToken);
     }
@@ -163,11 +195,24 @@ public sealed class BatchAndTestingTests
     {
         var errorLine = JsonSerializer.Serialize(new { custom_id = "b", error = new { code = "batch_expired", message = "private-provider-message" } }) + "\n";
         using var handler = new Handler(request => request.RequestUri!.AbsolutePath.EndsWith("batch", StringComparison.Ordinal) ? Response(Job("expired")) : new(HttpStatusCode.OK) { Content = new StringContent(request.RequestUri.AbsolutePath.Contains("errors", StringComparison.Ordinal) ? errorLine : Line("a", Vectors())) });
-        using var http = new HttpClient(handler); var client = Client(http);
-        var prepared = client.PrepareEmbeddingBatch([Item("a"), Item("b")]); var events = 0;
-        var result = await client.ImportEmbeddingBatchResultsAsync("batch", prepared.Manifest, new() { UsageObserver = (_, _) => { events++; return ValueTask.FromException(new InvalidOperationException("private-observer-message")); } }, TestContext.Current.CancellationToken);
-        var items = result.EnsureSuccess(); Assert.True(items[0].IsSuccess); Assert.Equal(StructuredErrorKind.BatchItemFailed, items[1].Error!.Kind);
-        Assert.Null(items[1].Metadata.Usage); Assert.Equal(1, events); Assert.Contains(result.Warnings, warning => warning.Code == "UsageObserverFailed");
+        using var http = new HttpClient(handler);
+        var client = Client(http);
+        var prepared = client.PrepareEmbeddingBatch([Item("a"), Item("b")]);
+        var events = 0;
+        var result = await client.ImportEmbeddingBatchResultsAsync("batch", prepared.Manifest, new()
+        {
+            UsageObserver = (_, _) =>
+        {
+            events++;
+            return ValueTask.FromException(new InvalidOperationException("private-observer-message"));
+        }
+        }, TestContext.Current.CancellationToken);
+        var items = result.EnsureSuccess();
+        Assert.True(items[0].IsSuccess);
+        Assert.Equal(StructuredErrorKind.BatchItemFailed, items[1].Error!.Kind);
+        Assert.Null(items[1].Metadata.Usage);
+        Assert.Equal(1, events);
+        Assert.Contains(result.Warnings, warning => warning.Code == "UsageObserverFailed");
         Assert.DoesNotContain("private", items[1].Error!.Message);
     }
 
@@ -175,7 +220,9 @@ public sealed class BatchAndTestingTests
     public async Task NonterminalImportsAndPerEnvelopeLimitsFailBeforeProcessingItems()
     {
         using var handler = new Handler(request => request.RequestUri!.AbsolutePath.EndsWith("batch", StringComparison.Ordinal) ? Response(Job("in_progress")) : throw new InvalidOperationException("Do not download"));
-        using var http = new HttpClient(handler); var client = Client(http); var manifest = client.PrepareEmbeddingBatch([Item("a")]).Manifest;
+        using var http = new HttpClient(handler);
+        var client = Client(http);
+        var manifest = client.PrepareEmbeddingBatch([Item("a")]).Manifest;
         Assert.Equal(StructuredErrorKind.InvalidRequest, (await client.ImportEmbeddingBatchResultsAsync("batch", manifest, cancellationToken: TestContext.Current.CancellationToken)).Error!.Kind);
         Assert.Equal(1, handler.Calls);
         using var limitedHandler = new Handler(request => request.RequestUri!.AbsolutePath.EndsWith("batch", StringComparison.Ordinal) ? Response(Job()) : new(HttpStatusCode.OK) { Content = new StringContent(new string('x', 2048)) });
@@ -217,7 +264,12 @@ public sealed class BatchAndTestingTests
     {
         public TrackedContent() : base("{}") { }
         public TaskCompletionSource Disposed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        protected override void Dispose(bool disposing) { base.Dispose(disposing); if (disposing) Disposed.TrySetResult(); }
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            if(disposing)
+                Disposed.TrySetResult();
+        }
     }
     sealed class ManualClock : TimeProvider
     {
@@ -227,16 +279,38 @@ public sealed class BatchAndTestingTests
         public override long GetTimestamp() => _ticks;
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
-            var timer = new Timer(this, callback, state); timer.Change(dueTime, period); _timers.Add(timer); return timer;
+            var timer = new Timer(this, callback, state);
+            timer.Change(dueTime, period);
+            _timers.Add(timer);
+            return timer;
         }
-        public void Advance(TimeSpan duration) { _ticks += duration.Ticks; foreach (var timer in _timers.ToArray()) timer.Fire(); }
+        public void Advance(TimeSpan duration)
+        {
+            _ticks += duration.Ticks;
+            foreach(var timer in _timers.ToArray())
+                timer.Fire();
+        }
         sealed class Timer(ManualClock clock, TimerCallback callback, object? state) : ITimer
         {
             long _due = Int64.MaxValue;
-            public bool Change(TimeSpan dueTime, TimeSpan period) { _due = dueTime == Timeout.InfiniteTimeSpan ? Int64.MaxValue : clock._ticks + dueTime.Ticks; return true; }
-            public void Fire() { if (clock._ticks < _due) return; _due = Int64.MaxValue; callback(state); }
+            public bool Change(TimeSpan dueTime, TimeSpan period)
+            {
+                _due = dueTime == Timeout.InfiniteTimeSpan ? Int64.MaxValue : clock._ticks + dueTime.Ticks;
+                return true;
+            }
+            public void Fire()
+            {
+                if(clock._ticks < _due)
+                    return;
+                _due = Int64.MaxValue;
+                callback(state);
+            }
             public void Dispose() => _due = Int64.MaxValue;
-            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+            public ValueTask DisposeAsync()
+            {
+                Dispose();
+                return ValueTask.CompletedTask;
+            }
         }
     }
 
@@ -245,7 +319,11 @@ public sealed class BatchAndTestingTests
     sealed class Handler(Func<HttpRequestMessage, HttpResponseMessage> send) : HttpMessageHandler
     {
         public int Calls { get; private set; }
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) { Calls++; return Task.FromResult(send(request)); }
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Calls++;
+            return Task.FromResult(send(request));
+        }
     }
     sealed class AsyncHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> send) : HttpMessageHandler
     {

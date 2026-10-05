@@ -20,27 +20,30 @@ public sealed partial class OpenAiClient
         ArgumentNullException.ThrowIfNull(options.DefaultModel);
         ArgumentNullException.ThrowIfNull(options.Profiles);
         options.DefaultModel.Validate();
-        if (options.TimeProvider is null || !OpenAiExecution.ValidTimeout(options.TotalTimeout) ||
+        if(options.TimeProvider is null || !OpenAiExecution.ValidTimeout(options.TotalTimeout) ||
             options.InactivityTimeout is { } idle && idle <= TimeSpan.Zero)
             throw new ArgumentException("Invalid execution clock or deadlines.", nameof(options));
-        if (options.BaseAddress is null || !options.BaseAddress.IsAbsoluteUri ||
+        if(options.BaseAddress is null || !options.BaseAddress.IsAbsoluteUri ||
             options.BaseAddress.Scheme is not ("https" or "http") || !options.BaseAddress.AbsolutePath.EndsWith('/') ||
             options.BaseAddress.Query.Length != 0 || options.BaseAddress.Fragment.Length != 0 || options.BaseAddress.UserInfo.Length != 0 ||
             options.MaxResponseBytes <= 0 || options.MaxImageResponseBytes <= 0)
             throw new ArgumentException("Invalid API directory URI or response size ceiling.", nameof(options));
         _profiles = new(options.Profiles, StringComparer.Ordinal);
-        foreach (var (name, profile) in _profiles)
+        foreach(var (name, profile) in _profiles)
         {
-            if (String.IsNullOrWhiteSpace(name) || profile is null) throw new ArgumentException("Invalid model profile.", nameof(options));
+            if(String.IsNullOrWhiteSpace(name) || profile is null)
+                throw new ArgumentException("Invalid model profile.", nameof(options));
             profile.Validate();
-            if (profile.ModelId is null) throw new ArgumentException("Profiles must select explicit model IDs.", nameof(options));
+            if(profile.ModelId is null)
+                throw new ArgumentException("Profiles must select explicit model IDs.", nameof(options));
         }
         SelectModel(options.DefaultModel);
         var embeddingProfiles = SnapshotProfiles(options.EmbeddingProfiles);
         var imageProfiles = SnapshotProfiles(options.ImageProfiles);
         var compatibility = new Dictionary<string, OpenAiCacheCompatibility>(OpenAiCacheDefaults.Models, StringComparer.Ordinal);
-        foreach (var entry in options.CacheCompatibility) compatibility[entry.Key] = entry.Value;
-        if (compatibility.Any(x => String.IsNullOrWhiteSpace(x.Key) || !Enum.IsDefined(x.Value)))
+        foreach(var entry in options.CacheCompatibility)
+            compatibility[entry.Key] = entry.Value;
+        if(compatibility.Any(x => String.IsNullOrWhiteSpace(x.Key) || !Enum.IsDefined(x.Value)))
             throw new ArgumentException("Invalid cache compatibility configuration.", nameof(options));
         _http = httpClient;
         _options = options with
@@ -67,13 +70,17 @@ public sealed partial class OpenAiClient
         using var execution = new OpenAiExecution(request, _options, cancellationToken);
         execution.Metadata = execution.Metadata with { Operation = operation, SchemaName = schemaName };
         StructuredResult<T> result;
-        try { result = await core(execution).ConfigureAwait(false); }
-        catch (OperationCanceledException)
+        try
+        {
+            result = await core(execution).ConfigureAwait(false);
+        }
+        catch(OperationCanceledException)
         {
             result = LocalFailure<T>(execution, execution.Deadline ?? StructuredErrorKind.TransportFailure, true);
         }
-        if (execution.Deadline is { } deadline) result = LocalFailure<T>(execution, deadline, true);
-        if (execution.Metadata.Usage is not null && (request.UsageObserver ?? _options.UsageObserver) is { } observer)
+        if(execution.Deadline is { } deadline)
+            result = LocalFailure<T>(execution, deadline, true);
+        if(execution.Metadata.Usage is not null && (request.UsageObserver ?? _options.UsageObserver) is { } observer)
         {
             var usage = new StructuredUsageEvent
             {
@@ -87,9 +94,10 @@ public sealed partial class OpenAiClient
             };
             await execution.Callback(token => observer(usage, token), TimeSpan.FromSeconds(5), "UsageObserver").ConfigureAwait(false);
         }
-        if (cancellationToken.IsCancellationRequested)
+        if(cancellationToken.IsCancellationRequested)
             throw new StructuredOperationCanceledException(execution.Metadata, execution.Warnings, cancellationToken);
-        if (execution.Deadline is { } finalDeadline) return LocalFailure<T>(execution, finalDeadline, true);
+        if(execution.Deadline is { } finalDeadline)
+            return LocalFailure<T>(execution, finalDeadline, true);
         return result.IsSuccess ? StructuredResult<T>.Success(result.Value!, execution.Metadata, execution.Warnings)
             : StructuredResult<T>.Failure(result.Error!, execution.Metadata, execution.Warnings);
     }
@@ -119,7 +127,8 @@ public sealed partial class OpenAiClient
         try
         {
             ValidateResponseRequest(request);
-            if (String.IsNullOrWhiteSpace(request.Instructions ?? task.Instructions)) throw new ArgumentException("Typed execution requires instructions.");
+            if(String.IsNullOrWhiteSpace(request.Instructions ?? task.Instructions))
+                throw new ArgumentException("Typed execution requires instructions.");
             vocabularies = request.Vocabularies?.ToDictionary(x => x.Key,
                 x => (IReadOnlyList<string>)(x.Value ?? throw new ArgumentException("Vocabulary values cannot be null.")).ToArray(), StringComparer.Ordinal);
             var schema = task.CreateSchema(vocabularies);
@@ -128,11 +137,18 @@ public sealed partial class OpenAiClient
             execution.Metadata = execution.Metadata with { RequestedModel = model.ModelId };
             payload = ResponsePayload(request, model, request.Instructions ?? task.Instructions, guidance);
             var format = new Dictionary<string, object?> { ["type"] = "json_schema", ["name"] = task.SchemaName, ["schema"] = schema, ["strict"] = true };
-            if (task.Description is not null) format["description"] = task.Description;
+            if(task.Description is not null)
+                format["description"] = task.Description;
             payload["text"] = new { format };
         }
-        catch (StructuredSchemaException exception) { return LocalFailure<T>(execution, StructuredErrorKind.UnsupportedSchema, issues: exception.Issues); }
-        catch (ArgumentException) { return InvalidOptions<T>(execution); }
+        catch(StructuredSchemaException exception)
+        {
+            return LocalFailure<T>(execution, StructuredErrorKind.UnsupportedSchema, issues: exception.Issues);
+        }
+        catch(ArgumentException)
+        {
+            return InvalidOptions<T>(execution);
+        }
         return await Send(payload, "responses", request, execution, task.CredentialResolver,
             root => ProcessResponse(root, request, execution, (text, metadata) => task.ReadOutput(text, vocabularies, metadata))).ConfigureAwait(false);
     }
@@ -144,11 +160,13 @@ public sealed partial class OpenAiClient
     {
         ArgumentNullException.ThrowIfNull(profiles);
         var snapshot = new Dictionary<string, ModelSelection>(profiles, StringComparer.Ordinal);
-        foreach (var (name, profile) in snapshot)
+        foreach(var (name, profile) in snapshot)
         {
-            if (String.IsNullOrWhiteSpace(name) || profile is null) throw new ArgumentException("Invalid model profile.");
+            if(String.IsNullOrWhiteSpace(name) || profile is null)
+                throw new ArgumentException("Invalid model profile.");
             profile.Validate();
-            if (profile.ModelId is null || profile.ReasoningEffort is not null) throw new ArgumentException("Auxiliary profiles require explicit model IDs without reasoning.");
+            if(profile.ModelId is null || profile.ReasoningEffort is not null)
+                throw new ArgumentException("Auxiliary profiles require explicit model IDs without reasoning.");
         }
         return snapshot;
     }
@@ -156,8 +174,10 @@ public sealed partial class OpenAiClient
     ModelSelection SelectModel(ModelSelection selection, IReadOnlyDictionary<string, ModelSelection>? profiles = null)
     {
         selection.Validate();
-        if (selection.ProfileName is not { } name) return selection;
-        if (!(profiles ?? _profiles).TryGetValue(name, out var profile)) throw new ArgumentException("Unknown model profile.");
+        if(selection.ProfileName is not { } name)
+            return selection;
+        if(!(profiles ?? _profiles).TryGetValue(name, out var profile))
+            throw new ArgumentException("Unknown model profile.");
         return profile with { ReasoningEffort = selection.ReasoningEffort ?? profile.ReasoningEffort };
     }
 
@@ -184,14 +204,22 @@ public sealed partial class OpenAiClient
             var resolver = request.CredentialResolver ?? taskCredential ?? _options.CredentialResolver;
             credential = resolver is null ? null : await execution.Await(resolver(cancellationToken).AsTask()).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception exception) when (exception is not OutOfMemoryException and not StackOverflowException)
-        { return Fail(StructuredErrorKind.Authentication); }
-        if (String.IsNullOrWhiteSpace(credential)) return Fail(StructuredErrorKind.CredentialsMissing);
-        if (credential.Any(c => c < 33 || c > 126)) return Fail(StructuredErrorKind.Authentication);
+        catch(OperationCanceledException) when(cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch(Exception exception) when(exception is not OutOfMemoryException and not StackOverflowException)
+        {
+            return Fail(StructuredErrorKind.Authentication);
+        }
+        if(String.IsNullOrWhiteSpace(credential))
+            return Fail(StructuredErrorKind.CredentialsMissing);
+        if(credential.Any(c => c < 33 || c > 126))
+            return Fail(StructuredErrorKind.Authentication);
         using var message = new HttpRequestMessage(HttpMethod.Post, new Uri(_options.BaseAddress, endpoint));
         message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
-        if (request.OpenAi.IdempotencyKey is { } idempotency) message.Headers.Add("Idempotency-Key", idempotency);
+        if(request.OpenAi.IdempotencyKey is { } idempotency)
+            message.Headers.Add("Idempotency-Key", idempotency);
         message.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
         execution.CheckCancellation();
         await execution.Progress(new() { Kind = StructuredProgressKind.Started }).ConfigureAwait(false);
@@ -204,9 +232,10 @@ public sealed partial class OpenAiClient
             JsonDocument document;
             try
             {
-                if (request.Stream && response.IsSuccessStatusCode)
+                if(request.Stream && response.IsSuccessStatusCode)
                 {
-                    if (response.Content.Headers.ContentType?.MediaType != "text/event-stream") return Fail(StructuredErrorKind.InvalidResponse);
+                    if(response.Content.Headers.ContentType?.MediaType != "text/event-stream")
+                        return Fail(StructuredErrorKind.InvalidResponse);
                     document = await ReadEvents(stream, request, execution).ConfigureAwait(false);
                 }
                 else
@@ -215,17 +244,20 @@ public sealed partial class OpenAiClient
                     using var buffer = new MemoryStream();
                     var chunk = new byte[8192];
                     int count;
-                    while ((count = await execution.Await(stream.ReadAsync(chunk, cancellationToken).AsTask()).ConfigureAwait(false)) != 0)
+                    while((count = await execution.Await(stream.ReadAsync(chunk, cancellationToken).AsTask()).ConfigureAwait(false)) != 0)
                     {
-                        if (buffer.Length + count > limit)
+                        if(buffer.Length + count > limit)
                             return response.IsSuccessStatusCode ? Fail(StructuredErrorKind.InvalidResponse) : HttpFailure(null);
                         buffer.Write(chunk, 0, count);
                     }
                     document = JsonDocument.Parse(buffer.ToArray());
                 }
             }
-            catch (JsonException) { return response.IsSuccessStatusCode ? Fail(StructuredErrorKind.InvalidResponse) : HttpFailure(null); }
-            using (document)
+            catch(JsonException)
+            {
+                return response.IsSuccessStatusCode ? Fail(StructuredErrorKind.InvalidResponse) : HttpFailure(null);
+            }
+            using(document)
             {
                 var root = document.RootElement;
                 execution.Metadata = execution.Metadata with
@@ -236,7 +268,8 @@ public sealed partial class OpenAiClient
                     Usage = ParseUsage(root, warnings),
                     CacheDiagnostics = ParseCacheDiagnostics(root, warnings)
                 };
-                if (!response.IsSuccessStatusCode) return HttpFailure(Text(Property(root, "error"), "code"));
+                if(!response.IsSuccessStatusCode)
+                    return HttpFailure(Text(Property(root, "error"), "code"));
                 execution.CheckCancellation();
                 var result = await process(root).ConfigureAwait(false);
                 execution.CheckCancellation();
@@ -253,9 +286,18 @@ public sealed partial class OpenAiClient
                     response.StatusCode, delay < TimeSpan.Zero ? TimeSpan.Zero : delay);
             }
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested) { return Fail(StructuredErrorKind.TransportFailure, true); }
-        catch (HttpRequestException) { return Fail(StructuredErrorKind.TransportFailure, true); }
-        catch (IOException) { return Fail(StructuredErrorKind.TransportFailure, true); }
+        catch(OperationCanceledException) when(!cancellationToken.IsCancellationRequested)
+        {
+            return Fail(StructuredErrorKind.TransportFailure, true);
+        }
+        catch(HttpRequestException)
+        {
+            return Fail(StructuredErrorKind.TransportFailure, true);
+        }
+        catch(IOException)
+        {
+            return Fail(StructuredErrorKind.TransportFailure, true);
+        }
     }
 
     static async ValueTask<StructuredResult<T>> ProcessResponse<T>(JsonElement root, StructuredRequest request,
@@ -263,54 +305,74 @@ public sealed partial class OpenAiClient
         bool prewarm = false, T? prewarmValue = default)
     {
         StructuredResult<T> Fail(StructuredErrorKind kind, bool transient = false) => LocalFailure<T>(execution, kind, transient);
-        if (root.ValueKind != JsonValueKind.Object || String.IsNullOrWhiteSpace(Text(root, "id")) || String.IsNullOrWhiteSpace(Text(root, "model")))
+        if(root.ValueKind != JsonValueKind.Object || String.IsNullOrWhiteSpace(Text(root, "id")) || String.IsNullOrWhiteSpace(Text(root, "model")))
             return Fail(StructuredErrorKind.InvalidResponse);
         var status = Text(root, "status");
-        if (prewarm)
+        if(prewarm)
         {
-            if (ProviderStatusFailure() is { } failure) return failure;
+            if(ProviderStatusFailure() is { } failure)
+                return failure;
             var warmOutput = Property(root, "output");
-            if (warmOutput.ValueKind != JsonValueKind.Array || warmOutput.GetArrayLength() != 0) return Fail(StructuredErrorKind.InvalidResponse);
+            if(warmOutput.ValueKind != JsonValueKind.Array || warmOutput.GetArrayLength() != 0)
+                return Fail(StructuredErrorKind.InvalidResponse);
             return StructuredResult<T>.Success(prewarmValue!, execution.Metadata, execution.Warnings);
         }
         var output = Property(root, "output");
         // Terminal provider status takes precedence even when no answer is present.
-        if (output.ValueKind != JsonValueKind.Array)
+        if(output.ValueKind != JsonValueKind.Array)
             return ProviderStatusFailure() ?? Fail(StructuredErrorKind.InvalidResponse);
         var text = new StringBuilder();
         var answers = 0;
         var refused = false;
         var invalid = false;
-        foreach (var item in output.EnumerateArray())
+        foreach(var item in output.EnumerateArray())
         {
-            if (Text(item, "type") == "reasoning") continue;
-            if (Text(item, "type") != "message" || Text(item, "role") != "assistant" || Text(item, "status") != "completed") { invalid = true; continue; }
+            if(Text(item, "type") == "reasoning")
+                continue;
+            if(Text(item, "type") != "message" || Text(item, "role") != "assistant" || Text(item, "status") != "completed")
+            {
+                invalid = true;
+                continue;
+            }
             answers++;
             var content = Property(item, "content");
-            if (content.ValueKind != JsonValueKind.Array) { invalid = true; continue; }
-            foreach (var part in content.EnumerateArray())
+            if(content.ValueKind != JsonValueKind.Array)
             {
-                if (Text(part, "type") == "refusal" && Text(part, "refusal") is not null) refused = true;
-                else if (Text(part, "type") == "output_text" && Text(part, "text") is { } value) text.Append(value);
-                else invalid = true;
+                invalid = true;
+                continue;
+            }
+            foreach(var part in content.EnumerateArray())
+            {
+                if(Text(part, "type") == "refusal" && Text(part, "refusal") is not null)
+                    refused = true;
+                else if(Text(part, "type") == "output_text" && Text(part, "text") is { } value)
+                    text.Append(value);
+                else
+                    invalid = true;
             }
         }
         execution.Metadata = execution.Metadata with { OutputText = request.OpenAi.CaptureOutputText ? text.ToString() : null };
-        if (ProviderStatusFailure() is { } statusFailure) return statusFailure;
-        if (refused) return Fail(StructuredErrorKind.Refused);
-        if (invalid || answers != 1 || text.Length == 0) return Fail(StructuredErrorKind.InvalidResponse);
+        if(ProviderStatusFailure() is { } statusFailure)
+            return statusFailure;
+        if(refused)
+            return Fail(StructuredErrorKind.Refused);
+        if(invalid || answers != 1 || text.Length == 0)
+            return Fail(StructuredErrorKind.InvalidResponse);
         execution.CheckCancellation();
         var result = readOutput(text.ToString(), execution.Metadata);
         execution.CheckCancellation();
-        if (result.IsSuccess || result.Error?.Kind == StructuredErrorKind.InvalidOutput)
+        if(result.IsSuccess || result.Error?.Kind == StructuredErrorKind.InvalidOutput)
             await execution.Progress(new() { Kind = StructuredProgressKind.Completed, ResponseId = execution.Metadata.ResponseId, ModelId = execution.Metadata.ResolvedModel }).ConfigureAwait(false);
         return result.IsSuccess ? StructuredResult<T>.Success(result.Value!, execution.Metadata, execution.Warnings) : StructuredResult<T>.Failure(result.Error!, execution.Metadata, execution.Warnings);
 
         StructuredResult<T>? ProviderStatusFailure()
         {
-            if (status == "completed") return null;
-            if (status == "incomplete") return Fail(StructuredErrorKind.IncompleteOutput);
-            if (status != "failed") return Fail(StructuredErrorKind.InvalidResponse);
+            if(status == "completed")
+                return null;
+            if(status == "incomplete")
+                return Fail(StructuredErrorKind.IncompleteOutput);
+            if(status != "failed")
+                return Fail(StructuredErrorKind.InvalidResponse);
             var transient = Text(Property(root, "error"), "code") is "server_error" or "rate_limit_exceeded";
             return Fail(transient ? StructuredErrorKind.ProviderUnavailable : StructuredErrorKind.ProviderRejected, transient);
         }
@@ -321,19 +383,26 @@ public sealed partial class OpenAiClient
     static StructuredUsage? ParseUsage(JsonElement root, List<StructuredWarning> warnings)
     {
         var usage = Property(root, "usage");
-        if (usage.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) return null;
-        if (usage.ValueKind != JsonValueKind.Object) { warnings.Add(new("InvalidUsage", "Provider usage metadata is malformed.")); return null; }
+        if(usage.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+            return null;
+        if(usage.ValueKind != JsonValueKind.Object)
+        {
+            warnings.Add(new("InvalidUsage", "Provider usage metadata is malformed."));
+            return null;
+        }
         long? Count(JsonElement element, string name)
         {
             var value = Property(element, name);
-            if (value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null) return null;
-            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number) && number >= 0) return number;
+            if(value.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+                return null;
+            if(value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number) && number >= 0)
+                return number;
             warnings.Add(new("InvalidUsage", "A provider usage count is invalid."));
             return null;
         }
         var input = Property(usage, "input_tokens_details");
         var output = Property(usage, "output_tokens_details");
-        if (input.ValueKind is not (JsonValueKind.Object or JsonValueKind.Null or JsonValueKind.Undefined) ||
+        if(input.ValueKind is not (JsonValueKind.Object or JsonValueKind.Null or JsonValueKind.Undefined) ||
             output.ValueKind is not (JsonValueKind.Object or JsonValueKind.Null or JsonValueKind.Undefined))
             warnings.Add(new("InvalidUsage", "Provider usage details are malformed."));
         var result = new StructuredUsage

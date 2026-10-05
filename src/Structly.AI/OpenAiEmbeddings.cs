@@ -1,5 +1,5 @@
-using System.Text.Json;
 using Structly.AI.Embeddings;
+using System.Text.Json;
 
 namespace Structly.AI.OpenAI;
 
@@ -31,15 +31,20 @@ public sealed partial class OpenAiClient
         {
             ValidateCommonRequest(controls);
             inputs = request.Inputs?.ToArray() ?? throw new ArgumentException("Inputs are required.");
-            if (inputs.Length == 0 || inputs.Any(String.IsNullOrWhiteSpace) || request.Dimensions is <= 0 || request.ModelSelection is null)
+            if(inputs.Length == 0 || inputs.Any(String.IsNullOrWhiteSpace) || request.Dimensions is <= 0 || request.ModelSelection is null)
                 throw new ArgumentException("Invalid embedding batch/options.");
             var model = SelectModel(request.ModelSelection, _options.EmbeddingProfiles);
-            if (model.ReasoningEffort is not null) throw new ArgumentException("Embeddings do not support reasoning.");
+            if(model.ReasoningEffort is not null)
+                throw new ArgumentException("Embeddings do not support reasoning.");
             execution.Metadata = execution.Metadata with { RequestedModel = model.ModelId };
             payload = new() { ["model"] = model.ModelId, ["input"] = inputs, ["encoding_format"] = "float" };
-            if (request.Dimensions is { } dimensions) payload["dimensions"] = dimensions;
+            if(request.Dimensions is { } dimensions)
+                payload["dimensions"] = dimensions;
         }
-        catch (ArgumentException) { return InvalidOptions<IReadOnlyList<IReadOnlyList<float>>>(execution); }
+        catch(ArgumentException)
+        {
+            return InvalidOptions<IReadOnlyList<IReadOnlyList<float>>>(execution);
+        }
         return await Send(payload, "embeddings", controls, execution, null,
             root => ValueTask.FromResult(ReadEmbeddings(root, inputs.Length, request.Dimensions, execution))).ConfigureAwait(false);
     }
@@ -49,27 +54,32 @@ public sealed partial class OpenAiClient
     {
         StructuredResult<IReadOnlyList<IReadOnlyList<float>>> Invalid() => LocalFailure<IReadOnlyList<IReadOnlyList<float>>>(execution, StructuredErrorKind.InvalidResponse);
         var data = Property(root, "data");
-        if (String.IsNullOrWhiteSpace(Text(root, "model")) || data.ValueKind != JsonValueKind.Array || data.GetArrayLength() != count) return Invalid();
+        if(String.IsNullOrWhiteSpace(Text(root, "model")) || data.ValueKind != JsonValueKind.Array || data.GetArrayLength() != count)
+            return Invalid();
         var ordered = new IReadOnlyList<float>[count];
         int? length = dimensions;
-        foreach (var item in data.EnumerateArray())
+        foreach(var item in data.EnumerateArray())
         {
             var index = Property(item, "index");
             var embedding = Property(item, "embedding");
-            if (index.ValueKind != JsonValueKind.Number || !index.TryGetInt32(out var position) || position < 0 || position >= count ||
-                ordered[position] is not null || embedding.ValueKind != JsonValueKind.Array || embedding.GetArrayLength() == 0) return Invalid();
+            if(index.ValueKind != JsonValueKind.Number || !index.TryGetInt32(out var position) || position < 0 || position >= count ||
+                ordered[position] is not null || embedding.ValueKind != JsonValueKind.Array || embedding.GetArrayLength() == 0)
+                return Invalid();
             length ??= embedding.GetArrayLength();
-            if (embedding.GetArrayLength() != length) return Invalid();
+            if(embedding.GetArrayLength() != length)
+                return Invalid();
             var vector = new float[length.Value];
             var component = 0;
-            foreach (var value in embedding.EnumerateArray())
+            foreach(var value in embedding.EnumerateArray())
             {
-                if (value.ValueKind != JsonValueKind.Number || !value.TryGetSingle(out var number) || !Single.IsFinite(number)) return Invalid();
+                if(value.ValueKind != JsonValueKind.Number || !value.TryGetSingle(out var number) || !Single.IsFinite(number))
+                    return Invalid();
                 vector[component++] = number;
             }
             ordered[position] = Array.AsReadOnly(vector);
         }
-        if (ordered.Any(x => x is null)) return Invalid();
+        if(ordered.Any(x => x is null))
+            return Invalid();
         return StructuredResult<IReadOnlyList<IReadOnlyList<float>>>.Success(Array.AsReadOnly(ordered), execution.Metadata, execution.Warnings);
     }
 }
