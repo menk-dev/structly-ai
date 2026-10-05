@@ -48,14 +48,14 @@ static class BatchExamples
         for(var i = 0; i < 2; i++)
         {
             var imported = await client.ImportEmbeddingBatchResultsAsync("embedding-job", manifest);
-            if(!imported.EnsureSuccess()[0].IsSuccess)
+            if(!imported.EnsureSuccess().Items[0].Result.IsSuccess)
                 throw new InvalidOperationException("Embedding batch failed.");
         }
 
         // Re-importing the embedding batch above must not add another ledger entry.
         var responseManifest = BatchManifest.FromJson(response.Manifest.ToJson());
         var typed = await client.ImportResponseBatchResultsAsync("response-job", responseManifest, task);
-        if(typed.EnsureSuccess()[0].EnsureSuccess().Value != "answer" || ledger.Count != 2)
+        if(typed.EnsureSuccess().Items[0].Result.EnsureSuccess().Value != "answer" || ledger.Count != 2)
             throw new InvalidOperationException("Batch output or ledger mismatch.");
     }
 }

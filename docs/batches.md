@@ -64,8 +64,8 @@ var manifest = BatchManifest.FromJson(await File.ReadAllTextAsync("manifest.json
 var imported = await client.ImportEmbeddingBatchResultsAsync(batchId, manifest,
     new() { UsageObserver = RecordUsageAsync }, cancellationToken);
 
-foreach (var item in imported.EnsureSuccess())
-    SaveEmbeddingOrFailure(item.Metadata.BatchCustomId!, item);
+foreach (var item in imported.EnsureSuccess().Items)
+    SaveEmbeddingOrFailure(item.CustomId, item.Result);
 ```
 
 Import requires a terminal status (`completed`, `failed`, `expired` or `cancelled`). It reads
@@ -104,3 +104,22 @@ Use `UploadBatchFileAsync`, `GetFileAsync`, `DownloadFileContentAsync`, `DeleteF
 lifecycle control. Download writes to the supplied stream and leaves it open. Upload likewise
 leaves its source open. The library disposes its HTTP responses and owned streams and uses
 the configured API directory and HTTP handler. File support is limited to batch requirements.
+
+## Usage summaries
+
+Both import methods return `StructuredResult<BatchImportResult<T>>`. Its `Items` contain
+nonblank `CustomId` values and each item's `StructuredResult<T>` in manifest order.
+`UsageByModel` contains reported usage sums grouped by resolved model, falling back to
+requested model, in first-occurrence order. Failed items contribute any reported usage.
+Missing items contribute to `ItemCount` but report no usage.
+
+Each summary exposes `ItemCount`, `ItemsWithUsage`, `ReportedUsage` and `Coverage`.
+Coverage gives the number of items reporting each token field. Sums include only reported
+counts: a field with no reports is null, while a reported zero remains zero. Partial sums
+are not complete batch totals. Missing counts are never inferred. An overflowing field
+becomes null and adds a `BatchUsageOverflow` warning; its coverage remains available.
+
+Summaries are returned only when the outer import succeeds and do not depend on observer
+success. Re-importing produces another summary of the same reported usage. Do not add these
+sums to ledger entries already recorded from per-item events. Per-item notifications retain
+the execution IDs needed for durable deduplication; no aggregate events are emitted.

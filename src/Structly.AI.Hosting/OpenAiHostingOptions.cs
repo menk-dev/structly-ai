@@ -37,7 +37,7 @@ public sealed class OpenAiHostingOptions
     public int MaxResponseBytes { get; set; } = 16 * 1024 * 1024;
     /// <summary>Gets the maximum image envelope size in bytes, including base64 data.</summary>
     public int MaxImageResponseBytes { get; set; } = 128 * 1024 * 1024;
-    internal OpenAiClientOptions ToClientOptions() => new()
+    internal OpenAiClientOptions ToClientOptions(Func<StructuredUsageEvent, CancellationToken, ValueTask>? usageObserver = null) => new()
     {
         DefaultModel = DefaultModel,
         Profiles = Profiles,
@@ -50,7 +50,7 @@ public sealed class OpenAiHostingOptions
         MaxResponseBytes = MaxResponseBytes,
         MaxImageResponseBytes = MaxImageResponseBytes,
         TimeProvider = TimeProvider,
-        UsageObserver = UsageObserver,
+        UsageObserver = usageObserver ?? UsageObserver,
         CredentialResolver = CredentialResolver ?? (String.IsNullOrWhiteSpace(ApiKey) ? UseEnvironmentApiKey ? Credentials.FromEnvironment("OPENAI_API_KEY") : null : Credentials.FromStatic(ApiKey)),
     };
 }

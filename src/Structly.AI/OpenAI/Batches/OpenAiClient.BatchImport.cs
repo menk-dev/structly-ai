@@ -33,11 +33,11 @@ public sealed partial class OpenAiClient
     }
 
     /// <summary>Imports terminal embedding results in original order and observes reported per-item usage.</summary>
-    public Task<StructuredResult<IReadOnlyList<StructuredResult<IReadOnlyList<IReadOnlyList<float>>>>>> ImportEmbeddingBatchResultsAsync(string batchId, BatchManifest manifest, BatchOperationOptions? options = null, CancellationToken cancellationToken = default)
+    public Task<StructuredResult<BatchImportResult<IReadOnlyList<IReadOnlyList<float>>>>> ImportEmbeddingBatchResultsAsync(string batchId, BatchManifest manifest, BatchOperationOptions? options = null, CancellationToken cancellationToken = default)
         => ImportBatch(batchId, manifest, "/v1/embeddings", options, (item, root, execution) => ValueTask.FromResult(ReadEmbeddings(root, item.InputCount, item.Dimensions, execution)), null, cancellationToken);
 
     /// <summary>Checks persisted schema fingerprints before importing typed results and reported per-item usage.</summary>
-    public Task<StructuredResult<IReadOnlyList<StructuredResult<T>>>> ImportResponseBatchResultsAsync<T>(string batchId, BatchManifest manifest, StructuredTask<T> task, BatchOperationOptions? options = null, CancellationToken cancellationToken = default)
+    public Task<StructuredResult<BatchImportResult<T>>> ImportResponseBatchResultsAsync<T>(string batchId, BatchManifest manifest, StructuredTask<T> task, BatchOperationOptions? options = null, CancellationToken cancellationToken = default)
         => ImportBatch<T>(batchId, manifest, "/v1/responses", options, (item, root, execution) =>
         {
             execution.Metadata = execution.Metadata with { SchemaName = task.SchemaName };
@@ -49,7 +49,7 @@ public sealed partial class OpenAiClient
                 throw new ArgumentException("Batch schema contract mismatch.");
         }, cancellationToken, task.SchemaName);
 
-    Task<StructuredResult<IReadOnlyList<StructuredResult<T>>>> ImportBatch<T>(string batchId, BatchManifest manifest, string endpoint, BatchOperationOptions? options,
+    Task<StructuredResult<BatchImportResult<T>>> ImportBatch<T>(string batchId, BatchManifest manifest, string endpoint, BatchOperationOptions? options,
         Func<BatchManifestItem, JsonElement, OpenAiExecution, ValueTask<StructuredResult<T>>> process, Action<BatchManifestItem>? validate, CancellationToken caller, string? schemaName = null)
         => BatchOperation(options, "ImportBatch", async execution =>
         {
@@ -62,16 +62,16 @@ public sealed partial class OpenAiClient
             }
             catch(ArgumentException)
             {
-                return InvalidOptions<IReadOnlyList<StructuredResult<T>>>(execution);
+                return InvalidOptions<BatchImportResult<T>>(execution);
             }
 
             execution.Metadata = execution.Metadata with { BatchId = batchId, SchemaName = schemaName };
             var job = await GetBatch(batchId, options, execution).ConfigureAwait(false);
             if(!job.IsSuccess)
-                return StructuredResult<IReadOnlyList<StructuredResult<T>>>.Failure(job.Error!, execution.Metadata);
+                return StructuredResult<BatchImportResult<T>>.Failure(job.Error!, execution.Metadata);
 
             if(!job.Value!.IsTerminal || job.Value.Endpoint != endpoint)
-                return InvalidOptions<IReadOnlyList<StructuredResult<T>>>(execution);
+                return InvalidOptions<BatchImportResult<T>>(execution);
 
             var index = manifest.Items.ToDictionary(x => x.CustomId, StringComparer.Ordinal);
             var results = new Dictionary<string, StructuredResult<T>>(StringComparer.Ordinal);
@@ -158,11 +158,13 @@ public sealed partial class OpenAiClient
                     }
                 }).ConfigureAwait(false);
                 if(!imported.IsSuccess)
-                    return StructuredResult<IReadOnlyList<StructuredResult<T>>>.Failure(imported.Error!, execution.Metadata, execution.Warnings);
+                    return StructuredResult<BatchImportResult<T>>.Failure(imported.Error!, execution.Metadata, execution.Warnings);
             }
 
             var ordered = manifest.Items.Select(item => results.TryGetValue(item.CustomId, out var result) ? result : StructuredResult<T>.Failure(new() { Kind = StructuredErrorKind.IncompleteOutput, Message = "Terminal batch has no result for this item.", Issues = [new("$", "BatchResultMissing", "The terminal batch omitted this item.")] }, new() { ExecutionId = item.ExecutionId, SchemaName = schemaName, Provider = "openai", RequestedModel = item.RequestedModel, CorrelationId = item.CorrelationId, BatchId = batchId, BatchCustomId = item.CustomId, IsBatch = true })).ToArray();
-            return StructuredResult<IReadOnlyList<StructuredResult<T>>>.Success(Array.AsReadOnly(ordered), execution.Metadata, execution.Warnings);
+            var items = ordered.Select((result, position) => new BatchItemResult<T>(manifest.Items[position].CustomId, result)).ToArray();
+            var summaries = SummarizeBatchUsage(items, execution.Warnings);
+            return StructuredResult<BatchImportResult<T>>.Success(new(items, summaries), execution.Metadata, execution.Warnings);
         }, caller);
 
 }

@@ -309,3 +309,29 @@ For an explicit section, use `services.AddStructlyOpenAi(configuration.GetSectio
 
 The runnable [offline hosted consumer](../examples/Structly.AI.HostingConsumer/Program.cs)
 uses callback registration with a fake HTTP handler and no provider connection.
+
+## DI usage observers
+
+Implement `IStructuredUsageObserver` to record usage using DI dependencies:
+
+```csharp
+builder.Services.AddStructlyOpenAi(builder.Configuration)
+    .AddUsageObserver<LlmUsageRecorder>();
+
+sealed class LlmUsageRecorder(UsageLedger ledger) : IStructuredUsageObserver
+{
+    public ValueTask ObserveAsync(StructuredUsageEvent usage, CancellationToken token)
+        => ledger.RecordAsync(usage, token);
+}
+```
+
+`UsageLedger` and its recording method are application code. Register the ledger and its
+dependencies in DI. `AddUsageObserver<T>()` registers the concrete observer as scoped unless
+it is already registered. Only one DI observer can be registered for the Structly OpenAI
+client; a second registration throws.
+
+Every notification creates a separate async scope, resolves the observer, awaits its method
+and disposes the scope. It does not share the caller's request scope. Existing singleton
+observer registrations must support concurrent callbacks. Request and batch-import observers
+override the DI observer, which overrides `OpenAiHostingOptions.UsageObserver`; only the
+selected observer runs. The existing best-effort callback timeout and warning behavior applies.

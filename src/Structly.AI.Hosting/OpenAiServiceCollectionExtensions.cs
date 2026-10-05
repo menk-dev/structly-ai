@@ -9,6 +9,23 @@ namespace Structly.AI.Hosting;
 /// <summary>Registers Structly.AI with .NET dependency injection and configuration.</summary>
 public static class OpenAiServiceCollectionExtensions
 {
+    /// <summary>Registers an observer resolved in a new async DI scope for each notification.</summary>
+    /// <remarks>Overrides the options observer. Request and import observers take precedence.</remarks>
+    public static IHttpClientBuilder AddUsageObserver<TObserver>(this IHttpClientBuilder builder)
+        where TObserver : class, IStructuredUsageObserver
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        if(builder.Name != typeof(OpenAiClient).FullName)
+            throw new ArgumentException("Usage observers require the Structly OpenAI HTTP client builder.", nameof(builder));
+
+        if(builder.Services.Any(descriptor => descriptor.ServiceType == typeof(ScopedUsageObserver)))
+            throw new InvalidOperationException("A usage observer is already registered.");
+
+        builder.Services.TryAddScoped<TObserver>();
+        builder.Services.AddSingleton(new ScopedUsageObserver(typeof(TObserver)));
+        return builder;
+    }
+
     /// <summary>Registers a client using callback configuration and startup validation.</summary>
     public static IHttpClientBuilder AddStructlyOpenAi(this IServiceCollection services, Action<OpenAiHostingOptions> configure)
     {
@@ -42,6 +59,7 @@ public static class OpenAiServiceCollectionExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<OpenAiHostingOptions>, OpenAiHostingOptionsValidator>());
         return services.AddHttpClient(typeof(OpenAiClient).FullName!, http => http.Timeout = Timeout.InfiniteTimeSpan)
             .AddTypedClient<OpenAiClient>((http, provider) => new OpenAiClient(http,
-                provider.GetRequiredService<IOptionsMonitor<OpenAiHostingOptions>>().CurrentValue.ToClientOptions()));
+                provider.GetRequiredService<IOptionsMonitor<OpenAiHostingOptions>>().CurrentValue.ToClientOptions(
+                    provider.GetService<ScopedUsageObserver>()?.CreateCallback(provider.GetRequiredService<IServiceScopeFactory>()))));
     }
 }
