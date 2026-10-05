@@ -7,7 +7,7 @@ package has no NuGet dependencies. Reference `Structly.AI.OpenAI` to use OpenAI;
 it depends only on core and can be used without hosting integration.
 
 Install `Structly.AI.OpenAI` and `Structly.AI.Hosting` with matching versions.
-Use `dotnet add package Structly.AI.Hosting --version 0.7.0` from
+Use `dotnet add package Structly.AI.Hosting --version 0.8.0` from
 [nuget.org](installation.md). You can also reference the project locally.
 
 ## Settings

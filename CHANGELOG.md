@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+
+- Support opt-in OpenAI reasoning summaries without streaming, including conversation turns.
+- Expose final summary text through `StructuredMetadata.ReasoningSummary` for buffered and streaming responses, retaining it on output validation and provider status failures.
+- Default GPT model IDs with numeric major versions of 6 or later to modern cache controls, while preserving explicit application compatibility overrides.
+
 ## 0.7.0
 
 - Add the independent Structly.AI.Mistral package for non-streaming typed output, text responses and hosting registration.
