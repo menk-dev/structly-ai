@@ -1,7 +1,7 @@
 namespace Structly.AI.Mistral;
 
 /// <summary>Configuration for Mistral chat completions.</summary>
-public sealed class MistralOptions
+public sealed class MistralOptions : IStructuredUsageOptions
 {
     /// <summary>The default hosting configuration section.</summary>
     public const string SectionName = "Mistral";

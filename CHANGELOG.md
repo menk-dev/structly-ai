@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0
+
+- Add the independent Structly.AI.Mistral package for non-streaming typed output, text responses and hosting registration.
+- Breaking: move OpenAI clients and provider options into `Structly.AI.OpenAI`; applications using OpenAI must reference that package.
+- Make hosting provider-independent and select providers through `ConfigureOpenAiProvider` or `ConfigureMistralProvider`, retaining scoped usage observers.
+- Make the testing package depend on the extracted OpenAI package.
+
 ## 0.6.0
 
 - Breaking: batch imports return `BatchImportResult<T>` with ordered item wrappers exposing nonblank custom IDs and each item result.
@@ -11,7 +18,6 @@
 
 ## 0.5.0
 
-- Add the independent Structly.AI.Mistral package for non-streaming typed output, text responses and hosting registration.
 - Add optional typed task references for hosting registration and execution; named string APIs remain available.
 - Add validated task execution defaults for total timeout, streaming inactivity timeout and output-token limits, with per-call overrides.
 - Add nullable flow annotations and `TryGetValue` to structured results.

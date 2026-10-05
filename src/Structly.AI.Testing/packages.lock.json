@@ -28,7 +28,7 @@
       "structly.ai.openai": {
         "type": "Project",
         "dependencies": {
-          "Structly.AI": "[0.5.0, )"
+          "Structly.AI": "[0.7.0, )"
         }
       }
     }

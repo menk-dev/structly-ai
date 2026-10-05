@@ -78,6 +78,7 @@ jobs:
           dotnet add "$consumer_dir" package Structly.AI --version "$version" --no-restore
           dotnet add "$consumer_dir" package Structly.AI.Testing --version "$version" --no-restore
           dotnet add "$consumer_dir" package Structly.AI.OpenAI --version "$version" --no-restore
+          dotnet add "$consumer_dir" package Structly.AI.Mistral --version "$version" --no-restore
           dotnet add "$consumer_dir" package Structly.AI.Hosting --version "$version" --no-restore
           cat > "$consumer_dir/NuGet.Config" <<EOF
           <configuration>
