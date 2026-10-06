@@ -3,8 +3,8 @@ namespace Structly.AI.OpenAI;
 /// <summary>Explicit provider request and sensitive capture controls.</summary>
 public sealed record OpenAiResponseOptions
 {
-    /// <summary>Gets whether the provider may store this response. Defaults to false.</summary>
-    public bool Store { get; init; }
+    /// <summary>Gets whether the provider may store this response. Null inherits the client setting, which defaults to true.</summary>
+    public bool? Store { get; init; }
     /// <summary>Gets an earlier provider-stored response ID. Instructions and schema are resent.</summary>
     public string? PreviousResponseId { get; init; }
     /// <summary>Gets a cache accounting/routing key; no cache-hit guarantee.</summary>

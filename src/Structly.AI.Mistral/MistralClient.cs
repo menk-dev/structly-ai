@@ -89,21 +89,14 @@ public sealed partial class MistralClient : IStructuredClient
 
     Task<StructuredResult<T>> Run<T>(StructuredRequest request, ModelSelection? taskModel,
         Func<CancellationToken, ValueTask<string?>>? taskCredentials, string? schemaName,
-        Func<BoundOutput<T>>? bind, string? instructions, CancellationToken caller,
-        IReadOnlyList<JsonElement>? history = null, Action<JsonElement>? retainAssistant = null)
+        Func<BoundOutput<T>>? bind, string? instructions, CancellationToken caller)
         => RunOperation(request, bind is null ? "Text" : "Structured", async execution =>
         {
             var output = bind?.Invoke();
             var model = SelectModel(request.ModelSelection ?? taskModel ?? _defaultModel);
             execution.Metadata = execution.Metadata with { RequestedModel = model.ModelId };
             var payload = ChatPayload(request, model, request.Instructions ?? instructions, output);
-            if(history is not null)
-            {
-                var messages = (List<object>)payload["messages"]!;
-                messages.InsertRange(messages.Count - Messages(request).Count, history.Cast<object>());
-            }
-
-            var result = await Send(execution, request, taskCredentials, HttpMethod.Post, "chat/completions", JsonContent.Create(payload),
+            return await Send(execution, request, taskCredentials, HttpMethod.Post, "chat/completions", JsonContent.Create(payload),
                 async response =>
                 {
                     if(request.Stream)
@@ -113,10 +106,6 @@ public sealed partial class MistralClient : IStructuredClient
                     RetainEnvelope(document.RootElement, request, execution);
                     return ReadChat(document.RootElement, request, output, execution);
                 }).ConfigureAwait(false);
-            if(result.IsSuccess && execution.AssistantMessage is { } assistant)
-                retainAssistant?.Invoke(assistant);
-
-            return result;
         }, caller, schemaName);
 
     static bool ValidTimeout(TimeSpan timeout) => timeout > TimeSpan.Zero && timeout <= TimeSpan.FromHours(24);

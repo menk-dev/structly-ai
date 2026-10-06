@@ -3,6 +3,8 @@ namespace Structly.AI.OpenAI;
 /// <summary>Configuration snapshotted by the client; transport remains caller-owned.</summary>
 public sealed record OpenAiClientOptions
 {
+    /// <summary>Gets whether ordinary responses are stored at OpenAI by default. Defaults to true; conversations always store responses.</summary>
+    public bool Store { get; init; } = true;
     /// <summary>Gets the total execution budget (positive, at most 24 hours).</summary>
     public TimeSpan TotalTimeout { get; init; } = TimeSpan.FromSeconds(120);
     /// <summary>Gets the default SSE inactivity budget, applied only to streaming requests.</summary>

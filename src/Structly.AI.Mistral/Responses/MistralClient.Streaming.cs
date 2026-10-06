@@ -9,7 +9,6 @@ public sealed partial class MistralClient
         BoundOutput<T>? output, MistralExecution execution)
     {
         var text = new StringBuilder();
-        var chunks = new MistralContentAccumulator();
         string? finish = null;
         var terminal = false;
         await Progress(StructuredProgressKind.Started).ConfigureAwait(false);
@@ -38,9 +37,6 @@ public sealed partial class MistralClient
                 throw new JsonException();
 
             var delta = choice.GetProperty("delta");
-            var rawContent = Property(delta, "content");
-            chunks.Add(rawContent);
-
             var fragment = delta.TryGetProperty("content", out var content) ? ReadContent(content) : null;
             if(fragment is { Length: > 0 })
             {
@@ -58,7 +54,6 @@ public sealed partial class MistralClient
         if(!done || !terminal)
             return execution.Failure<T>(StructuredErrorKind.InvalidResponse);
 
-        execution.AssistantMessage = chunks.CreateAssistantMessage();
         var result = FinishChat(text.ToString(), finish, request, output, execution);
         await Progress(StructuredProgressKind.Completed).ConfigureAwait(false);
         return result;

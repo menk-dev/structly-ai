@@ -68,7 +68,7 @@ controlled time and fake HTTP transports.
 `Structly.AI.OpenAI` contains the OpenAI implementation and provider options. Core contains provider contracts and schema implementation; hosting dispatches typed registrations without a provider dependency.
 
 `Structly.AI.Mistral` depends only on core. `Responses/` contains chat payloads, SSE parsing,
-local conversations and beta stored conversations; `Execution/` contains transport and
+beta provider-stored conversations; `Execution/` contains transport and
 per-call budgets. `Embeddings/`, `Images/`, `Files/` and `Batches/` group the corresponding
 provider operations and persistence contracts. Provider registration and options stay at
 the project root. Tests mirror these features under `Mistral/` with a shared offline

@@ -11,13 +11,13 @@ GitHub Release creation uses `GITHUB_TOKEN`; no long-lived publishing token is n
    Use scoped Conventional Commits with a body.
 2. Run the checks in [the development guide](README.md), then merge after the required
    Linux and Windows CI checks pass.
-3. Fetch `main` and tag the release commit. For version `0.8.0`:
+3. Fetch `main` and tag the release commit. For version `0.9.0`:
 
    ```sh
    git switch main
    git pull --ff-only
-   git tag v0.8.0
-   git push origin v0.8.0
+   git tag v0.9.0
+   git push origin v0.9.0
    ```
 
 4. Check the release workflow. It verifies that the tag belongs to `main`, runs tests,

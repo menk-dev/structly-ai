@@ -59,8 +59,16 @@ Set request credentials rather than changing shared HTTP authorization headers.
 
 `BaseAddress` defaults to `https://api.openai.com/v1/`. A custom endpoint must implement
 the same API. By default, operations have a 120-second total timeout, no streaming
-inactivity timeout, buffered responses, `Store=false`, and no capture of raw responses
+inactivity timeout, buffered responses, `Store=true`, and no capture of raw responses
 or output text.
+
+Set `OpenAiClientOptions.Store = false` to disable storage for ordinary responses across
+one client, or set `Structly:OpenAI:Store` to `false` in hosted configuration.
+`OpenAiResponseOptions.Store` defaults to `null`, inheriting the client setting; an explicit
+`true` or `false` overrides it for that request, including response batch items. Stored
+responses are available for provider-side inspection and continuation, subject to OpenAI's
+retention rules. Conversations always use storage, even when the client default is false.
+Prewarming always disables storage.
 
 Responses and embeddings are limited to 16 MiB. Images are limited to 128 MiB.
 Change `MaxResponseBytes` and `MaxImageResponseBytes` if needed.

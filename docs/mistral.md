@@ -76,8 +76,7 @@ does not promise that every model implements it.
 | Thinking content | Only answer text is returned; full thinking blocks are preserved in conversation history | [Reasoning guide](https://docs.mistral.ai/studio/conversations/reasoning) |
 | Prompt cache key and cached usage | `MistralRequest.PromptCacheKey`, `Usage.CachedInputTokens` | [Prompt caching](https://docs.mistral.ai/studio/conversations/advanced/prompt-caching) |
 | Provider metadata | `MistralRequest.Metadata` | [Chat API](https://docs.mistral.ai/api/endpoint/chat) |
-| Typed continuation and branches | `CreateConversation` replays local history | [Chat messages](https://docs.mistral.ai/studio/conversations/chat-completion) |
-| Provider-stored continuation and branches | `CreateStoredConversation` uses the beta start/restart endpoints | [Conversations API](https://docs.mistral.ai/api/endpoint/beta/conversations) |
+| Provider-stored continuation and branches | `CreateConversation` uses the beta start/restart endpoints | [Conversations API](https://docs.mistral.ai/api/endpoint/beta/conversations) |
 | Float embeddings and dimensions | `EmbedAsync`, `output_dimension`, indexed immutable vectors | [Embeddings API](https://docs.mistral.ai/api/endpoint/embeddings) |
 | Image generation | `GenerateImagesAsync` uses the beta image tool, then downloads its PNG | [Image generation](https://docs.mistral.ai/studio/agents/agent-tools/image_generation), [conversation tools](https://docs.mistral.ai/api/endpoint/beta/conversations) |
 | File upload, retrieval, download, deletion | Batch file methods and bounded content downloads | [Files API](https://docs.mistral.ai/api/endpoint/files) |
@@ -130,27 +129,27 @@ Callbacks are best effort: progress is limited to one second and usage to five s
 within the total budget. Callback and malformed usage warnings retain sanitized wording.
 Late transport responses are disposed if execution stops waiting for them.
 
-## Local and stored conversations
+## Conversations
 
 ```csharp
-var local = client.CreateConversation(task.BindOutput());
-await local.ExecuteAsync(new() { Input = "Extract the answer." });
-var branch = local.ChangeOutput(task.BindOutput());
-
-var stored = client.CreateStoredConversation(task);
-var turn = await stored.ExecuteAsync(new() { Input = "Extract the answer.", Stream = true });
+var conversation = client.CreateConversation(task.BindOutput());
+var turn = await conversation.ExecuteAsync(new() { Input = "Extract the answer.", Stream = true });
+var branch = conversation.ChangeOutput(task.BindOutput());
 string? conversationId = turn.Metadata.ConversationId;
 string? entryId = turn.Metadata.ResponseId;
 ```
 
-Local conversations retain input and complete assistant content in memory. Streamed
-thinking blocks are reassembled with their signatures before replay. Stored conversations
-use `store=true` and restart from the last successful entry, so failures and parallel
-branches do not change the selected position. They also retain local history; changing
+`CreateConversation` uses Mistral's beta Conversations API with `store=true` and restarts
+from the last successful entry, so failures and parallel branches do not change the
+selected position. It also retains input and complete assistant content locally; changing
 the model, instructions or generated guidance starts a new stored conversation with that
-history. Output-schema changes use the current schema on every turn. Both modes accept
-only new user messages and advance after the entire operation succeeds. Stored turns can
-be retained and billed even when local validation or cancellation fails.
+history. Streamed thinking blocks are reassembled with their signatures before replay.
+Output-schema changes use the current schema on every turn. Conversations accept only new
+user messages and advance after the entire operation succeeds. Turns can be retained and
+billed even when local validation or cancellation fails.
+
+The separate `CreateStoredConversation` method has been removed; use `CreateConversation`
+for provider-stored continuation and branches.
 
 ## Embeddings and images
 

@@ -9,6 +9,8 @@ public sealed class OpenAiOptions : IStructuredUsageOptions
     public string? ApiKey { get; set; }
     /// <summary>Gets whether OPENAI_API_KEY is read per execution when no configured credentials exist.</summary>
     public bool UseEnvironmentApiKey { get; set; }
+    /// <summary>Gets or sets whether ordinary responses are stored at OpenAI by default. Defaults to true; conversations always store responses.</summary>
+    public bool Store { get; set; } = true;
     /// <summary>Gets the total execution budget (positive, at most 24 hours).</summary>
     public TimeSpan TotalTimeout { get; set; } = TimeSpan.FromSeconds(120);
     /// <summary>Gets the default SSE inactivity budget, applied only to streaming requests.</summary>
@@ -38,6 +40,7 @@ public sealed class OpenAiOptions : IStructuredUsageOptions
     internal OpenAiClientOptions ToClientOptions(Func<StructuredUsageEvent, CancellationToken, ValueTask>? usageObserver = null) => new()
     {
         DefaultModel = DefaultModel,
+        Store = Store,
         Profiles = Profiles,
         EmbeddingProfiles = EmbeddingProfiles,
         ImageProfiles = ImageProfiles,

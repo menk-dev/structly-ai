@@ -17,6 +17,7 @@ public sealed class HostingTests
         using var json = new MemoryStream(Encoding.UTF8.GetBytes("""
             { "Structly": { "OpenAI": {
               "ApiKey": "test-key",
+              "Store": false,
               "DefaultModel": { "ProfileName": "extract" },
               "Profiles": { "extract": { "ModelId": "test-model", "ReasoningEffort": "Low" } },
               "EmbeddingProfiles": { "search": { "ModelId": "test-embedding" } },
@@ -50,6 +51,8 @@ public sealed class HostingTests
         Assert.Equal(StructuredErrorKind.ProviderUnavailable, result.Error!.Kind);
         Assert.Equal("https://example.test/api/responses", handler.Address);
         Assert.Equal("test-key", handler.Key);
+        using var payload = System.Text.Json.JsonDocument.Parse(handler.Body);
+        Assert.False(payload.RootElement.GetProperty("store").GetBoolean());
         Assert.Contains("test-model", handler.Body);
         await host.StopAsync(TestContext.Current.CancellationToken);
     }
@@ -111,13 +114,18 @@ public sealed class HostingTests
         var original = host.Services.GetRequiredService<OpenAiClient>();
         builder.Configuration["Structly:OpenAI:DefaultModel:ModelId"] = "updated-model";
         builder.Configuration["Structly:OpenAI:ApiKey"] = "updated-key";
+        builder.Configuration["Structly:OpenAI:Store"] = "false";
         ((IConfigurationRoot)builder.Configuration).Reload();
         await original.GenerateTextAsync(new() { Request = new() { Input = "hello" } }, TestContext.Current.CancellationToken);
         Assert.Contains("original-model", handler.Body);
         Assert.Equal("original-key", handler.Key);
+        using var originalPayload = System.Text.Json.JsonDocument.Parse(handler.Body);
+        Assert.True(originalPayload.RootElement.GetProperty("store").GetBoolean());
         await host.Services.GetRequiredService<OpenAiClient>().GenerateTextAsync(new() { Request = new() { Input = "hello" } }, TestContext.Current.CancellationToken);
         Assert.Contains("updated-model", handler.Body);
         Assert.Equal("updated-key", handler.Key);
+        using var updatedPayload = System.Text.Json.JsonDocument.Parse(handler.Body);
+        Assert.False(updatedPayload.RootElement.GetProperty("store").GetBoolean());
     }
 
     sealed class RecordingHandler : HttpMessageHandler

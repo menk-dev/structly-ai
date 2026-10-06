@@ -1,6 +1,6 @@
 # Offline testing
 
-Install `Structly.AI.Testing --version 0.8.0` alongside the matching core package.
+Install `Structly.AI.Testing --version 0.9.0` alongside the matching core package.
 It targets .NET 10 and has no test-framework dependency.
 
 Use `OpenAiTestFixture` to run the real client with queued offline responses:

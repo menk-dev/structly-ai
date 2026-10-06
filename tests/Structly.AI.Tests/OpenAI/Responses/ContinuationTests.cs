@@ -41,7 +41,7 @@ public sealed class ContinuationTests
         {
             Input = "followup",
             Vocabularies = Vocabulary("new"),
-            OpenAi = new() { PreviousResponseId = first.Metadata.ResponseId, Cache = new() { ComparisonResponseId = first.Metadata.ResponseId } },
+            OpenAi = new() { Store = false, PreviousResponseId = first.Metadata.ResponseId, Cache = new() { ComparisonResponseId = first.Metadata.ResponseId } },
         }, TestContext.Current.CancellationToken);
         Assert.Equal(StructuredErrorKind.InvalidOutput, second.Error!.Kind);
         Assert.Equal(100, second.Metadata.Usage!.InputTokens);
