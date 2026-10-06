@@ -164,7 +164,6 @@ public sealed partial class MistralClient
             return execution.Failure<T>(StructuredErrorKind.InvalidResponse);
 
         var choice = choices[0];
-        execution.AssistantMessage = choice.GetProperty("message").Clone();
         return FinishChat(ReadContent(choice.GetProperty("message").GetProperty("content")), StringValue(choice, "finish_reason"), request, output, execution);
     }
 }

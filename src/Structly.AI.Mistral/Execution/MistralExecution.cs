@@ -25,7 +25,6 @@ sealed class MistralExecution : IDisposable
         Metadata = new() { Operation = "Structured", Provider = "Mistral", CorrelationId = request.CorrelationId };
     }
 
-    public System.Text.Json.JsonElement? AssistantMessage { get; set; }
     public StructuredResult<T> Failure<T>(StructuredErrorKind kind, System.Net.HttpStatusCode? status = null, TimeSpan? retryAfter = null)
         => StructuredResult<T>.Failure(new()
         {

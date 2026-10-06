@@ -25,8 +25,8 @@ static class ConsumerValidation
             if(embedded.Error?.Kind != StructuredErrorKind.CredentialsMissing) throw new Exception();
             var image = await client.GenerateImagesAsync(new() { Prompt = "cat", ModelSelection = new() { ModelId = "image" } });
             if(image.Error?.Kind != StructuredErrorKind.CredentialsMissing) throw new Exception();
-            var stored = await client.CreateStoredConversation(task).ExecuteAsync(new() { Input = "input" });
-            if(stored.Error?.Kind != StructuredErrorKind.CredentialsMissing) throw new Exception();
+            var conversation = await client.CreateConversation(task).ExecuteAsync(new() { Input = "input" });
+            if(conversation.Error?.Kind != StructuredErrorKind.CredentialsMissing) throw new Exception();
             var batch = client.PrepareResponseBatch(task, [new ResponseBatchItem("item", new() { Input = "input" })]);
             if(BatchManifest.FromJson(batch.Manifest.ToJson()).Endpoint != "/v1/chat/completions") throw new Exception();
             Console.WriteLine("Independent consumer passed.");

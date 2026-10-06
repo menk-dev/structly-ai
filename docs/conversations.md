@@ -32,10 +32,14 @@ the original task, and client defaults. Turns accept new user input and executio
 Messages must contain only user roles. Reasoning summaries configured at creation require
 streaming on every turn.
 
-OpenAI-backed conversations send `store: true`: responses are retained at OpenAI and later
-turns reference the last successful response. Failures leave the local continuation position
+OpenAI-backed conversations send `store: true`, even when `OpenAiClientOptions.Store`
+is false. Responses are retained at OpenAI and later turns reference the last successful
+response. Failures leave the local continuation position
 unchanged, but may still have been stored or billed. Accounting and cancellation metadata
 remain available. The library does not retry or restart unavailable provider history.
+
+Mistral conversations also retain provider state through its beta Conversations API.
+See [Mistral conversations](mistral.md#conversations) for continuation and configuration changes.
 
 ## Branch with different output settings
 

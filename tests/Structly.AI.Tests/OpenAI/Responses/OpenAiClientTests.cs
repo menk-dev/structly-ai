@@ -70,7 +70,7 @@ public sealed class OpenAiClientTests
         {
             using var document = JsonDocument.Parse(await message.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken));
             Assert.Equal("Source instructions", document.RootElement.GetProperty("instructions").GetString());
-            Assert.False(document.RootElement.GetProperty("store").GetBoolean());
+            Assert.True(document.RootElement.GetProperty("store").GetBoolean());
             return Response(Envelope());
         });
         using var http = new HttpClient(handler);
@@ -114,7 +114,7 @@ public sealed class OpenAiClientTests
             Assert.Equal("high", root.GetProperty("reasoning").GetProperty("effort").GetString());
             Assert.Equal("Extract", root.GetProperty("instructions").GetString());
             Assert.Equal("input", root.GetProperty("input").GetString());
-            Assert.False(root.GetProperty("store").GetBoolean());
+            Assert.True(root.GetProperty("store").GetBoolean());
             Assert.False(root.GetProperty("stream").GetBoolean());
             Assert.Equal(100, root.GetProperty("max_output_tokens").GetInt32());
             Assert.Equal("job", root.GetProperty("metadata").GetProperty("purpose").GetString());

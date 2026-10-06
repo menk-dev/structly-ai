@@ -17,6 +17,7 @@ public sealed class PrewarmTests
             var root = document.RootElement;
             Assert.True(root.GetProperty("prompt_cache_options").GetProperty("prewarm").GetBoolean());
             Assert.False(root.GetProperty("stream").GetBoolean());
+            Assert.False(root.GetProperty("store").GetBoolean());
             Assert.False(root.TryGetProperty("max_output_tokens", out _));
             Assert.Equal(typed, root.TryGetProperty("text", out _));
             Assert.Equal(typed ? "Current instructions" : "Shared instructions", root.GetProperty("instructions").GetString());

@@ -10,7 +10,7 @@ public sealed partial class OpenAiClient
             throw new ArgumentException("Invalid response controls.");
 
         if(prewarm && (request.Stream || request.Progress is not null || request.IncludeReasoningSummary || request.MaxOutputTokens is not null ||
-            ResponseOptions(request).PreviousResponseId is not null || request.OutputSpecification is not null || ResponseOptions(request).CaptureOutputText || ResponseOptions(request).Store))
+            ResponseOptions(request).PreviousResponseId is not null || request.OutputSpecification is not null || ResponseOptions(request).CaptureOutputText || ResponseOptions(request).Store == true))
             throw new ArgumentException("Prewarm does not generate output or continue/store a conversation.");
 
         if(ResponseOptions(request).PreviousResponseId is { } previous && String.IsNullOrWhiteSpace(previous) ||
@@ -29,7 +29,7 @@ public sealed partial class OpenAiClient
         {
             ["model"] = model.ModelId,
             ["input"] = input,
-            ["store"] = ResponseOptions(request).Store,
+            ["store"] = !prewarm && (ResponseOptions(request).Store ?? _options.Store),
             ["stream"] = request.Stream,
         };
         if(instructions is not null)

@@ -79,7 +79,9 @@ var followUp = await client.ExecuteAsync(task, new OpenAiRequest
 ```
 
 Your application must keep a successful response ID that remains available under the
-same provider account. `Store` defaults to false. `Store=false` on the follow-up controls
+same provider account. Request-level `Store` defaults to `null`, inheriting
+`OpenAiClientOptions.Store` (true by default). Set the client setting to false to disable
+storage by default, or override it per request. `Store=false` on the follow-up controls
 storage of that response; it does not prevent using an earlier stored response.
 
 Current instructions and schema are sent on every call. You can change the task type or
@@ -178,9 +180,10 @@ var answer = await client.ExecuteAsync(task, cachedRequest, cancellationToken);
 
 Prewarming requires `Modern` compatibility. It rejects streaming, progress callbacks,
 reasoning summaries, output token limits, output instructions and capture, `Store=true`,
-and follow-up requests. Untyped prewarming also rejects vocabularies. Prewarming can incur
-usage and returns reported metadata even on failure. It does not guarantee a cache write
-or reuse on the next request.
+and follow-up requests. Prewarming sends `store=false` regardless of the client default.
+Untyped prewarming also rejects vocabularies. Prewarming can incur usage and returns
+reported metadata even on failure. It does not guarantee a cache write or reuse on the
+next request.
 
 These settings follow the provider's [prompt caching guide](https://developers.openai.com/api/docs/guides/prompt-caching)
 and [diagnostics guide](https://developers.openai.com/api/docs/guides/prompt-caching/diagnostics),

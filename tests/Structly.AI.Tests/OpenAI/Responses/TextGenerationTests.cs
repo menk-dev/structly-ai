@@ -20,7 +20,7 @@ public sealed class TextGenerationTests
             Assert.False(root.TryGetProperty("text", out _));
             Assert.Equal("new instructions", root.GetProperty("instructions").GetString());
             Assert.Equal("prior", root.GetProperty("previous_response_id").GetString());
-            Assert.False(root.GetProperty("store").GetBoolean());
+            Assert.True(root.GetProperty("store").GetBoolean());
             Assert.Equal("low", root.GetProperty("reasoning").GetProperty("effort").GetString());
             Assert.Equal("compare", root.GetProperty("prompt_cache_options").GetProperty("comparison_response_id").GetString());
             Assert.Equal("account", root.GetProperty("prompt_cache_key").GetString());

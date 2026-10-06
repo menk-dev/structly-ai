@@ -1,7 +1,7 @@
 namespace Structly.AI;
 
 /// <summary>A typed conversation with explicit output and configuration transitions.
-/// OpenAI-backed conversations retain responses at the provider. Failed turns can still be stored or billed.
+/// Conversations retain responses at the provider. Failed turns can still be stored or billed.
 /// Each branch advances only on success; unavailable retained history is not retried or restarted.</summary>
 public sealed class StructuredConversation<T>
 {
