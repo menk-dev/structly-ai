@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+
+- Default ordinary OpenAI responses to provider storage, preserving provider-side response inspection and logs. Add `OpenAiClientOptions.Store` and hosted `Structly:OpenAI:Store` settings to disable storage by default.
+- Breaking: change `OpenAiResponseOptions.Store` to `bool?`; null inherits the client setting and explicit true/false overrides it per request, including response batch items. OpenAI conversations always store responses; prewarming always disables storage.
+- Breaking: make Mistral `CreateConversation` use the beta provider-stored Conversations API and remove `CreateStoredConversation`. Continue from the last successful entry, preserve independent branches, and replay successful history when configuration changes.
+- Expand Mistral support with streaming and progress, image inputs, reasoning effort, prompt cache keys, embeddings, image generation, file operations, and typed response and embedding batches.
+- Preserve Mistral conversation and entry IDs, reported token usage, and signed thinking content across conversation transitions. Add offline consumer and package validation for the expanded provider APIs.
+
 ## 0.8.0
 
 - Support opt-in OpenAI reasoning summaries without streaming, including conversation turns.
