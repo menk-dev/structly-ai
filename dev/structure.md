@@ -31,6 +31,10 @@ code by responsibility without adding assembly dependencies or changing public n
 and share its existing execution and transport behavior. A partial filename identifies the
 type and responsibility, for example `OpenAiClient.BatchPreparation.cs`.
 
+`Structly.AI.OpenAI/Decisions/` contains flat typed decision contracts, task builders,
+answer types and endpoint execution. These contracts are specific to OpenAI and do not
+extend the core structured-output schema resolver or provider interface.
+
 Public types have separate files, including enums and attributes. `StructuredTask.cs`
 contains the factory and `StructuredTaskOfT.cs` contains the generic contract. Substantial
 internal types also have their own files. Small nested implementation details stay with

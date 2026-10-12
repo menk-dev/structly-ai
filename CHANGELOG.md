@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add OpenAI Decisions with reusable typed tasks, contextual question instructions, enum descriptions, finite custom choices, predicate probabilities and rubric scores.
+- Return complete typed decision contracts with immutable distributions, validate answers locally and retain accounting on refusal or invalid output. Add separate decision model defaults/profiles and an offline routing example.
+
 ## 0.9.0
 
 - Default ordinary OpenAI responses to provider storage, preserving provider-side response inspection and logs. Add `OpenAiClientOptions.Store` and hosted `Structly:OpenAI:Store` settings to disable storage by default.

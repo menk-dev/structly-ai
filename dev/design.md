@@ -78,6 +78,7 @@ See [advanced.md](../docs/advanced.md).
 | Execution | `OpenAI/Execution/`: cancellation and timeout precedence, callback limits, slow progress, stalled reads, cleanup, usage on invalid output and concurrent calls |
 | Caching | `OpenAI/Caching/`: cache controls, compatibility, diagnostics and prewarming |
 | Embeddings and images | `OpenAI/Embeddings/`, `OpenAI/Images/`: complete embedding indexes, ordering and finite vectors; image count, base64, format, transparent JPEG rejection and response limits |
+| Decisions | `OpenAI/Decisions/`: flat contract creation, contextual instructions, enum descriptions, custom values, mixed and scalar answers, distribution validation, complete-result refusals and shared execution/accounting |
 | Batches and test envelopes | `OpenAI/Batches/`, `Testing/`: preparation, lifecycle, ordered import, retained accounting and envelope builders |
 | Hosting | `HostingTests`: configuration binding, dependency injection, settings validation, credentials, HTTP client settings and configuration reloads |
 | Analyzer | `AnalyzerTests`: agreement with runtime checks, valid output types, unsupported types and migration diagnostics |

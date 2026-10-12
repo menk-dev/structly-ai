@@ -43,6 +43,14 @@ public sealed partial class OpenAiClient : IStructuredClient
         SelectModel(options.DefaultModel);
         var embeddingProfiles = SnapshotProfiles(options.EmbeddingProfiles);
         var imageProfiles = SnapshotProfiles(options.ImageProfiles);
+        var decisionProfiles = SnapshotProfiles(options.DecisionProfiles);
+        if(options.DefaultDecisionModel is { } decision)
+        {
+            var selected = SelectModel(decision, decisionProfiles);
+            if(selected.ReasoningEffort is not null)
+                throw new ArgumentException("Decisions do not support reasoning settings.", nameof(options));
+        }
+
         var compatibility = new Dictionary<string, OpenAiCacheCompatibility>(options.CacheCompatibility, StringComparer.Ordinal);
 
         if(compatibility.Any(x => String.IsNullOrWhiteSpace(x.Key) || !Enum.IsDefined(x.Value)))
@@ -54,6 +62,7 @@ public sealed partial class OpenAiClient : IStructuredClient
             Profiles = new System.Collections.ObjectModel.ReadOnlyDictionary<string, ModelSelection>(_profiles),
             EmbeddingProfiles = new System.Collections.ObjectModel.ReadOnlyDictionary<string, ModelSelection>(embeddingProfiles),
             ImageProfiles = new System.Collections.ObjectModel.ReadOnlyDictionary<string, ModelSelection>(imageProfiles),
+            DecisionProfiles = new System.Collections.ObjectModel.ReadOnlyDictionary<string, ModelSelection>(decisionProfiles),
             CacheCompatibility = new System.Collections.ObjectModel.ReadOnlyDictionary<string, OpenAiCacheCompatibility>(compatibility),
         };
     }

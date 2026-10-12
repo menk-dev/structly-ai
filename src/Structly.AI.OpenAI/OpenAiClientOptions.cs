@@ -21,6 +21,10 @@ public sealed record OpenAiClientOptions
     public IReadOnlyDictionary<string, ModelSelection> EmbeddingProfiles { get; init; } = new Dictionary<string, ModelSelection>();
     /// <summary>Gets named image model profiles, selecting explicit IDs without reasoning.</summary>
     public IReadOnlyDictionary<string, ModelSelection> ImageProfiles { get; init; } = new Dictionary<string, ModelSelection>();
+    /// <summary>Gets the optional decision model or profile. Decisions never inherit DefaultModel.</summary>
+    public ModelSelection? DefaultDecisionModel { get; init; }
+    /// <summary>Gets named decision model profiles, selecting explicit IDs without reasoning.</summary>
+    public IReadOnlyDictionary<string, ModelSelection> DecisionProfiles { get; init; } = new Dictionary<string, ModelSelection>();
     /// <summary>Gets exact model cache overrides; GPT versions 6 and later default to modern controls, other models require configuration.</summary>
     public IReadOnlyDictionary<string, OpenAiCacheCompatibility> CacheCompatibility { get; init; } = new Dictionary<string, OpenAiCacheCompatibility>();
     /// <summary>Gets the default credential resolver.</summary>

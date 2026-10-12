@@ -13,9 +13,11 @@ Read [Program.cs](Structly.AI.Consumer/Program.cs) for task creation, dynamic vo
 schema inspection, generated fixtures, typed execution, usage and cancellation.
 [BatchExamples.cs](Structly.AI.Consumer/BatchExamples.cs) demonstrates embedding and typed
 batch import, manifest reconstruction and usage deduplication across repeated imports.
+[DecisionExamples.cs](Structly.AI.Consumer/DecisionExamples.cs) maps several questions to
+one typed answer, using enum descriptions and contextual string choices.
 
 Output contracts are in `Models/`. The handlers in `Support/` supply strict Responses
-envelopes, completed batch status and JSONL output files. The example checks the resulting
+envelopes, decision answers, completed batch status and JSONL output files. The example checks the resulting
 values and metadata and ends with `Offline consumer passed.`.
 
 ## Hosted consumer

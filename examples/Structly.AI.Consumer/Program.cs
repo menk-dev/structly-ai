@@ -73,4 +73,5 @@ catch(StructuredOperationCanceledException exception) when(exception.Cancellatio
 
 // Demonstrate batch import and usage deduplication separately.
 await BatchExamples.Run();
+await DecisionExamples.Run();
 Console.WriteLine("Offline consumer passed.");
