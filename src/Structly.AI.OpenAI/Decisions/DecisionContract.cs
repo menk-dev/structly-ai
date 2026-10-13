@@ -10,6 +10,9 @@ sealed class DecisionContract
     public required JsonSerializerOptions Serializer { get; init; }
     public required IReadOnlyDictionary<PropertyInfo, string> Properties { get; init; }
 
+    static bool HasNullableArgument(NullabilityInfo info) => info.GenericTypeArguments.Any(x =>
+        x.ReadState == NullabilityState.Nullable || HasNullableArgument(x));
+
     public static DecisionContract Create(Type type)
     {
         var resolver = new DefaultJsonTypeInfoResolver();
@@ -24,6 +27,7 @@ sealed class DecisionContract
             UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
             MaxDepth = 16,
         };
+        serializer.Converters.Add(new DecisionSetJsonConverter());
         serializer.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false));
         serializer.MakeReadOnly();
         var properties = new Dictionary<PropertyInfo, string>();
@@ -52,9 +56,9 @@ sealed class DecisionContract
 
             if(property.GetMethod?.IsPublic != true || property.GetIndexParameters().Length != 0 ||
                 property.SetMethod is { IsPublic: false } || property.IsDefined(typeof(JsonConverterAttribute)) ||
-                property.IsDefined(typeof(JsonExtensionDataAttribute)) || !DecisionQuestion.IsAnswer(property.PropertyType) ||
+                property.IsDefined(typeof(JsonExtensionDataAttribute)) || !(DecisionQuestion.IsAnswer(property.PropertyType) || DecisionQuestion.IsSet(property.PropertyType)) ||
                 nullability.Create(property).ReadState == NullabilityState.Nullable ||
-                nullability.Create(property).GenericTypeArguments.Any(x => x.ReadState == NullabilityState.Nullable))
+                HasNullableArgument(nullability.Create(property)))
                 throw new ArgumentException("Use nonnullable public decision answer properties with public setters/init or constructor binding.");
 
             if(property.GetCustomAttribute<JsonIgnoreAttribute>() is { Condition: not JsonIgnoreCondition.Never })
