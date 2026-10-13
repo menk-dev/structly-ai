@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.0
 
 - Add OpenAI Decisions with reusable typed tasks, contextual question instructions, enum descriptions, finite custom choices, predicate probabilities and rubric scores.
 - Return complete typed decision contracts with immutable distributions, validate answers locally and retain accounting on refusal or invalid output. Add separate decision model defaults/profiles and an offline routing example.
