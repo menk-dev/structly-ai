@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.0
+
+- Add `DecisionSet<TAnswer>` and `AskEach` for runtime predicate, choice and score questions alongside fixed DTO answers.
+- Support immutable LINQ enumeration in task question order, exact string-key lookup and complete-response validation for dynamic question collections.
+
 ## 0.10.0
 
 - Add OpenAI Decisions with reusable typed tasks, contextual question instructions, enum descriptions, finite custom choices, predicate probabilities and rubric scores.

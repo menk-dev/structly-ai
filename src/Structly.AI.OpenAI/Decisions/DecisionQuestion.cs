@@ -9,6 +9,7 @@ sealed class DecisionQuestion
 {
     public required string Name { get; init; }
     public required string JsonName { get; init; }
+    public string? Key { get; init; }
     public required string Kind { get; init; }
     public required string Instructions { get; init; }
     public IReadOnlyList<DecisionOption<object>> Choices { get; init; } = [];
@@ -17,15 +18,18 @@ sealed class DecisionQuestion
     public static bool IsAnswer(Type type) => type == typeof(DecisionPredicate) || type == typeof(DecisionScore) ||
         type.IsGenericType && type.GetGenericTypeDefinition() == typeof(DecisionChoice<>);
 
+    public static bool IsSet(Type type) => type.IsGenericType && type.GetGenericTypeDefinition() == typeof(DecisionSet<>) &&
+        IsAnswer(type.GetGenericArguments()[0]);
+
     public static DecisionQuestion Create(Type type, string name, string jsonName, string instructions,
-        IReadOnlyList<DecisionOption<object>>? choices = null, IReadOnlyList<DecisionLevel>? levels = null)
+        IReadOnlyList<DecisionOption<object>>? choices = null, IReadOnlyList<DecisionLevel>? levels = null, string? key = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(instructions);
         if(!IsAnswer(type))
             throw new ArgumentException("Use a predicate, choice or score answer type.");
 
         if(type == typeof(DecisionPredicate))
-            return new() { Name = name, JsonName = jsonName, Kind = "predicate", Instructions = instructions };
+            return new() { Name = name, JsonName = jsonName, Key = key, Kind = "predicate", Instructions = instructions };
 
         if(type == typeof(DecisionScore))
         {
@@ -34,7 +38,7 @@ sealed class DecisionQuestion
                 snapshot.Select(x => x.Label).Distinct(StringComparer.Ordinal).Count() != snapshot.Length)
                 throw new ArgumentException("Supply at least two distinct, nonblank rubric levels.");
 
-            return new() { Name = name, JsonName = jsonName, Kind = "score", Instructions = instructions, Levels = Array.AsReadOnly(snapshot) };
+            return new() { Name = name, JsonName = jsonName, Key = key, Kind = "score", Instructions = instructions, Levels = Array.AsReadOnly(snapshot) };
         }
 
         var valueType = type.GetGenericArguments()[0];
@@ -78,7 +82,7 @@ sealed class DecisionQuestion
         if(options.Length is < 2 or > 255 || options.Select(x => x.Value).Distinct().Count() != options.Length)
             throw new ArgumentException("Supply between 2 and 255 distinct choices.");
 
-        return new() { Name = name, JsonName = jsonName, Kind = "choice", Instructions = instructions, Choices = Array.AsReadOnly(options) };
+        return new() { Name = name, JsonName = jsonName, Key = key, Kind = "choice", Instructions = instructions, Choices = Array.AsReadOnly(options) };
     }
 
     static string EnumName(FieldInfo field) => field.GetCustomAttribute<JsonStringEnumMemberNameAttribute>()?.Name ?? field.Name;

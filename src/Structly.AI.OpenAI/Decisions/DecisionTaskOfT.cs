@@ -32,6 +32,9 @@ public sealed class DecisionTask<T>
         var byName = _questions.ToDictionary(x => x.Name, StringComparer.Ordinal);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var values = new Dictionary<string, object?>();
+        var collectionValues = _contract.Properties.Where(x => DecisionQuestion.IsSet(x.Key.PropertyType))
+            .ToDictionary(x => x.Value, _ => new List<object>());
+        var readAnswers = new Dictionary<string, object>();
         var refused = false;
         foreach(var answer in answers.EnumerateArray())
         {
@@ -50,11 +53,22 @@ public sealed class DecisionTask<T>
             if(type.GetString() != question.Kind || !question.TryRead(answer, out var value))
                 return Fail(StructuredErrorKind.InvalidResponse);
 
-            values[question.JsonName] = value;
+            readAnswers[question.Name] = value;
         }
 
         if(refused)
             return Fail(StructuredErrorKind.Refused);
+
+        foreach(var question in _questions)
+        {
+            if(question.Key is { } key)
+                collectionValues[question.JsonName].Add(new Dictionary<string, object?> { ["Key"] = key, ["Answer"] = readAnswers[question.Name] });
+            else
+                values[question.JsonName] = readAnswers[question.Name];
+        }
+
+        foreach(var collection in collectionValues)
+            values[collection.Key] = collection.Value;
 
         try
         {
