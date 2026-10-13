@@ -21,6 +21,7 @@ for your application.
 
 ## Additional operations
 
+- [OpenAI Decisions](decisions.md): typed questions, finite choices, probabilities and rubric scores.
 - [Messages and output instructions](advanced.md#messages-and-output-instructions)
 - [Manual follow-up requests](advanced.md#follow-up-requests)
 - [Free text](advanced.md#free-text)

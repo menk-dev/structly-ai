@@ -20,16 +20,16 @@ checks supported output types during compilation.
 Install the core package and the OpenAI provider from nuget.org for the example below:
 
 ```sh
-dotnet add package Structly.AI --version 0.9.0
-dotnet add package Structly.AI.OpenAI --version 0.9.0
+dotnet add package Structly.AI --version 0.10.0
+dotnet add package Structly.AI.OpenAI --version 0.10.0
 ```
 
 Optional packages add [ASP.NET Core and Generic Host integration](https://github.com/menk-dev/structly-ai/blob/main/docs/hosting.md)
 and [offline testing utilities](https://github.com/menk-dev/structly-ai/blob/main/docs/testing.md):
 
 ```sh
-dotnet add package Structly.AI.Hosting --version 0.9.0
-dotnet add package Structly.AI.Testing --version 0.9.0
+dotnet add package Structly.AI.Hosting --version 0.10.0
+dotnet add package Structly.AI.Testing --version 0.10.0
 ```
 
 See [installation and debug symbols](https://github.com/menk-dev/structly-ai/blob/main/docs/installation.md) for details.
@@ -169,6 +169,7 @@ Start with the [documentation index](https://github.com/menk-dev/structly-ai/blo
 | Handle errors and cancellation | [Failure handling](https://github.com/menk-dev/structly-ai/blob/main/docs/failures.md) and [execution](https://github.com/menk-dev/structly-ai/blob/main/docs/execution.md) |
 | Record token counts | [Usage callbacks](https://github.com/menk-dev/structly-ai/blob/main/docs/usage.md) |
 | Use messages, vision, caching, embeddings or images | [Advanced operations](https://github.com/menk-dev/structly-ai/blob/main/docs/advanced.md) |
+| Answer typed choice, predicate and score questions | [OpenAI Decisions](https://github.com/menk-dev/structly-ai/blob/main/docs/decisions.md) |
 | Prepare and import batch jobs | [Batch operations](https://github.com/menk-dev/structly-ai/blob/main/docs/batches.md) |
 | Test without a provider | [Offline testing](https://github.com/menk-dev/structly-ai/blob/main/docs/testing.md) |
 | Update existing applications | [Provider package migration](https://github.com/menk-dev/structly-ai/blob/main/docs/migration-provider-split.md) and [0.4.0 migration](https://github.com/menk-dev/structly-ai/blob/main/docs/migration-0.4.md) |
