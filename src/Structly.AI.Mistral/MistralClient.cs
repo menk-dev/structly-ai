@@ -53,10 +53,12 @@ public sealed partial class MistralClient : IStructuredClient
     }
 
     /// <summary>Executes a reusable task with text input.</summary>
+    /// <remarks>Supply nonblank instructions on the task or request. Missing or blank effective instructions return InvalidRequest with an InstructionsRequired issue.</remarks>
     public Task<StructuredResult<T>> ExecuteAsync<T>(StructuredTask<T> task, string input, CancellationToken cancellationToken = default)
         => ExecuteAsync(task, new StructuredRequest { Input = input }, cancellationToken);
 
     /// <summary>Executes a typed task with runtime output settings.</summary>
+    /// <remarks>Supply nonblank instructions on the task or request. Missing or blank effective instructions return InvalidRequest with an InstructionsRequired issue.</remarks>
     public Task<StructuredResult<T>> ExecuteAsync<T>(StructuredTask<T> task, StructuredRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(task);
@@ -68,6 +70,7 @@ public sealed partial class MistralClient : IStructuredClient
     }
 
     /// <summary>Executes bound output without permitting output setting overrides.</summary>
+    /// <remarks>Supply nonblank instructions on the task or request. Missing or blank effective instructions return InvalidRequest with an InstructionsRequired issue.</remarks>
     public Task<StructuredResult<T>> ExecuteAsync<T>(BoundOutput<T> output, StructuredRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(output);

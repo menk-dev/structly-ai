@@ -3,16 +3,19 @@ namespace Structly.AI.OpenAI;
 public sealed partial class OpenAiClient
 {
     /// <summary>Executes a reusable task with text input and default request settings.</summary>
+    /// <remarks>Supply nonblank instructions on the task or request. Missing or blank effective instructions return InvalidRequest with an InstructionsRequired issue.</remarks>
     public Task<StructuredResult<T>> ExecuteAsync<T>(StructuredTask<T> task, string input,
         CancellationToken cancellationToken = default)
         => ExecuteAsync(task, new StructuredRequest { Input = input }, cancellationToken);
 
     /// <summary>Executes bound output with text input and default request settings.</summary>
+    /// <remarks>Supply nonblank instructions on the task or request. Missing or blank effective instructions return InvalidRequest with an InstructionsRequired issue.</remarks>
     public Task<StructuredResult<T>> ExecuteAsync<T>(BoundOutput<T> output, string input,
         CancellationToken cancellationToken = default)
         => ExecuteAsync(output, new StructuredRequest { Input = input }, cancellationToken);
 
     /// <summary>Validates locally, sends one request and validates the returned typed output.</summary>
+    /// <remarks>Supply nonblank instructions on the task or request. Missing or blank effective instructions return InvalidRequest with an InstructionsRequired issue.</remarks>
     [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public Task<StructuredResult<T>> ExecuteAsync<T>(StructuredTask<T> task, StructuredRequest request,
         CancellationToken cancellationToken = default)
@@ -24,6 +27,7 @@ public sealed partial class OpenAiClient
     }
 
     /// <summary>Executes a bound contract. Request output settings must be absent.</summary>
+    /// <remarks>Supply nonblank instructions on the task or request. Missing or blank effective instructions return InvalidRequest with an InstructionsRequired issue.</remarks>
     [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public Task<StructuredResult<T>> ExecuteAsync<T>(BoundOutput<T> output, StructuredRequest request,
         CancellationToken cancellationToken = default)
@@ -46,7 +50,7 @@ public sealed partial class OpenAiClient
 
             ValidateResponseRequest(request);
             if(String.IsNullOrWhiteSpace(request.Instructions ?? task.Instructions))
-                throw new ArgumentException("Typed execution requires instructions.");
+                throw new ArgumentException("Provide nonblank instructions on the task or request.", nameof(StructuredRequest.Instructions));
 
             var vocabularies = bound is null ? request.Vocabularies?.ToDictionary(x => x.Key,
                 x => (IReadOnlyList<string>)(x.Value ?? throw new ArgumentException("Vocabulary values cannot be null.")).ToArray(), StringComparer.Ordinal) : null;
@@ -59,6 +63,11 @@ public sealed partial class OpenAiClient
         catch(StructuredSchemaException exception)
         {
             return LocalFailure<T>(execution, StructuredErrorKind.UnsupportedSchema, issues: exception.Issues);
+        }
+        catch(ArgumentException exception) when(exception.ParamName == nameof(StructuredRequest.Instructions))
+        {
+            return LocalFailure<T>(execution, StructuredErrorKind.InvalidRequest,
+                issues: [new("$.instructions", "InstructionsRequired", "Provide nonblank instructions on the task or request.")]);
         }
         catch(ArgumentException)
         {

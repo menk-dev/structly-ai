@@ -22,11 +22,70 @@ public sealed class CoreFeedbackTests
         },
         });
         var task = StructuredTask.Create<Answer>(new());
-        Assert.Equal(StructuredErrorKind.InvalidRequest, (await client.ExecuteAsync(task, new() { Input = "input" }, TestContext.Current.CancellationToken)).Error!.Kind);
-        Assert.Equal(StructuredErrorKind.InvalidRequest, (await client.PrewarmAsync(task, new() { Request = new() { Input = "input" } }, TestContext.Current.CancellationToken)).Error!.Kind);
+        AssertInstructionsRequired((await client.ExecuteAsync(task, new() { Input = "input" }, TestContext.Current.CancellationToken)).Error!);
+        AssertInstructionsRequired((await client.PrewarmAsync(task, new() { Request = new() { Input = "input" } }, TestContext.Current.CancellationToken)).Error!);
         Assert.Equal(0, calls);
         Assert.True(task.ReadOutput(task.CreateExample().GetRawText()).IsSuccess);
     }
+
+    [Theory]
+    [InlineData(null, null, false)]
+    [InlineData("Extract", null, true)]
+    [InlineData(null, "Extract", true)]
+    [InlineData("Extract", "", false)]
+    [InlineData("Extract", " ", false)]
+    public async Task TypedInstructionsAreValidatedAcrossProvidersAndContracts(string? taskInstructions, string? requestInstructions, bool valid)
+    {
+        var credentialCalls = 0;
+        using var handler = new Handler(_ => throw new InvalidOperationException("No HTTP"));
+        using var http = new HttpClient(handler);
+        ValueTask<string?> Credentials(CancellationToken _)
+        {
+            credentialCalls++;
+            return ValueTask.FromResult<string?>(null);
+        }
+        var openAi = new OpenAiClient(http, new() { DefaultModel = new() { ModelId = "gpt-6-sol" }, CredentialResolver = Credentials });
+        var mistral = new Structly.AI.Mistral.MistralClient(http, new() { DefaultModel = new() { ModelId = "offline" }, CredentialResolver = Credentials });
+        var request = new StructuredRequest { Input = "input", Instructions = requestInstructions };
+        var task = StructuredTask.Create<Answer>(new() { Instructions = taskInstructions });
+        var positional = StructuredTask.Create<PositionalAnswer>(new() { Instructions = taskInstructions });
+        StructuredError[] errors =
+        [
+            (await openAi.ExecuteAsync(task, request, TestContext.Current.CancellationToken)).Error!,
+            (await openAi.ExecuteAsync(task.BindOutput(), request, TestContext.Current.CancellationToken)).Error!,
+            (await openAi.ExecuteAsync(positional, request, TestContext.Current.CancellationToken)).Error!,
+            (await openAi.PrewarmAsync(task, new() { Request = request }, TestContext.Current.CancellationToken)).Error!,
+            (await mistral.ExecuteAsync(task, request, TestContext.Current.CancellationToken)).Error!,
+            (await mistral.ExecuteAsync(task.BindOutput(), request, TestContext.Current.CancellationToken)).Error!,
+            (await mistral.ExecuteAsync(positional, request, TestContext.Current.CancellationToken)).Error!,
+        ];
+        foreach(var error in errors)
+        {
+            if(valid)
+                Assert.Equal(StructuredErrorKind.CredentialsMissing, error.Kind);
+            else
+                AssertInstructionsRequired(error);
+        }
+
+        Assert.Equal(valid ? errors.Length : 0, credentialCalls);
+        Assert.Equal(0, handler.Calls);
+        if(!valid)
+        {
+            var exception = Assert.Throws<ArgumentException>(() => openAi.PrepareResponseBatch(task, [new("item", request)]));
+            Assert.Equal(nameof(StructuredRequest.Instructions), exception.ParamName);
+        }
+    }
+
+    static void AssertInstructionsRequired(StructuredError error)
+    {
+        Assert.Equal(StructuredErrorKind.InvalidRequest, error.Kind);
+        var issue = Assert.Single(error.Issues);
+        Assert.Equal("$.instructions", issue.Path);
+        Assert.Equal("InstructionsRequired", issue.Code);
+        Assert.Equal("Provide nonblank instructions on the task or request.", issue.Message);
+    }
+
+    public sealed record PositionalAnswer(string Value);
 
     [Fact]
     public async Task BlankSelectedCredentialsDoNotFallBackAndUsageHasRequestedModel()

@@ -31,6 +31,6 @@ public record StructuredRequest
     public int? MaxOutputTokens { get; init; }
     /// <summary>Gets a local correlation identifier.</summary>
     public string? CorrelationId { get; init; }
-    /// <summary>Gets optional nonblank instructions replacing task instructions for this call.</summary>
+    /// <summary>Gets optional nonblank instructions replacing task instructions for this call. Typed execution and prewarming require nonblank instructions on the task or request.</summary>
     public string? Instructions { get; init; }
 }
