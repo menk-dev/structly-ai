@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.0
+
+- Add SSE response and delta builders, reasoning-summary envelopes, and automatic streaming responses for queued OpenAI test fixture requests.
+- Report a content-type diagnostic when a streamed OpenAI request receives a successful response without `text/event-stream`.
+- Document request record copying and offline streaming test behavior.
+
 ## 0.11.1
 
 - Report missing or blank effective instructions as `$.instructions` / `InstructionsRequired` for OpenAI typed execution and prewarming and Mistral typed execution.
