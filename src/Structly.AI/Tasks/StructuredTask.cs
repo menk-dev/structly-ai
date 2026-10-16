@@ -10,7 +10,7 @@ public static class StructuredTask
         return new(new StructuredTaskOptions { Instructions = instructions });
     }
 
-    /// <summary>Validates settings, resolves the DTO and validates its static schema at startup.</summary>
+    /// <summary>Validates settings, resolves the DTO and validates its static schema at startup. Instructions may be omitted for local contract operations; typed execution and prewarming then require request instructions.</summary>
     [System.Runtime.CompilerServices.OverloadResolutionPriority(1)]
     public static StructuredTask<T> Create<T>(StructuredTaskOptions options)
     {

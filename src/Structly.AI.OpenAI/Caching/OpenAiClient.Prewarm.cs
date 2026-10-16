@@ -11,6 +11,7 @@ public sealed partial class OpenAiClient
     }
 
     /// <summary>Prewarms with the same strict format and vocabulary as a future typed call.</summary>
+    /// <remarks>Supply nonblank instructions on the task or OpenAiPrewarmRequest.Request. Missing or blank effective instructions return InvalidRequest with an InstructionsRequired issue.</remarks>
     public Task<StructuredResult<OpenAiPrewarmResult>> PrewarmAsync<T>(StructuredTask<T> task, OpenAiPrewarmRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -20,7 +21,7 @@ public sealed partial class OpenAiClient
         return RunOperation(request.Request, "Prewarm", execution => PrewarmCore(request, execution, task.CredentialResolver, () =>
         {
             if(String.IsNullOrWhiteSpace(request.Request.Instructions ?? task.Instructions))
-                throw new ArgumentException("Typed prewarm requires instructions.");
+                throw new ArgumentException("Provide nonblank instructions on the task or request.", nameof(StructuredRequest.Instructions));
 
             if(request.Instructions is not null)
                 throw new ArgumentException("Typed prewarm uses task instructions.");
@@ -67,6 +68,11 @@ public sealed partial class OpenAiClient
         catch(StructuredSchemaException exception)
         {
             return LocalFailure<OpenAiPrewarmResult>(execution, StructuredErrorKind.UnsupportedSchema, issues: exception.Issues);
+        }
+        catch(ArgumentException exception) when(exception.ParamName == nameof(StructuredRequest.Instructions))
+        {
+            return LocalFailure<OpenAiPrewarmResult>(execution, StructuredErrorKind.InvalidRequest,
+                issues: [new("$.instructions", "InstructionsRequired", "Provide nonblank instructions on the task or request.")]);
         }
         catch(ArgumentException)
         {

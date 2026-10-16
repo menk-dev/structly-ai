@@ -3,7 +3,7 @@ namespace Structly.AI;
 /// <summary>Startup settings for a reusable typed output contract.</summary>
 public sealed record StructuredTaskOptions
 {
-    /// <summary>Gets optional task instructions; explicit blank values are invalid.</summary>
+    /// <summary>Gets optional task instructions; explicit blank values are invalid. Typed execution and prewarming require nonblank instructions on the task or request.</summary>
     public string? Instructions { get; init; }
     /// <summary>Gets vocabulary ordering.</summary>
     public VocabularyOrder VocabularyOrder { get; init; }

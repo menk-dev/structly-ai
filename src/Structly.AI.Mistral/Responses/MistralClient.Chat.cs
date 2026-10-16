@@ -7,11 +7,14 @@ public sealed partial class MistralClient
 {
     static Dictionary<string, object?> ChatPayload<T>(StructuredRequest request, ModelSelection model, string? instructions, BoundOutput<T>? output)
     {
+        if(output is not null && String.IsNullOrWhiteSpace(instructions))
+            throw new ArgumentException("Provide nonblank instructions on the task or request.", nameof(StructuredRequest.Instructions));
+
         if(request.GetType() != typeof(StructuredRequest) && request is not MistralRequest || request.IncludeReasoningSummary ||
             request.MaxOutputTokens is <= 0 || request.InactivityTimeout is { } inactivity && (!request.Stream || inactivity <= TimeSpan.Zero) ||
             request.Progress is not null && !request.Stream || request is MistralRequest { CaptureRawResponse: true, Stream: true } ||
             output is null && (request.Vocabularies is not null || request.OutputSpecification is not null) ||
-            instructions is not null && String.IsNullOrWhiteSpace(instructions) || output is not null && String.IsNullOrWhiteSpace(instructions))
+            instructions is not null && String.IsNullOrWhiteSpace(instructions))
             throw new ArgumentException("Invalid chat settings.");
 
         var messages = Messages(request);

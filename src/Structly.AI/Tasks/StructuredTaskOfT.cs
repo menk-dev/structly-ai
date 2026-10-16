@@ -83,7 +83,7 @@ public sealed partial class StructuredTask<T>
     /// <summary>Gets task-specific credentials.</summary>
     public Func<CancellationToken, ValueTask<string?>>? CredentialResolver { get; }
 
-    /// <summary>Gets immutable task instructions.</summary>
+    /// <summary>Gets immutable optional task instructions. Typed execution and prewarming require nonblank instructions on the task or request.</summary>
     public string? Instructions { get; }
     /// <summary>Gets the resolved valid provider schema name.</summary>
     public string SchemaName { get; }

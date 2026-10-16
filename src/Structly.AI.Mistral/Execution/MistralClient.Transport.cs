@@ -51,6 +51,15 @@ public sealed partial class MistralClient
         {
             return execution.Failure<T>(StructuredErrorKind.UnsupportedSchema);
         }
+        catch(ArgumentException exception) when(exception.ParamName == nameof(StructuredRequest.Instructions))
+        {
+            return StructuredResult<T>.Failure(new()
+            {
+                Kind = StructuredErrorKind.InvalidRequest,
+                Message = "Provide nonblank instructions on the task or request.",
+                Issues = [new("$.instructions", "InstructionsRequired", "Provide nonblank instructions on the task or request.")],
+            }, execution.Metadata, execution.Warnings);
+        }
         catch(ArgumentException)
         {
             return execution.Failure<T>(StructuredErrorKind.InvalidRequest);

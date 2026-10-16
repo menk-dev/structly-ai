@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.1
+
+- Report missing or blank effective instructions as `$.instructions` / `InstructionsRequired` for OpenAI typed execution and prewarming and Mistral typed execution.
+- Clarify the task-or-request instruction requirement in XML API documentation while preserving instruction-free local contract operations.
+
 ## 0.11.0
 
 - Add `DecisionSet<TAnswer>` and `AskEach` for runtime predicate, choice and score questions alongside fixed DTO answers.

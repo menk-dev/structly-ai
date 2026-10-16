@@ -62,7 +62,7 @@ public sealed partial class OpenAiClient
             request = request with { MaxOutputTokens = request.MaxOutputTokens ?? task.ExecutionDefaults.MaxOutputTokens };
             var instructions = request.Instructions ?? task.Instructions;
             if(String.IsNullOrWhiteSpace(instructions))
-                throw new ArgumentException("Typed execution requires instructions.");
+                throw new ArgumentException("Provide nonblank instructions on the task or request.", nameof(StructuredRequest.Instructions));
 
             var vocabularies = request.Vocabularies?.ToDictionary(x => x.Key, x => x.Value.ToArray(), StringComparer.Ordinal);
             var values = vocabularies?.ToDictionary(x => x.Key, x => (IReadOnlyList<string>)x.Value);
