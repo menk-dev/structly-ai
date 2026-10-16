@@ -161,6 +161,66 @@ public sealed class OpenAiTestFixtureTests
         Assert.Equal(TimeSpan.FromMilliseconds(50), result.Error.TotalTimeout);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task QueuedStreamingResponsesRetainOutputSummaryAndUsage(bool includeSummary)
+    {
+        using var fixture = new OpenAiTestFixture();
+        fixture.Enqueue(ResponseEnvelopes.WithReasoningSummary(
+            ResponseEnvelopes.CompletedText("{\"value\":\"answer\"}", usage: new() { TotalTokens = 8 }), "Checked."));
+        var result = await fixture.Client.ExecuteAsync(StructuredTask.Create<Answer>("Extract"), new()
+        {
+            Input = "input",
+            Stream = true,
+            IncludeReasoningSummary = includeSummary,
+        }, TestContext.Current.CancellationToken);
+        Assert.Equal("answer", result.EnsureSuccess().Value);
+        Assert.Equal(8, result.Metadata.Usage!.TotalTokens);
+        Assert.Equal(includeSummary ? "Checked." : null, result.Metadata.ReasoningSummary);
+    }
+
+    [Theory]
+    [InlineData(false, StructuredErrorKind.Refused)]
+    [InlineData(true, StructuredErrorKind.IncompleteOutput)]
+    public async Task QueuedStreamingFailuresUseTerminalStatus(bool incomplete, StructuredErrorKind expected)
+    {
+        using var fixture = new OpenAiTestFixture();
+        fixture.Enqueue(incomplete ? ResponseEnvelopes.Incomplete() : ResponseEnvelopes.Refusal());
+        var result = await fixture.Client.ExecuteAsync(StructuredTask.Create<Answer>("Extract"),
+            new() { Input = "input", Stream = true }, TestContext.Current.CancellationToken);
+        Assert.Equal(expected, result.Error!.Kind);
+    }
+
+    [Fact]
+    public async Task StreamedResponderPublishesDeltasAndUsesTerminalOutput()
+    {
+        var progress = new List<StructuredProgress>();
+        using var fixture = new OpenAiTestFixture(null, (_, _) => ValueTask.FromResult(ResponseEnvelopes.Streamed(
+            ResponseEnvelopes.CompletedText("{\"value\":\"final\"}"),
+            ResponseEnvelopes.ReasoningSummaryDelta("checking", 1, 2),
+            ResponseEnvelopes.OutputTextDelta("partial", 3))));
+        var result = await fixture.Client.ExecuteAsync(StructuredTask.Create<Answer>("Extract"), new()
+        {
+            Input = "input",
+            Stream = true,
+            IncludeReasoningSummary = true,
+            Progress = (item, _) =>
+            {
+                progress.Add(item);
+                return ValueTask.CompletedTask;
+            },
+        }, TestContext.Current.CancellationToken);
+        Assert.Equal("final", result.EnsureSuccess().Value);
+        var summary = Assert.Single(progress, item => item.Kind == StructuredProgressKind.ReasoningSummaryDelta);
+        Assert.Equal("checking", summary.TextDelta);
+        Assert.Equal(1, summary.OutputIndex);
+        Assert.Equal(2, summary.SummaryIndex);
+        var output = Assert.Single(progress, item => item.Kind == StructuredProgressKind.OutputTextDelta);
+        Assert.Equal("partial", output.TextDelta);
+        Assert.Equal(3, output.OutputIndex);
+    }
+
     sealed record VocabularyAnswer
     {
         [DynamicVocabulary("choices")]

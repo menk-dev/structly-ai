@@ -47,6 +47,8 @@ The provider may continue processing and charging after the library stops waitin
 
 ## Streaming and progress
 
+`StructuredRequest` and `OpenAiRequest` are records; a `with` expression copies the request while preserving its runtime type and provider settings.
+
 Set `Stream=true` to stream a response. A progress callback is optional.
 `InactivityTimeout` starts when SSE body reading begins and resets for each complete
 SSE line, including comments and keep-alives. Partial bytes do not reset it.

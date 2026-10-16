@@ -90,3 +90,26 @@ fixture defaults; they must include a default model and fake credentials unless 
 checking missing credentials. Options are snapshotted at construction. The fixture transport
 never connects to the provider, and its HTTP timeout remains infinite so Structly's execution
 budgets control cancellation.
+
+## Streaming responses
+
+Queued successful Responses envelopes automatically use SSE when the request sets `Stream = true`.
+HTTP errors remain JSON. This tests final output processing without simulating progress deltas.
+Custom responders control their response format explicitly.
+
+Use `ResponseEnvelopes.Streamed(envelope, deltas)` for a fresh SSE HTTP response with optional
+`OutputTextDelta(text, outputIndex)` and `ReasoningSummaryDelta(text, outputIndex, summaryIndex)`
+events before the terminal envelope. The terminal envelope determines the final output, status
+and usage; deltas do not modify it. These helpers do not simulate timing or network fragmentation.
+
+`ResponseEnvelopes.WithReasoningSummary(envelope, summary)` copies an envelope and appends a
+reasoning item. Set `IncludeReasoningSummary = true` on the request to expose it in metadata.
+For example, a custom responder can return:
+
+```csharp
+ResponseEnvelopes.Streamed(
+    ResponseEnvelopes.WithReasoningSummary(
+        ResponseEnvelopes.CompletedText("{\"value\":\"hello\"}"), "Checked the answer."),
+    ResponseEnvelopes.ReasoningSummaryDelta("Checking"),
+    ResponseEnvelopes.OutputTextDelta("{\"value\":\"hello\"}"));
+```

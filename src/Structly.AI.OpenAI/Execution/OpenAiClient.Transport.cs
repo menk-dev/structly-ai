@@ -65,7 +65,8 @@ public sealed partial class OpenAiClient
                 if(request.Stream && response.IsSuccessStatusCode)
                 {
                     if(response.Content.Headers.ContentType?.MediaType != "text/event-stream")
-                        return Fail(StructuredErrorKind.InvalidResponse);
+                        return LocalFailure<T>(execution, StructuredErrorKind.InvalidResponse,
+                            issues: [new("$", "ContentType", "Expected text/event-stream for a streamed request.")]);
 
                     document = await ReadEvents(stream, request, execution).ConfigureAwait(false);
                 }
