@@ -171,7 +171,9 @@ public sealed class StreamingTests
         Assert.Equal(StructuredErrorKind.InvalidResponse, (await client.ExecuteAsync(Contract(), new() { Input = "input", Stream = true }, TestToken)).Error!.Kind);
         using var wrong = new Handler(_ => Task.FromResult(Response(new FragmentStream(Envelope()), false)));
         using var wrongHttp = new HttpClient(wrong);
-        Assert.Equal(StructuredErrorKind.InvalidResponse, (await Client(wrongHttp, new()).ExecuteAsync(Contract(), new() { Input = "input", Stream = true }, TestToken)).Error!.Kind);
+        var result = await Client(wrongHttp, new()).ExecuteAsync(Contract(), new() { Input = "input", Stream = true }, TestToken);
+        Assert.Equal(StructuredErrorKind.InvalidResponse, result.Error!.Kind);
+        Assert.Contains("Expected text/event-stream", Assert.Single(result.Error.Issues).Message);
     }
 
     [Fact]

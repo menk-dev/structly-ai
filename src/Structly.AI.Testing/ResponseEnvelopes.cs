@@ -63,6 +63,42 @@ public static class ResponseEnvelopes
     public static HttpResponseMessage ToHttpResponse(JsonElement envelope, HttpStatusCode status = HttpStatusCode.OK)
         => new(status) { Content = new StringContent(envelope.GetRawText(), Encoding.UTF8, "application/json") };
 
+    /// <summary>Creates an SSE response with optional delta events followed by the supplied terminal envelope.</summary>
+    public static HttpResponseMessage Streamed(JsonElement envelope, params JsonElement[] deltas)
+    {
+        var status = envelope.GetProperty("status").GetString();
+        if(status is not ("completed" or "incomplete" or "failed"))
+            throw new ArgumentException("Expected a terminal Responses envelope.", nameof(envelope));
+
+        var events = new StringBuilder();
+        foreach(var delta in deltas)
+            events.Append("data: ").Append(delta.GetRawText()).Append("\n\n");
+
+        var terminal = JsonSerializer.Serialize(new { type = "response." + status, response = envelope });
+        events.Append("data: ").Append(terminal).Append("\n\n");
+        return new(HttpStatusCode.OK) { Content = new StringContent(events.ToString(), Encoding.UTF8, "text/event-stream") };
+    }
+
+    /// <summary>Builds an output-text delta event. Terminal envelope output remains authoritative.</summary>
+    public static JsonElement OutputTextDelta(string delta, int outputIndex = 0)
+        => JsonSerializer.SerializeToElement(new { type = "response.output_text.delta", delta, output_index = outputIndex, content_index = 0 });
+
+    /// <summary>Builds a reasoning-summary delta event, exposed only when summaries are requested.</summary>
+    public static JsonElement ReasoningSummaryDelta(string delta, int outputIndex = 0, int summaryIndex = 0)
+        => JsonSerializer.SerializeToElement(new { type = "response.reasoning_summary_text.delta", delta, output_index = outputIndex, summary_index = summaryIndex });
+
+    /// <summary>Returns a copied Responses envelope with an appended reasoning summary item.</summary>
+    public static JsonElement WithReasoningSummary(JsonElement envelope, string summary)
+    {
+        var response = JsonNode.Parse(envelope.GetRawText())!.AsObject();
+        response["output"]!.AsArray().Add(JsonSerializer.SerializeToNode(new
+        {
+            type = "reasoning",
+            summary = new[] { new { type = "summary_text", text = summary } },
+        }));
+        return JsonSerializer.SerializeToElement(response);
+    }
+
     /// <summary>Explicitly fills missing object properties, preserves supplied data, then validates the completed output.</summary>
     public static JsonElement CompleteExample<T>(StructuredTask<T> task, string partialJson,
         IReadOnlyDictionary<string, IReadOnlyList<string>>? vocabularies = null)

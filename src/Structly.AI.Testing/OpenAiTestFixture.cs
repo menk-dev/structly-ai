@@ -91,7 +91,12 @@ public sealed class OpenAiTestFixture : IDisposable
             {
                 _requests.Add(captured);
                 if(_responses.TryDequeue(out var response))
-                    return ResponseEnvelopes.ToHttpResponse(response.Envelope, response.Status);
+                {
+                    var streamed = body is not null && captured.ReadJson().TryGetProperty("stream", out var stream) && stream.ValueKind == JsonValueKind.True;
+                    return streamed && (int)response.Status is >= 200 and < 300
+                        ? ResponseEnvelopes.Streamed(response.Envelope)
+                        : ResponseEnvelopes.ToHttpResponse(response.Envelope, response.Status);
+                }
             }
 
             if(responder is not null)
